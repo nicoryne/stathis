@@ -37,10 +37,10 @@ export const updateSession = async (request: NextRequest) => {
       return NextResponse.rewrite(new URL('/404', request.url));
     }
 
-    // protected routes
-    if (url.startsWith('/dashboard') && user.error) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+    // // protected routes
+    // if (url.startsWith('/dashboard') && user.error) {
+    //   return NextResponse.redirect(new URL('/login', request.url));
+    // }
 
     if (url === '/' && !user.error) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
