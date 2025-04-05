@@ -20,13 +20,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
+import { logout } from '@/services/auth';
 
 export default function DashboardPage() {
-  const router = useRouter();
-
-  const handleLogout = () => {
-    // Here you would typically handle logout logic
-    router.push('/login');
+  const handleLogout = async () => {
+    await logout();
   };
 
   // Mock data for the dashboard

@@ -1,18 +1,19 @@
 import type React from 'react';
 import type { Metadata } from 'next';
-import { Outfit, Inter } from 'next/font/google';
+import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
-import Link from 'next/link';
+import { QueryProvider } from '@/providers/query-provider';
+import { Toaster } from 'sonner';
 
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit'
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin']
 });
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter'
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin']
 });
 
 export const metadata: Metadata = {
@@ -27,15 +28,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${outfit.variable} ${inter.variable} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <QueryProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

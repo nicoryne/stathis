@@ -1,86 +1,62 @@
 'use client';
 
-import type React from 'react';
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Github, Mail } from 'lucide-react';
+import { Github, Mail, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useMutation } from '@tanstack/react-query';
+import { register } from '@/services/auth';
+import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { Checkbox } from '@/components/ui/checkbox';
+import { VerificationModal } from '@/components/auth/verification-modal';
+import { toast } from 'sonner';
 
 export default function RegisterPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const router = useRouter();
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState('');
+
+  const form = useFormValidation(registerSchema, {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    terms: false
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const router = useRouter();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
+  const registerMutation = useMutation({
+    mutationFn: register,
+    onSuccess: () => {
+      toast.success('Registration successful', {
+        description: 'Please verify your email to continue'
+      });
+      // Store the email and show verification modal instead of redirecting
+      setRegisteredEmail(form.getValues().email);
+      setShowVerificationModal(true);
+    },
+    onError: (error) => {
+      toast.error('Registration failed', {
+        description: error.message || 'Please check your information and try again'
       });
     }
-  };
+  });
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    // Simulate registration delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Here you would typically handle registration with your backend
-    // For now, we'll just redirect to the login page
-    setIsLoading(false);
-    router.push('/login');
+  const onSubmit = (data: RegisterFormValues) => {
+    registerMutation.mutate(data);
   };
 
   return (
@@ -101,82 +77,123 @@ export default function RegisterPage() {
       >
         <Card className="border-border/40 mt-6">
           <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
                   name="name"
-                  placeholder="John Doe"
-                  value={formData.name}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John Doe"
+                          disabled={registerMutation.isPending}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.name && <p className="text-destructive mt-1 text-xs">{errors.name}</p>}
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
+                <FormField
+                  control={form.control}
                   name="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="name@example.com"
+                          type="email"
+                          disabled={registerMutation.isPending}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.email && <p className="text-destructive mt-1 text-xs">{errors.email}</p>}
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
+                <FormField
+                  control={form.control}
                   name="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="••••••••"
+                          type="password"
+                          disabled={registerMutation.isPending}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.password && (
-                  <p className="text-destructive mt-1 text-xs">{errors.password}</p>
-                )}
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
+                <FormField
+                  control={form.control}
                   name="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  disabled={isLoading}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="••••••••"
+                          type="password"
+                          disabled={registerMutation.isPending}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.confirmPassword && (
-                  <p className="text-destructive mt-1 text-xs">{errors.confirmPassword}</p>
-                )}
-              </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Creating account...' : 'Create account'}
-              </Button>
+                <FormField
+                  control={form.control}
+                  name="terms"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-y-0 rounded-md">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={registerMutation.isPending}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-normal">
+                          I agree to the
+                          <a href="#" className="hover:text-primary underline underline-offset-4">
+                            Terms of Service
+                          </a>
+                          and
+                          <a href="#" className="hover:text-primary underline underline-offset-4">
+                            Privacy Policy
+                          </a>
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
 
-              <p className="text-muted-foreground text-center text-xs">
-                By clicking "Create account", you agree to our{' '}
-                <a href="#" className="hover:text-primary underline underline-offset-4">
-                  Terms of Service
-                </a>{' '}
-                and{' '}
-                <a href="#" className="hover:text-primary underline underline-offset-4">
-                  Privacy Policy
-                </a>
-                .
-              </p>
-            </form>
+                <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                  {registerMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    'Create account'
+                  )}
+                </Button>
+              </form>
+            </Form>
           </CardContent>
 
           <div className="px-6 py-2">
@@ -191,11 +208,11 @@ export default function RegisterPage() {
           </div>
 
           <CardFooter className="flex flex-col gap-2 pt-2 pb-6">
-            <Button variant="outline" className="w-full" disabled={isLoading}>
+            <Button variant="outline" className="w-full" disabled={registerMutation.isPending}>
               <Github className="mr-2 h-4 w-4" />
               GitHub
             </Button>
-            <Button variant="outline" className="w-full" disabled={isLoading}>
+            <Button variant="outline" className="w-full" disabled={registerMutation.isPending}>
               <Mail className="mr-2 h-4 w-4" />
               Google
             </Button>
@@ -211,6 +228,13 @@ export default function RegisterPage() {
           </Link>
         </div>
       </motion.div>
+
+      {/* Verification Modal */}
+      <VerificationModal
+        isOpen={showVerificationModal}
+        onOpenChange={setShowVerificationModal}
+        email={registeredEmail}
+      />
     </>
   );
 }

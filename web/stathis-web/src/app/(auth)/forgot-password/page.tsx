@@ -1,31 +1,52 @@
 'use client';
 
-import type React from 'react';
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion } from 'framer-motion';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useMutation } from '@tanstack/react-query';
+import { forgotPassword } from '@/services/auth';
+import { forgotPasswordSchema, type ForgotPasswordFormValues } from '@/lib/validations/auth';
+import { useFormValidation } from '@/hooks/use-form-validation';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import { toast } from 'sonner';
 
 export default function ForgotPasswordPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const form = useFormValidation(forgotPasswordSchema, {
+    email: ''
+  });
 
-    // Simulate API request
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+  const forgotPasswordMutation = useMutation({
+    mutationFn: forgotPassword,
+    onSuccess: () => {
+      setSubmittedEmail(form.getValues().email);
+      setIsSubmitted(true);
+      toast.success('Reset link sent', {
+        description: 'Check your email for the password reset link'
+      });
+    },
+    onError: (error) => {
+      toast.error('Failed to send reset link', {
+        description: error.message || 'Please check your email and try again'
+      });
+    }
+  });
 
-    // Here you would typically send a password reset email
-    setIsLoading(false);
-    setIsSubmitted(true);
+  const onSubmit = (data: ForgotPasswordFormValues) => {
+    forgotPasswordMutation.mutate(data);
   };
 
   return (
@@ -47,24 +68,43 @@ export default function ForgotPasswordPage() {
         <Card className="border-border/40 mt-6">
           <CardContent className="pt-6">
             {!isSubmitted ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={isLoading}
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="name@example.com"
+                            type="email"
+                            disabled={forgotPasswordMutation.isPending}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Sending link...' : 'Send reset link'}
-                </Button>
-              </form>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={forgotPasswordMutation.isPending}
+                  >
+                    {forgotPasswordMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending link...
+                      </>
+                    ) : (
+                      'Send reset link'
+                    )}
+                  </Button>
+                </form>
+              </Form>
             ) : (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -77,7 +117,7 @@ export default function ForgotPasswordPage() {
                 <h3 className="mb-2 text-lg font-medium">Check your email</h3>
                 <p className="text-muted-foreground mb-4">
                   We've sent a password reset link to{' '}
-                  <span className="text-foreground font-medium">{email}</span>
+                  <span className="text-foreground font-medium">{submittedEmail}</span>
                 </p>
                 <Button variant="outline" className="w-full" onClick={() => setIsSubmitted(false)}>
                   Back to reset password
