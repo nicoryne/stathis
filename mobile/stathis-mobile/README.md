@@ -1,4 +1,4 @@
-# 🌐 Stathis Web
+# 🌐 Stathis Mobile
 
 Welcome to the **Stathis** mobile directory! This directory contains the **Kotlin** mobile application, designed to provide most of Stathis' core features such as motion recognition, vitals tracking, and the gamified learning.
 
