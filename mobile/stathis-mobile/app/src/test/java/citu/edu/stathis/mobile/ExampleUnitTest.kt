@@ -1,4 +1,4 @@
-package cit.edu.stathis.mobile
+package citu.edu.stathis.mobile
 
 import org.junit.Test
 

@@ -34,7 +34,7 @@ Welcome to the **Stathis** web directory! This directory contains the **Next.js*
 ### 1️⃣ Clone the Repository
 
 ```sh
-git clone https://github.com/your-repository/sarismart.git
+git clone https://github.com/nicoryne/stathis.git
 cd sarismart/web
 ```
 
