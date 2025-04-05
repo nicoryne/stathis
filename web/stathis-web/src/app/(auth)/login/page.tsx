@@ -27,29 +27,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [verificationStatus, setVerificationStatus] = useState<{
-    status: 'success' | 'error' | null;
-    message: string | null;
-  }>({ status: null, message: null });
-
-  // Check for verification status in URL params
-  useEffect(() => {
-    const verified = searchParams.get('verified');
-    const error = searchParams.get('error');
-
-    if (verified === 'true') {
-      setVerificationStatus({
-        status: 'success',
-        message: 'Your email has been verified successfully. You can now log in.'
-      });
-    } else if (error === 'verification') {
-      setVerificationStatus({
-        status: 'error',
-        message: 'Email verification failed. Please try again or contact support.'
-      });
-    }
-  }, [searchParams]);
 
   const form = useFormValidation(loginSchema, {
     email: '',
@@ -92,17 +69,6 @@ export default function LoginPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        {verificationStatus.status && (
-          <Alert
-            variant={verificationStatus.status === 'success' ? 'default' : 'destructive'}
-            className="mt-4"
-          >
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{verificationStatus.status === 'success' ? 'Success' : 'Error'}</AlertTitle>
-            <AlertDescription>{verificationStatus.message}</AlertDescription>
-          </Alert>
-        )}
-
         <Card className="border-border/40 mt-6">
           <CardContent className="pt-6">
             <Form {...form}>
