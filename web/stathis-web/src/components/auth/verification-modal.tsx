@@ -26,14 +26,8 @@ interface VerificationModalProps {
 export function VerificationModal({ isOpen, onOpenChange, email }: VerificationModalProps) {
   const router = useRouter();
 
-  const resendVerification = async () => {
-    const { error } = await resendEmailVerification(email);
-
-    return { success: !error };
-  };
-
   const resendMutation = useMutation({
-    mutationFn: resendVerification,
+    mutationFn: () => resendEmailVerification(email),
     onSuccess: () => {
       toast.success('Verification email sent', {
         description: 'Please check your inbox for the verification link'
