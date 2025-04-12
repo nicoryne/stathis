@@ -59,8 +59,9 @@ export const loginWithOAuth = async (provider: Provider) => {
   } })
 
   if (data.url) {
-    redirect('data.url')
+    redirect(data.url)
   }
+
 
   if (error) {
     throw new Error(error.message);
@@ -112,5 +113,8 @@ export const getUserDetails = async () => {
 
     return identity;
   }
- 
+  
+  if (error) {
+    throw new Error(error.message);
+  }
 }
