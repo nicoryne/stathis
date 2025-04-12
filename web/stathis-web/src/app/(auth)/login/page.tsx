@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { login } from '@/services/auth';
+import { loginWithEmail, loginWithOAuth } from '@/services/auth';
 import { loginSchema, type LoginFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Provider } from '@supabase/supabase-js';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,8 +40,8 @@ export default function LoginPage() {
     rememberMe: false
   });
 
-  const loginMutation = useMutation({
-    mutationFn: login,
+  const loginEmailMutation = useMutation({
+    mutationFn: loginWithEmail,
     onSuccess: () => {
       toast.success('Login successful', {
         description: 'Redirecting to dashboard...'
@@ -54,8 +55,22 @@ export default function LoginPage() {
     }
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    loginMutation.mutate(data);
+  const loginOAuthMutation = useMutation({
+    mutationFn: loginWithOAuth,
+    onSuccess: () => {},
+    onError: (error) => {
+      toast.error('Login failed', {
+        description: error.message || 'Please check your credentials and try again'
+      });
+    }
+  });
+
+  const onSubmitEmail = (data: LoginFormValues) => {
+    loginEmailMutation.mutate(data);
+  };
+
+  const onSubmitOAuth = (provider: Provider) => {
+    loginOAuthMutation.mutate(provider);
   };
 
   return (
@@ -203,7 +218,7 @@ export default function LoginPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -215,7 +230,7 @@ export default function LoginPage() {
                           placeholder="name@example.com"
                           type="email"
                           className="h-11"
-                          disabled={loginMutation.isPending}
+                          disabled={loginEmailMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -243,7 +258,7 @@ export default function LoginPage() {
                           placeholder="••••••••"
                           type="password"
                           className="h-11"
-                          disabled={loginMutation.isPending}
+                          disabled={loginEmailMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -261,7 +276,7 @@ export default function LoginPage() {
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
-                          disabled={loginMutation.isPending}
+                          disabled={loginEmailMutation.isPending}
                         />
                       </FormControl>
                       <FormLabel className="cursor-pointer text-xs font-normal">
@@ -271,8 +286,12 @@ export default function LoginPage() {
                   )}
                 />
 
-                <Button type="submit" className="h-11 w-full" disabled={loginMutation.isPending}>
-                  {loginMutation.isPending ? (
+                <Button
+                  type="submit"
+                  className="h-11 w-full"
+                  disabled={loginEmailMutation.isPending}
+                >
+                  {loginEmailMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Signing in...
@@ -301,10 +320,8 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={loginMutation.isPending}
-                onClick={() => {
-                  toast.info('Microsoft login is not implemented in this demo');
-                }}
+                disabled={loginOAuthMutation.isPending}
+                onClick={() => onSubmitOAuth('azure')}
               >
                 <Microsoft className="mr-2 h-4 w-4" />
                 Microsoft
@@ -312,10 +329,8 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={loginMutation.isPending}
-                onClick={() => {
-                  toast.info('Google login is not implemented in this demo');
-                }}
+                disabled={loginOAuthMutation.isPending}
+                onClick={() => onSubmitOAuth('google')}
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Google

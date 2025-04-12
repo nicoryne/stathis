@@ -6,6 +6,7 @@ import {
   LoginFormValues,
   RegisterFormValues
 } from '@/lib/validations/auth';
+import { Provider } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
@@ -14,14 +15,18 @@ export const register = async (form: RegisterFormValues) => {
 
   const email = form.email;
   const password = form.password;
-  const name = form.name;
+  const firstName = form.firstName;
+  const lastName = form.lastName;
+  const role = 'teacher'
 
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        display_name: name
+        first_name: firstName,
+        last_name: lastName,
+        user_role: role,
       }
     }
   });
@@ -31,7 +36,7 @@ export const register = async (form: RegisterFormValues) => {
   }
 };
 
-export const login = async (form: LoginFormValues) => {
+export const loginWithEmail = async (form: LoginFormValues) => {
   const supabase = await createClient();
 
   const email = form.email;
@@ -43,6 +48,25 @@ export const login = async (form: LoginFormValues) => {
     throw new Error(error.message);
   }
 };
+
+export const loginWithOAuth = async (provider: Provider) => {
+  const supabase = await createClient();
+
+  const authCallbackUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/callback`
+
+  const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: {
+    redirectTo: authCallbackUrl
+  } })
+
+  if (data.url) {
+    redirect('data.url')
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 
 export const logout = async () => {
   const supabase = await createClient();
@@ -77,3 +101,16 @@ export const resendEmailVerification = async (email: string) => {
 
   return { error };
 };
+
+export const getUserDetails = async () => {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.getUserIdentities();
+
+  if (data) {
+    const identity = data.identities[0].identity_data
+
+    return identity;
+  }
+ 
+}

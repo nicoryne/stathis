@@ -20,9 +20,31 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
-import { logout } from '@/services/auth';
+import { getUserDetails, logout } from '@/services/auth';
+import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
+  const [userDetails, setUserDetails] = useState({
+    first_name: '',
+    last_name: '',
+    email: ''
+  });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const user = await getUserDetails();
+
+      if (user) {
+        setUserDetails({
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email
+        });
+      }
+    };
+    fetchUser();
+  }, []);
+
   const handleLogout = async () => {
     await logout();
   };
@@ -107,16 +129,21 @@ export default function DashboardPage() {
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="/placeholder.svg" alt="User" />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarFallback>
+                      {userDetails.first_name.charAt(0).toUpperCase()}
+                      {userDetails.last_name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm leading-none font-medium">John Doe</p>
+                    <p className="text-sm leading-none font-medium">
+                      {userDetails.first_name} {userDetails.last_name}
+                    </p>
                     <p className="text-muted-foreground text-xs leading-none">
-                      john.doe@example.com
+                      {userDetails.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
