@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Provider } from '@supabase/supabase-js';
+import { PasswordInput } from '@/components/auth/password-input';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -254,9 +255,8 @@ export default function LoginPage() {
                         </Link>
                       </div>
                       <FormControl>
-                        <Input
+                        <PasswordInput
                           placeholder="••••••••"
-                          type="password"
                           className="h-11"
                           disabled={loginEmailMutation.isPending}
                           {...field}

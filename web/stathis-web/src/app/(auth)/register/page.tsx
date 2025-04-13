@@ -31,6 +31,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { VerificationModal } from '@/components/auth/verification-modal';
 import { PasswordStrengthIndicator } from '@/components/auth/password-strength-indicator';
+import { PasswordInput } from '@/components/auth/password-input';
 import { toast } from 'sonner';
 
 export default function RegisterPage() {
@@ -54,7 +55,6 @@ export default function RegisterPage() {
       toast.success('Registration successful', {
         description: 'Please verify your email to continue'
       });
-      // Store the email and show verification modal instead of redirecting
       setRegisteredEmail(form.getValues().email);
       setShowVerificationModal(true);
     },
@@ -283,16 +283,15 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input
+                        <PasswordInput
                           placeholder="••••••••"
-                          type="password"
                           className="h-11"
                           disabled={registerMutation.isPending}
-                          {...field}
                           onChange={(e) => {
                             field.onChange(e);
                             setPassword(e.target.value);
                           }}
+                          value={field.value}
                         />
                       </FormControl>
                       <PasswordStrengthIndicator password={password} />
@@ -308,9 +307,8 @@ export default function RegisterPage() {
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
-                        <Input
+                        <PasswordInput
                           placeholder="••••••••"
-                          type="password"
                           className="h-11"
                           disabled={registerMutation.isPending}
                           {...field}

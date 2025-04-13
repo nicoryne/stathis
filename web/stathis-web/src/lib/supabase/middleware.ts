@@ -32,6 +32,7 @@ export const updateSession = async (request: NextRequest) => {
 
     const user = await supabase.auth.getUser();
     const url = request.nextUrl.pathname;
+    const loggedInPages = ['/', '/login', '/register', '/forgot-password']
 
     if (url.startsWith('/_next')) {
       return NextResponse.rewrite(new URL('/404', request.url));
@@ -42,7 +43,7 @@ export const updateSession = async (request: NextRequest) => {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (url === '/' && !user.error) {
+    if (!loggedInPages.includes(url) && !user.error) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
