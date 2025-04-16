@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.kapt")
+    kotlin("plugin.serialization")
 }
 
 android {
@@ -19,6 +22,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SUPABASE_URL", "\"${project.findProperty("supabase.url") ?: ""}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("supabase.anon.key") ?: ""}\"")
     }
 
     buildTypes {
@@ -31,6 +37,7 @@ android {
         }
     }
     buildFeatures {
+        buildConfig = true
         compose = true
         dataBinding = false
         viewBinding = false
@@ -85,6 +92,21 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.02.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
+
+    // Supabase
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.1.4"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.1.4")
+    implementation("io.github.jan-tennert.supabase:auth-kt:3.1.4")
+    implementation("io.github.jan-tennert.supabase:realtime-kt:3.1.4")
+    implementation("io.github.jan-tennert.supabase:storage-kt:3.1.4")
+    implementation("io.github.jan-tennert.supabase:functions-kt:3.1.4")
+    implementation("io.github.jan-tennert.supabase:supabase-kt:3.1.4")
+
+
+    // Ktor Client Engine
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.android)
 }
 
 kapt {
