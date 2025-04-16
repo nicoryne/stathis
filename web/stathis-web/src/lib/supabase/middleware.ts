@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
+const loggedInRoutes = ['/', '/login', '/register', '/forgot-password']
+
 export const updateSession = async (request: NextRequest) => {
   try {
     let response = NextResponse.next({
@@ -31,19 +33,19 @@ export const updateSession = async (request: NextRequest) => {
     );
 
     const user = await supabase.auth.getUser();
-    const url = request.nextUrl.pathname;
-    const loggedInPages = ['/', '/login', '/register', '/forgot-password']
+    const currentPath = request.nextUrl.pathname;
+    const isLoggedInRoute = loggedInRoutes.includes(currentPath)
 
-    if (url.startsWith('/_next')) {
+    if (currentPath.startsWith('/_next')) {
       return NextResponse.rewrite(new URL('/404', request.url));
     }
 
     // protected routes
-    if (url.startsWith('/dashboard') && user.error) {
+    if (!user.data && currentPath.startsWith('/dashboard')) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (loggedInPages.includes(url) && !user.error) {
+    if (user.data && isLoggedInRoute) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
