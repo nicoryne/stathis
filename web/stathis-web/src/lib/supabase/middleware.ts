@@ -43,7 +43,7 @@ export const updateSession = async (request: NextRequest) => {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (!loggedInPages.includes(url) && !user.error) {
+    if (loggedInPages.includes(url) && !user.error) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
