@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -17,7 +17,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { register } from '@/services/auth';
+import { isUserVerified, register } from '@/services/auth';
 import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import {
@@ -35,7 +35,6 @@ import { PasswordInput } from '@/components/auth/password-input';
 import { toast } from 'sonner';
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [password, setPassword] = useState('');

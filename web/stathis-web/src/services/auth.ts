@@ -118,3 +118,15 @@ export const getUserDetails = async () => {
     throw new Error(error.message);
   }
 }
+
+export const isUserVerified = async () => {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+   return data?.user?.email_confirmed_at != null;
+}

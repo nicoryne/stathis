@@ -47,7 +47,7 @@ export default function LoginPage() {
       toast.success('Login successful', {
         description: 'Redirecting to dashboard...'
       });
-      router.push('/dashboard');
+      router.replace('/dashboard');
     },
     onError: (error) => {
       toast.error('Login failed', {
@@ -259,6 +259,7 @@ export default function LoginPage() {
                           placeholder="••••••••"
                           className="h-11"
                           disabled={loginEmailMutation.isPending}
+                          autoComplete="false"
                           {...field}
                         />
                       </FormControl>

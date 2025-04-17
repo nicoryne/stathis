@@ -34,18 +34,17 @@ export const updateSession = async (request: NextRequest) => {
 
     const user = await supabase.auth.getUser();
     const currentPath = request.nextUrl.pathname;
-    const isLoggedInRoute = loggedInRoutes.includes(currentPath)
 
     if (currentPath.startsWith('/_next')) {
       return NextResponse.rewrite(new URL('/404', request.url));
     }
 
     // protected routes
-    if (!user.data && currentPath.startsWith('/dashboard')) {
+    if (user.error && currentPath.startsWith('/dashboard')) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
 
-    if (user.data && isLoggedInRoute) {
+    if (!user.error && loggedInRoutes.includes(currentPath)) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 
@@ -58,3 +57,4 @@ export const updateSession = async (request: NextRequest) => {
     });
   }
 };
+
