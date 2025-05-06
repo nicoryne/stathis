@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.auth.data.repository
 
+import android.util.Log
 import citu.edu.stathis.mobile.features.auth.domain.model.AuthResult
 import citu.edu.stathis.mobile.features.auth.domain.model.UserData
 import citu.edu.stathis.mobile.features.auth.domain.repository.IAuthRepository
@@ -11,11 +12,9 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.Azure
 import io.github.jan.supabase.auth.providers.builtin.Email
-import io.github.jan.supabase.auth.providers.builtin.OTP
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonObject
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
@@ -30,26 +29,33 @@ class AuthRepository @Inject constructor(
                 this.password = password
             }
 
-            val session = supabaseClient.auth.currentSessionOrNull()
-            if (session != null) {
-                authTokenManager.saveTokens(
-                    accessToken = session.accessToken,
-                    refreshToken = session.refreshToken
-                )
-            }
+            Log.d("AuthRepository", "Is user a student? ${verifyRoleOfCurrentUser()}")
 
-            // Get the current user after sign in
-            val user = supabaseClient.auth.currentUserOrNull()
-            if (user != null) {
-                authTokenManager.saveUserInfo(
-                    userId = user.id,
-                    email = user.email ?: ""
-                )
-            }
+            if(verifyRoleOfCurrentUser()) {
+                val session = supabaseClient.auth.currentSessionOrNull()
+                if (session != null) {
+                    authTokenManager.saveTokens(
+                        accessToken = session.accessToken,
+                        refreshToken = session.refreshToken
+                    )
+                }
 
-            AuthResult.Success
+                // Get the current user after sign in
+                val user = supabaseClient.auth.currentUserOrNull()
+                if (user != null) {
+                    authTokenManager.saveUserInfo(
+                        userId = user.id,
+                        email = user.email ?: ""
+                    )
+                }
+
+                AuthResult.Success
+            } else {
+                signOut()
+                AuthResult.Error("That's a TEACHER account! Try logging in with something else.")
+            }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Unknown error occurred")
+            AuthResult.Error("Whoops! Something went wrong. Maybe check your email or password.")
         }
     }
 
@@ -60,6 +66,8 @@ class AuthRepository @Inject constructor(
         password: String
     ): AuthResult {
         return try {
+
+
             val userData = buildJsonObject {
                 put("first_name", firstName)
                 put("last_name", lastName)
@@ -72,33 +80,44 @@ class AuthRepository @Inject constructor(
                 this.data = userData
             }
 
-            // Check if user was created successfully
-            val user = supabaseClient.auth.currentUserOrNull()
-            if (user != null) {
-                AuthResult.Success
-            } else {
-                AuthResult.Error("Failed to create account")
-            }
+            AuthResult.Error("We sent you an email. Please verify yourself.")
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Unknown error occurred")
+            val message = e.message;
+
+            if(message.isNullOrEmpty()) {
+                AuthResult.Error("Whoops! Something went wrong.")
+            } else {
+                AuthResult.Error("Woah there! This user already exists.")
+            }
         }
     }
 
     override suspend fun signInWithGoogle(): AuthResult {
         return try {
             supabaseClient.auth.signInWith(Google)
-            AuthResult.Success
+            if(verifyRoleOfCurrentUser()) {
+                AuthResult.Success
+            } else {
+                signOut()
+                AuthResult.Error("That's a TEACHER account! Try logging in with something else.")
+            }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Google sign-in failed")
+            AuthResult.Error("Whoops! Something went wrong.")
         }
     }
 
     override suspend fun signInWithMicrosoft(): AuthResult {
         return try {
             supabaseClient.auth.signInWith(Azure)
-            AuthResult.Success
+
+            if(verifyRoleOfCurrentUser()) {
+                AuthResult.Success
+            } else {
+                signOut()
+                AuthResult.Error("That's a TEACHER account! Try logging in with something else.")
+            }
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Microsoft sign-in failed")
+            AuthResult.Error("Whoops! Something went wrong.")
         }
     }
 
@@ -107,7 +126,7 @@ class AuthRepository @Inject constructor(
             supabaseClient.auth.resetPasswordForEmail(email)
             AuthResult.Success
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Failed to send password reset email")
+            AuthResult.Error("Whoops! Something went wrong.")
         }
     }
 
@@ -117,7 +136,7 @@ class AuthRepository @Inject constructor(
             authTokenManager.clearTokens()
             AuthResult.Success
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Sign out failed")
+            AuthResult.Error("Whoops! Something went wrong.")
         }
     }
 
@@ -141,7 +160,21 @@ class AuthRepository @Inject constructor(
             supabaseClient.auth.resendEmail(OtpType.Email.SIGNUP, email = email)
             AuthResult.Success
         } catch (e: Exception) {
-            AuthResult.Error(e.message ?: "Failed to resend verification email.")
+            AuthResult.Error("Whoops! Something went wrong.")
         }
+    }
+
+    override suspend fun verifyRoleOfCurrentUser(): Boolean {
+        val user = supabaseClient.auth.currentUserOrNull() ?: return false
+
+        Log.d("AuthRepository", "User metadata: ${user.userMetadata}")
+
+        if (user.userMetadata?.containsKey("user_role") == true) {
+            val role = user.userMetadata!!.getValue("user_role").toString()
+            Log.d("AuthRepository", "User role: $role")
+            return role == "student"
+        }
+
+        return false
     }
 }

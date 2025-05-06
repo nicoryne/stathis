@@ -33,9 +33,9 @@ import androidx.navigation.compose.rememberNavController
 import citu.edu.stathis.mobile.core.theme.BrandColors
 import citu.edu.stathis.mobile.features.dashboard.ui.DashboardScreen
 import citu.edu.stathis.mobile.features.posture.PostureScreen
-import citu.edu.stathis.mobile.features.profile.ProfileScreen
-import citu.edu.stathis.mobile.features.progress.ProgressScreen
-import citu.edu.stathis.mobile.features.tasks.TasksScreen
+import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
+import citu.edu.stathis.mobile.features.progress.ui.ProgressScreen
+import citu.edu.stathis.mobile.features.tasks.ui.TasksScreen
 
 @Composable
 fun HomeScreen() {

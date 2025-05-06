@@ -15,4 +15,5 @@ interface IAuthRepository {
     fun isLoggedIn(): Flow<Boolean>
     suspend fun getCurrentUser(): UserData?
     suspend fun resendVerificationEmail(email: String): AuthResult
+    suspend fun verifyRoleOfCurrentUser(): Boolean
 }

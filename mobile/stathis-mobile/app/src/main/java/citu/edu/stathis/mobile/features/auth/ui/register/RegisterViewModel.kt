@@ -75,9 +75,7 @@ class RegisterViewModel @Inject constructor(
             }
             is RegisterUiEvent.Register -> {
                 register()
-                viewModelScope.launch {
-                    _events.emit(RegisterEvent.RegistrationSuccess(state.value.email))
-                }
+
             }
             is RegisterUiEvent.GoogleSignIn -> {
                 googleSignIn()
@@ -151,9 +149,13 @@ class RegisterViewModel @Inject constructor(
             when (result) {
                 is AuthResult.Success -> {
                     _events.emit(RegisterEvent.NavigateToHome)
+                    viewModelScope.launch {
+                        _events.emit(RegisterEvent.RegistrationSuccess(state.email))
+                    }
                 }
                 is AuthResult.Error -> {
                     _events.emit(RegisterEvent.ShowError(result.message))
+
                 }
 
             }
