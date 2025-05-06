@@ -1,4 +1,7 @@
-import java.util.Properties
+import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+
+val supabaseUrl: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.url")
+val supabaseAnonKey: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.anon.key")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -23,8 +26,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SUPABASE_URL", "\"${project.findProperty("supabase.url") ?: ""}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("supabase.anon.key") ?: ""}\"")
+        buildConfigField("String", "SUPABASE_URL", supabaseUrl)
+        buildConfigField("String", "SUPABASE_ANON_KEY", supabaseAnonKey)
     }
 
     buildTypes {
@@ -87,6 +90,9 @@ dependencies {
 
     // Data Store
     implementation(libs.androidx.datastore.preferences)
+
+    // Lottie
+    implementation(libs.lottie.compose)
 
     // Jetpack Compose
     val composeBom = platform("androidx.compose:compose-bom:2025.02.00")

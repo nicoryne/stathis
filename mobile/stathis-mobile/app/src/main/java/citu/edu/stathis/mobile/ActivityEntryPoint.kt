@@ -6,6 +6,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import citu.edu.stathis.mobile.core.navigation.CoreNavigationController
 import citu.edu.stathis.mobile.core.theme.AppTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -23,7 +24,7 @@ class ActivityEntryPoint : AppCompatActivity() {
                 Surface(
                     color = MaterialTheme.colorScheme.background
                 ) {
-            
+                    CoreNavigationController()
                 }
             }
         }
