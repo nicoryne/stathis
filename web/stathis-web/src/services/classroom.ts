@@ -43,3 +43,24 @@ export const createClassroom = async (form: ClassroomFormValues) => {
     throw error;
   }
 }; 
+
+// Get all classrooms for a teacher
+export const getTeacherClassrooms = async (teacherId: string) => {
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  );
+
+  const { data, error } = await supabase
+    .from('classrooms')
+    .select('*')
+    .eq('teacher_id', teacherId);
+
+  if (error) {
+    console.error('Supabase error:', error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};
+
