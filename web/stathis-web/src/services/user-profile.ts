@@ -143,7 +143,8 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
         first_name,
         last_name,
         user_role,
-        picture_url
+        picture_url,
+        school_attending
       };
       
       console.log('Profile data for user_profile table:', JSON.stringify(profileData, null, 2));
@@ -170,7 +171,8 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
             first_name,
             last_name,
             user_role,
-            picture_url
+            picture_url,
+            school_attending
           })
           .eq('user_id', user_id)
           .select();
@@ -191,7 +193,8 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
             first_name,
             last_name,
             user_role,
-            picture_url
+            picture_url,
+            school_attending
           })
           .select();
 
