@@ -22,6 +22,7 @@ import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { getUserDetails, logout } from '@/services/auth';
 import { useEffect, useState } from 'react';
+import { ClassroomModal } from '@/components/classroom/classroom-modal';
 
 export default function DashboardPage() {
   const [userDetails, setUserDetails] = useState({
@@ -29,6 +30,7 @@ export default function DashboardPage() {
     last_name: '',
     email: ''
   });
+  const [openClassroomModal, setOpenClassroomModal] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -158,7 +160,11 @@ export default function DashboardPage() {
         <main className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Dashboard</h1>
-            <Button>Create New Activity</Button>
+            <ClassroomModal 
+              open={openClassroomModal} 
+              onOpenChange={setOpenClassroomModal} 
+              trigger={<Button>Create New Classroom</Button>}
+            />
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
