@@ -186,9 +186,20 @@ export default function SettingsPage() {
         }
       }
 
-      // Create a unique file name
+      // Create a unique file name with date and time for better logging
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+      
+      // Format: YYYY-MM-DD_HH-MM-SS
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      
+      const formattedDate = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+      const fileName = `${formattedDate}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
       
       // Use user ID as folder path to match RLS policies
       const filePath = `${user.id}/${fileName}`;
