@@ -1,3 +1,4 @@
+'use server';
 import { createBrowserClient } from '@supabase/ssr';
 import { UserProfileFormValues } from '@/lib/validations/user-profile';
 
