@@ -145,7 +145,7 @@ export default function DashboardPage() {
     <div className="flex min-h-screen">
       <Sidebar className="w-64 flex-shrink-0" />
 
-      <div className="flex-1">
+      <div className="flex-1 md:ml-64">
         <header className="bg-background border-b">
           <div className="flex h-16 items-center justify-end gap-4 px-4">
             <Button variant="outline" size="icon">

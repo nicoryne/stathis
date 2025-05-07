@@ -55,7 +55,7 @@ export default function SettingsPage() {
       first_name: "",
       last_name: "",
       email: "",
-      user_role: "student",
+      user_role: "teacher",
       picture_url: "",
       school_attending: "",
       year_level: "",
@@ -83,17 +83,19 @@ export default function SettingsPage() {
     const loadUserProfile = async () => {
       try {
         setIsLoading(true);
+        
+        // Get both user profile and basic user details
         const userProfile = await getUserProfile();
+        const userAuth = await getUserDetails();
+        
         if (userProfile) {
           form.reset({
             first_name: userProfile.first_name || "",
             last_name: userProfile.last_name || "",
-            email: userProfile.email || "",
-            user_role: userProfile.user_role || "student",
+            email: 'email' in userProfile ? userProfile.email : userAuth?.email || "",
+            user_role: "teacher", // Always set as teacher for web users
             picture_url: userProfile.picture_url || "",
-            school_attending: userProfile.school_attending || "",
-            year_level: userProfile.year_level || "",
-            course_enrolled: userProfile.course_enrolled || "",
+            school_attending: 'school_attending' in userProfile ? userProfile.school_attending : "",
           });
           
           if (userProfile.picture_url) {
@@ -250,7 +252,7 @@ export default function SettingsPage() {
     
     // Ensure user_role is set
     if (!formValues.user_role) {
-      formValues.user_role = 'student';
+      formValues.user_role = 'teacher';
     }
     
     setIsLoading(true);
@@ -275,7 +277,7 @@ export default function SettingsPage() {
     <div className="flex min-h-screen bg-muted/10">
       <Sidebar className="w-64 flex-shrink-0" />
       
-      <div className="flex-1">
+      <div className="flex-1 md:ml-64">
         <header className="bg-background border-b sticky top-0 z-10">
           <div className="flex h-16 items-center justify-end gap-4 px-6">
             <Button variant="outline" size="icon" className="rounded-full">
@@ -314,47 +316,71 @@ export default function SettingsPage() {
         </header>
 
         <div className="p-6 md:p-8 max-w-5xl mx-auto">
-          <div className="mb-8 flex items-center">
-            <Settings className="h-6 w-6 mr-3 text-primary" />
-            <h1 className="text-2xl font-bold">Profile Settings</h1>
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="mr-4 p-2 rounded-full bg-primary/10">
+                <Settings className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Profile Settings</h1>
+                <p className="text-muted-foreground">Manage your personal information and preferences</p>
+              </div>
+            </div>
           </div>
           
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="mb-6 grid w-full grid-cols-2 md:w-auto">
-              <TabsTrigger value="personal" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+            <TabsList className="mb-6 inline-flex h-10 items-center rounded-md bg-muted p-1 text-muted-foreground">
+              <TabsTrigger value="personal" className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                <User className="h-4 w-4 mr-2" />
                 <span>Personal Info</span>
-              </TabsTrigger>
-              <TabsTrigger value="academic" className="flex items-center gap-2">
-                <GraduationCap className="h-4 w-4" />
-                <span>Academic</span>
               </TabsTrigger>
             </TabsList>
             
             <Form {...form}>
-              <form onSubmit={handleFormSubmit} className="space-y-6">
-                <TabsContent value="personal" className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Profile Picture</CardTitle>
+              <form onSubmit={handleFormSubmit} className="space-y-8">
+                <TabsContent value="personal" className="space-y-8">
+                  <Card className="overflow-hidden border rounded-lg shadow-sm">
+                    <CardHeader className="border-b bg-muted/30 px-6">
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <Upload className="h-5 w-5 text-primary" />
+                        Profile Picture
+                      </CardTitle>
                       <CardDescription>
                         Update your profile image
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="p-6">
                       <FormField
                         control={form.control}
                         name="picture_url"
                         render={({ field }) => (
                           <FormItem>
                             <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                              <Avatar className="h-24 w-24 border-2 border-muted">
-                                <AvatarImage src={imagePreview || "/placeholder.svg"} alt="Profile preview" />
-                                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
-                                  {userDetails.first_name?.charAt(0).toUpperCase() || ''}
-                                  {userDetails.last_name?.charAt(0).toUpperCase() || ''}
-                                </AvatarFallback>
-                              </Avatar>
+                              <div className="relative">
+                                <Avatar className="h-24 w-24 border-2 border-muted rounded-full">
+                                  <AvatarImage src={imagePreview || "/placeholder.svg"} alt="Profile preview" />
+                                  <AvatarFallback className="bg-primary/10 text-primary text-2xl">
+                                    {userDetails.first_name?.charAt(0).toUpperCase() || ''}
+                                    {userDetails.last_name?.charAt(0).toUpperCase() || ''}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="absolute bottom-0 right-0">
+                                  <Button 
+                                    type="button" 
+                                    size="icon" 
+                                    variant="secondary" 
+                                    className="h-8 w-8 rounded-full shadow-md"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                  >
+                                    {isUploading ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Upload className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
                               <div className="flex-1">
                                 <input
                                   type="file"
@@ -364,31 +390,38 @@ export default function SettingsPage() {
                                   className="hidden"
                                 />
                                 <div className="space-y-2">
-                                  <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isUploading}
-                                    className="h-9"
-                                  >
-                                    {isUploading ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Uploading...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Upload className="mr-2 h-4 w-4" />
-                                        Upload New Image
-                                      </>
-                                    )}
-                                  </Button>
-                                  <FormControl>
-                                    <Input {...field} value={field.value || ''} className="hidden" />
-                                  </FormControl>
-                                  <FormDescription className="text-xs">
-                                    Upload JPG or PNG (max 2MB)
-                                  </FormDescription>
+                                  <h3 className="font-medium">Upload a new photo</h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    Your profile photo will be visible to other users. Choose a clear image that represents you professionally.
+                                  </p>
+                                  <div className="flex gap-2 items-center">
+                                    <Button 
+                                      type="button" 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => fileInputRef.current?.click()}
+                                      disabled={isUploading}
+                                      className="h-9"
+                                    >
+                                      {isUploading ? (
+                                        <>
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                          Uploading...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Upload className="mr-2 h-4 w-4" />
+                                          Select Image
+                                        </>
+                                      )}
+                                    </Button>
+                                    <FormControl>
+                                      <Input {...field} value={field.value || ''} className="hidden" />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground">
+                                      JPG or PNG (max 2MB)
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -399,14 +432,17 @@ export default function SettingsPage() {
                     </CardContent>
                   </Card>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Personal Information</CardTitle>
+                  <Card className="overflow-hidden border rounded-lg shadow-sm">
+                    <CardHeader className="border-b bg-muted/30 px-6">
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        <User className="h-5 w-5 text-primary" />
+                        Personal Information
+                      </CardTitle>
                       <CardDescription>
                         Update your personal details
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
+                    <CardContent className="p-6 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
                           control={form.control}
@@ -415,7 +451,7 @@ export default function SettingsPage() {
                             <FormItem>
                               <FormLabel>First Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="First name" {...field} value={field.value || ''} />
+                                <Input placeholder="First name" {...field} value={field.value || ''} className="h-10" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -428,7 +464,7 @@ export default function SettingsPage() {
                             <FormItem>
                               <FormLabel>Last Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="Last name" {...field} value={field.value || ''} />
+                                <Input placeholder="Last name" {...field} value={field.value || ''} className="h-10" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -443,7 +479,7 @@ export default function SettingsPage() {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Email" type="email" {...field} value={field.value || ''} disabled className="bg-muted/40" />
+                              <Input placeholder="Email" type="email" {...field} value={field.value || ''} disabled className="bg-muted/40 h-10" />
                             </FormControl>
                             <FormDescription>Email cannot be changed</FormDescription>
                             <FormMessage />
@@ -451,95 +487,40 @@ export default function SettingsPage() {
                         )}
                       />
                       
-                      <FormField
-                        control={form.control}
-                        name="user_role"
-                        render={({ field }) => (
-                          <FormItem className="space-y-3">
-                            <FormLabel>User Role</FormLabel>
-                            <FormControl>
-                              <RadioGroup
-                                onValueChange={field.onChange}
-                                defaultValue={field.value || "student"}
-                                className="flex flex-col space-y-1"
-                              >
-                                <div className="grid grid-cols-2 gap-4">
-                                  <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4">
-                                    <FormControl>
-                                      <RadioGroupItem value="student" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal cursor-pointer">
-                                      Student
-                                    </FormLabel>
-                                  </FormItem>
-                                  <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4">
-                                    <FormControl>
-                                      <RadioGroupItem value="teacher" />
-                                    </FormControl>
-                                    <FormLabel className="font-normal cursor-pointer">
-                                      Teacher
-                                    </FormLabel>
-                                  </FormItem>
-                                </div>
-                              </RadioGroup>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="academic" className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <School className="h-5 w-5 text-primary" />
-                        <CardTitle>Academic Information</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Update your school and academic details
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <FormField
-                        control={form.control}
-                        name="school_attending"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>School</FormLabel>
-                            <FormControl>
-                              <Input placeholder="School or institution" {...field} value={field.value || ''} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
                           control={form.control}
-                          name="year_level"
+                          name="user_role"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Year Level</FormLabel>
+                              <FormLabel>User Role</FormLabel>
                               <FormControl>
-                                <Input placeholder="Year level" {...field} value={field.value || ''} />
+                                <div className="flex items-center h-10 w-full rounded-md border border-input bg-muted/40 px-3 py-2 text-sm">
+                                  <User className="mr-2 h-4 w-4 text-muted-foreground" />
+                                  <span>Teacher</span>
+                                </div>
                               </FormControl>
+                              <FormDescription>Web users are always teachers</FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+
                         <FormField
                           control={form.control}
-                          name="course_enrolled"
+                          name="school_attending"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Course</FormLabel>
+                              <FormLabel>Institution</FormLabel>
                               <FormControl>
-                                <Input placeholder="Course enrolled" {...field} value={field.value || ''} />
+                                <Input
+                                  placeholder="School or institution"
+                                  {...field}
+                                  value={field.value || ''}
+                                  className="h-10 bg-muted/40"
+                                />
                               </FormControl>
+                              <FormDescription>Enter your school or teaching institution</FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -548,26 +529,25 @@ export default function SettingsPage() {
                     </CardContent>
                   </Card>
                 </TabsContent>
-                
-                <Separator className="my-8" />
                 
                 <div className="flex justify-end gap-4">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={() => form.reset()}
+                    className="px-4 h-10"
                   >
                     Cancel
                   </Button>
                   <Button 
                     type="submit"
                     disabled={isLoading}
-                    className="min-w-[120px]"
+                    className="min-w-[120px] h-10 relative px-8"
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin absolute left-4" />
+                        <span>Saving...</span>
                       </>
                     ) : (
                       "Save Changes"

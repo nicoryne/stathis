@@ -93,7 +93,7 @@ export function Sidebar({ className }: SidebarProps) {
         </SheetContent>
       </Sheet>
 
-      <div className={cn('bg-background hidden border-r md:block', className)}>
+      <div className={cn('bg-background hidden border-r md:block fixed h-screen z-10', className)}>
         <div className="flex h-full flex-col">
           <div className="flex h-14 items-center border-b px-4">
             <Logo />
