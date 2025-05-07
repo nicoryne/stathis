@@ -86,29 +86,38 @@ export default function VitalsPage() {
     const fetchUserAndClassrooms = async () => {
       try {
         // Get user details
-        const user = await getUserDetails();
-        if (user) {
+        const userData = await getUserDetails();
+        if (userData) {
           setUserDetails({
-            first_name: user.first_name,
-            last_name: user.last_name,
-            email: user.email,
-            id: user.id
+            first_name: userData.first_name || userData.given_name || '',
+            last_name: userData.last_name || userData.family_name || '',
+            email: userData.email || '',
+            id: userData.sub || '' // Use sub from identity data as user ID
           });
           
           // Fetch teacher's classrooms
-          if (user.id) {
-            const teacherClassrooms = await getTeacherClassrooms(user.id);
+          const userId = userData.sub || '';
+          if (userId) {
+            const teacherClassrooms = await getTeacherClassrooms(userId);
             setClassrooms(teacherClassrooms);
             
             // Set default classroom to the first one if available
             if (teacherClassrooms && teacherClassrooms.length > 0) {
               setClassroomId(teacherClassrooms[0].id);
+            } else {
+              // No classrooms available, set loading to false
+              setLoading(false);
             }
+          } else {
+            setLoading(false);
           }
+        } else {
+          setLoading(false);
         }
       } catch (err) {
         console.error('Error fetching user or classrooms:', err);
         setError(err instanceof Error ? err : new Error('Error fetching initial data'));
+        setLoading(false);
       }
     };
     
@@ -118,7 +127,10 @@ export default function VitalsPage() {
   // Set up initial data fetch and real-time subscription
   useEffect(() => {
     // Skip if no classroom is selected yet
-    if (!classroomId) return;
+    if (!classroomId) {
+      setLoading(false);
+      return;
+    }
     
     const fetchVitalsData = async () => {
       try {
@@ -157,7 +169,7 @@ export default function VitalsPage() {
           throw new Error(`Error fetching vitals: ${vitalsError.message}`);
         }
         
-        if (!vitalsData) {
+        if (!vitalsData || vitalsData.length === 0) {
           setVitals([]);
           setLoading(false);
           return;
@@ -165,12 +177,13 @@ export default function VitalsPage() {
         
         // Step 3: Fetch user profiles for these students
         const { data: profiles, error: profilesError } = await supabase
-          .from('users') // Assuming this is the table for user profiles
+          .from('user_profile') // Assuming this is the table for user profiles
           .select('id, first_name, last_name, picture_url')
           .in('id', studentIds);
           
         if (profilesError) {
-          throw new Error(`Error fetching profiles: ${profilesError.message}`);
+          console.error(`Error fetching profiles: ${profilesError.message}`);
+          // Continue with available vitals data if profiles can't be fetched
         }
         
         // Step 4: Combine the data
@@ -178,8 +191,8 @@ export default function VitalsPage() {
           const profile = profiles?.find(p => p.id === vital.id) || {} as UserProfile;
           return {
             ...vital,
-            first_name: profile.first_name,
-            last_name: profile.last_name,
+            first_name: profile.first_name || 'Unknown',
+            last_name: profile.last_name || 'Student',
             picture_url: profile.picture_url
           };
         });
@@ -221,6 +234,8 @@ export default function VitalsPage() {
       } catch (err) {
         console.error('Error setting up vitals:', err);
         setError(err instanceof Error ? err : new Error('Unknown error fetching vitals'));
+        setVitals([]);
+        setLoading(false);
       } finally {
         setLoading(false);
       }
@@ -229,7 +244,7 @@ export default function VitalsPage() {
     // Helper function to fetch profile data for a new vital
     const fetchProfileForVital = async (supabase: SupabaseClient, vital: VitalData): Promise<StudentVital> => {
       const { data: profile } = await supabase
-        .from('users')
+        .from('user_profile')
         .select('first_name, last_name, picture_url')
         .eq('id', vital.id)
         .single();
