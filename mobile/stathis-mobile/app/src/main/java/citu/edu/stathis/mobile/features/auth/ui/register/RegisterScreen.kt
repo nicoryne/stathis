@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.auth.ui.register
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -124,8 +125,7 @@ fun RegisterScreen(
             onDismiss = { showVerificationDialog.value = false },
             onResendEmail = { viewModel.onEvent(RegisterUiEvent.ResendVerificationEmail) },
             onContinue = {
-                showVerificationDialog.value = false
-                onNavigateToHome()
+                onNavigateToLogin()
             },
             isResendingEmail = state.isResendingEmail
         )

@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.auth.ui.register
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.auth.domain.model.AuthResult
@@ -32,6 +33,7 @@ class RegisterViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<RegisterEvent>()
     val events: SharedFlow<RegisterEvent> = _events.asSharedFlow()
+
 
     fun onEvent(event: RegisterUiEvent) {
         when (event) {
@@ -75,7 +77,6 @@ class RegisterViewModel @Inject constructor(
             }
             is RegisterUiEvent.Register -> {
                 register()
-
             }
             is RegisterUiEvent.GoogleSignIn -> {
                 googleSignIn()
@@ -88,7 +89,6 @@ class RegisterViewModel @Inject constructor(
                     _events.emit(RegisterEvent.NavigateToLogin)
                 }
             }
-
             is RegisterUiEvent.ResendVerificationEmail -> {
                 viewModelScope.launch {
                     try {
@@ -148,7 +148,6 @@ class RegisterViewModel @Inject constructor(
 
             when (result) {
                 is AuthResult.Success -> {
-                    _events.emit(RegisterEvent.NavigateToHome)
                     viewModelScope.launch {
                         _events.emit(RegisterEvent.RegistrationSuccess(state.email))
                     }
@@ -199,6 +198,7 @@ class RegisterViewModel @Inject constructor(
             }
         }
     }
+
 }
 
 data class RegisterState(
@@ -215,7 +215,7 @@ data class RegisterState(
     val isLoading: Boolean = false,
     val isGoogleLoading: Boolean = false,
     val isMicrosoftLoading: Boolean = false,
-    val isResendingEmail: Boolean = false
+    val isResendingEmail: Boolean = false,
 )
 
 sealed class RegisterUiEvent {

@@ -8,33 +8,25 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import citu.edu.stathis.mobile.features.auth.domain.repository.IAuthRepository
 import citu.edu.stathis.mobile.features.auth.ui.forgotpassword.ForgotPasswordScreen
 import citu.edu.stathis.mobile.features.auth.ui.login.LoginScreen
+import citu.edu.stathis.mobile.features.auth.ui.login.LoginViewModel
 import citu.edu.stathis.mobile.features.auth.ui.register.RegisterScreen
 import citu.edu.stathis.mobile.features.home.HomeScreen
-import javax.inject.Inject
 
 @Composable
 fun CoreNavigationController(
-    viewModel: CoreNavigationViewModel = hiltViewModel()
+    viewModel: CoreNavigationViewModel = hiltViewModel<CoreNavigationViewModel>(),
+    loginViewModel: LoginViewModel = hiltViewModel<LoginViewModel>(),
 ) {
     val navController = rememberNavController()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState(initial = false)
+    val biometricHelper by viewModel.biometricHelperState.collectAsState()
 
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
-            navController.navigate("home") {
-                popUpTo("auth") { inclusive = true }
-            }
-        } else {
-            navController.navigate("auth") {
-                popUpTo(navController.graph.startDestinationId) { inclusive = true }
-            }
-        }
+    LaunchedEffect(Unit) {
+        loginViewModel.refreshBiometricState()
     }
 
-    NavHost(navController = navController, startDestination = "splash") {
+    NavHost(navController = navController, startDestination = "auth") {
         composable("splash") {
             // Splash screen will be shown while checking auth state
         }
@@ -47,7 +39,8 @@ fun CoreNavigationController(
                     navController.navigate("home") {
                         popUpTo("auth") { inclusive = true }
                     }
-                }
+                },
+                biometricHelper = biometricHelper
             )
         }
 
@@ -70,7 +63,16 @@ fun CoreNavigationController(
 
         composable("home") {
             // Use our HomeScreen here
-            HomeScreen()
+            HomeScreen(
+                onNavigateToAuth = {
+                    navController.navigate("auth") {
+                        popUpTo(0) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
     }
 }

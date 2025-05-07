@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Dashboard
@@ -56,5 +57,13 @@ sealed class HomeNavigationItem(
         title = "Profile",
         selectedIcon = Icons.Filled.AccountCircle,
         unselectedIcon = Icons.Outlined.AccountCircle
+    )
+
+    // Additional routes that aren't in the bottom navigation
+    data object EditProfile : HomeNavigationItem(
+        route = "edit_profile",
+        title = "Edit Profile",
+        selectedIcon = Icons.Filled.Edit,
+        unselectedIcon = Icons.Filled.Edit
     )
 }

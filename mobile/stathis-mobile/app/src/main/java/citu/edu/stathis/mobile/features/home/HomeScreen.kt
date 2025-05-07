@@ -5,6 +5,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -33,14 +35,26 @@ import androidx.navigation.compose.rememberNavController
 import citu.edu.stathis.mobile.core.theme.BrandColors
 import citu.edu.stathis.mobile.features.dashboard.ui.DashboardScreen
 import citu.edu.stathis.mobile.features.posture.PostureScreen
+import citu.edu.stathis.mobile.features.profile.ui.EditProfileScreen
 import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
 import citu.edu.stathis.mobile.features.progress.ui.ProgressScreen
 import citu.edu.stathis.mobile.features.tasks.ui.TasksScreen
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onNavigateToAuth: () -> Unit
+) {
     val navController = rememberNavController()
     var bottomBarVisible by remember { mutableStateOf(true) }
+
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    // Hide bottom bar on certain screens
+    bottomBarVisible = when (currentRoute) {
+        HomeNavigationItem.EditProfile.route -> false
+        else -> true
+    }
 
     Scaffold(
         bottomBar = {
@@ -56,32 +70,34 @@ fun HomeScreen() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(HomeNavigationItem.Dashboard.route) {
-                bottomBarVisible = true
                 DashboardScreen(navController = navController)
             }
 
             composable(HomeNavigationItem.Posture.route) {
-                bottomBarVisible = true
                 PostureScreen(navController = navController)
             }
 
             composable(HomeNavigationItem.Tasks.route) {
-                bottomBarVisible = true
                 TasksScreen(navController = navController)
             }
 
             composable(HomeNavigationItem.Progress.route) {
-                bottomBarVisible = true
                 ProgressScreen(navController = navController)
             }
 
             composable(HomeNavigationItem.Profile.route) {
-                bottomBarVisible = true
-                ProfileScreen(navController = navController)
+                ProfileScreen(
+                    navController = navController,
+                    onLogout = onNavigateToAuth
+                )
             }
 
-            // Add nested navigation routes here as needed
-            // For example, posture detail screens, task detail screens, etc.
+            // Edit Profile Screen
+            composable(HomeNavigationItem.EditProfile.route) {
+                EditProfileScreen(navController = navController)
+            }
+
+            // Add other nested navigation routes here as needed
         }
     }
 }

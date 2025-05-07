@@ -16,4 +16,6 @@ interface IAuthRepository {
     suspend fun getCurrentUser(): UserData?
     suspend fun resendVerificationEmail(email: String): AuthResult
     suspend fun verifyRoleOfCurrentUser(): Boolean
+    suspend fun isRefreshTokenValid(): Boolean
+    suspend fun refreshSession(): AuthResult
 }

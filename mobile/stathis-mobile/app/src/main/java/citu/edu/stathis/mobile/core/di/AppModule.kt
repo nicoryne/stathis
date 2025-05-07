@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.core.di
 import android.content.Context
 import android.util.Log
 import cit.edu.stathis.mobile.BuildConfig
+import citu.edu.stathis.mobile.core.auth.BiometricHelper
 import citu.edu.stathis.mobile.core.data.PreferencesManager
 import citu.edu.stathis.mobile.core.network.SupabaseInstance
 import dagger.Module
@@ -31,7 +32,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSupabase(): SupabaseClient {
-        Log.d("SupabaseInstance", "Build Config URL: ${BuildConfig.SUPABASE_URL}, Build Config Key: ${BuildConfig.SUPABASE_ANON_KEY}")
         return SupabaseInstance.instance
+    }
+
+    @Provides
+    @Singleton
+    fun provideBiometricHelper(@ApplicationContext context: Context): BiometricHelper {
+        return BiometricHelper(context)
     }
 }

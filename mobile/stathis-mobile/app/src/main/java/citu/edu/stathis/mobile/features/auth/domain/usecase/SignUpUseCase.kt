@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.auth.domain.usecase
 
+import android.util.Log
 import citu.edu.stathis.mobile.features.auth.domain.model.AuthResult
 import citu.edu.stathis.mobile.features.auth.domain.repository.IAuthRepository
 import javax.inject.Inject
@@ -19,5 +20,6 @@ class SignUpUseCase @Inject constructor(
     suspend fun resendVerificationEmail(email: String) {
         repository.resendVerificationEmail(email)
     }
+
 
 }

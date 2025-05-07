@@ -12,9 +12,15 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.Azure
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.sql.Date
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
@@ -22,14 +28,18 @@ class AuthRepository @Inject constructor(
     private val authTokenManager: AuthTokenManager
 ) : IAuthRepository {
 
+    private val _authState = MutableStateFlow(false)
+
+    init {
+        _authState.value = supabaseClient.auth.currentSessionOrNull() != null
+    }
+
     override suspend fun signIn(email: String, password: String): AuthResult {
         return try {
             val response = supabaseClient.auth.signInWith(Email) {
                 this.email = email
                 this.password = password
             }
-
-            Log.d("AuthRepository", "Is user a student? ${verifyRoleOfCurrentUser()}")
 
             if(verifyRoleOfCurrentUser()) {
                 val session = supabaseClient.auth.currentSessionOrNull()
@@ -49,6 +59,7 @@ class AuthRepository @Inject constructor(
                     )
                 }
 
+                _authState.value = true
                 AuthResult.Success
             } else {
                 signOut()
@@ -66,8 +77,6 @@ class AuthRepository @Inject constructor(
         password: String
     ): AuthResult {
         return try {
-
-
             val userData = buildJsonObject {
                 put("first_name", firstName)
                 put("last_name", lastName)
@@ -80,7 +89,7 @@ class AuthRepository @Inject constructor(
                 this.data = userData
             }
 
-            AuthResult.Error("We sent you an email. Please verify yourself.")
+            AuthResult.Success
         } catch (e: Exception) {
             val message = e.message;
 
@@ -134,6 +143,8 @@ class AuthRepository @Inject constructor(
         return try {
             supabaseClient.auth.signOut(SignOutScope.LOCAL)
             authTokenManager.clearTokens()
+
+            _authState.value = false
             AuthResult.Success
         } catch (e: Exception) {
             AuthResult.Error("Whoops! Something went wrong.")
@@ -167,14 +178,33 @@ class AuthRepository @Inject constructor(
     override suspend fun verifyRoleOfCurrentUser(): Boolean {
         val user = supabaseClient.auth.currentUserOrNull() ?: return false
 
-        Log.d("AuthRepository", "User metadata: ${user.userMetadata}")
-
         if (user.userMetadata?.containsKey("user_role") == true) {
-            val role = user.userMetadata!!.getValue("user_role").toString()
-            Log.d("AuthRepository", "User role: $role")
-            return role == "student"
+            val role = user.userMetadata!!["user_role"]?.jsonPrimitive?.content
+            return role.equals("student")
         }
 
         return false
+    }
+
+    override suspend fun isRefreshTokenValid(): Boolean {
+        val refreshToken = authTokenManager.refreshTokenFlow.firstOrNull() ?: return false
+
+        Log.d("AuthRepository", "Refresh Token: ${refreshToken}")
+
+        return refreshToken.isNotBlank()
+    }
+
+    override suspend fun refreshSession(): AuthResult {
+        val refreshToken = authTokenManager.refreshTokenFlow.firstOrNull()
+            ?: return AuthResult.Error("No refresh token found")
+
+        return try {
+            supabaseClient.auth.refreshSession(refreshToken)
+            _authState.value = true
+            AuthResult.Success
+        } catch (e: Exception) {
+            _authState.value = false
+            AuthResult.Error(e.message ?: "Session refresh failed")
+        }
     }
 }

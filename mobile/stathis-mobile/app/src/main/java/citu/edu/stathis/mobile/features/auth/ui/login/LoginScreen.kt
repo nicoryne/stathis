@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.auth.ui.login
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,12 +42,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -60,9 +65,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import citu.edu.stathis.mobile.core.auth.BiometricHelper
 import citu.edu.stathis.mobile.core.theme.appColors
+import citu.edu.stathis.mobile.features.auth.domain.model.BiometricState
 import citu.edu.stathis.mobile.features.auth.ui.components.AuthBackground
 import citu.edu.stathis.mobile.features.auth.ui.components.AuthCard
 import citu.edu.stathis.mobile.features.auth.ui.components.BackgroundDecorations
@@ -78,7 +86,8 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
     onNavigateToHome: () -> Unit,
-    viewModel: LoginViewModel = hiltViewModel()
+    viewModel: LoginViewModel = hiltViewModel(),
+    biometricHelper: BiometricHelper
 ) {
     val colors = appColors()
 
@@ -86,9 +95,38 @@ fun LoginScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
 
+    val biometricState by viewModel.biometricState.collectAsState()
+
+    val context = LocalContext.current
+
+    var showBiometricPrompt by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     val loginAnimation by rememberLottieComposition(
         spec = LottieCompositionSpec.Url("https://assets5.lottiefiles.com/packages/lf20_mjlh3hcy.json")
     )
+
+    LaunchedEffect(biometricState) {
+        showBiometricPrompt = biometricState == BiometricState.Available
+    }
+
+    if (showBiometricPrompt) {
+        LaunchedEffect(Unit) {
+            biometricHelper.showBiometricPrompt(
+                activity = context as FragmentActivity,
+                onSuccess = {
+                    viewModel.onEvent(LoginUiEvent.BiometricLogin)
+                    showBiometricPrompt = false
+                },
+                onError = { error ->
+                    showBiometricPrompt = false
+                },
+                onFailed = {
+                    showBiometricPrompt = false
+                }
+            )
+        }
+    }
 
     LaunchedEffect(key1 = true) {
         viewModel.events.collect { event ->

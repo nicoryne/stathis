@@ -212,19 +212,6 @@ fun EmailVerificationDialog(
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Skip for now button
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Continue Without Verification",
-                        color = Color.Gray
-                    )
-                }
             }
         }
     }

@@ -1,6 +1,8 @@
 [versions]
 agp = "8.8.2"
 bom = "3.1.4"
+coilCompose = "3.1.0"
+coilNetworkOkhttp = "3.1.0"
 datastorePreferences = "1.1.4"
 hiltAndroid = "2.56.1"
 hiltNavigationCompose = "1.2.0"
@@ -21,8 +23,12 @@ navigationCompose = "2.8.9"
 supabaseKt = "3.1.4"
 uiTooling = "1.0.0-alpha07"
 uiToolingPreview = "1.7.8"
+biometric = "1.20.0-alpha"
+biometricKtx = "1.4.0-alpha02"
 
 [libraries]
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
+androidx-biometric-ktx = { module = "androidx.biometric:biometric-ktx", version.ref = "biometricKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
@@ -37,6 +43,8 @@ androidx-ui-tooling = { module = "androidx.ui:ui-tooling", version.ref = "uiTool
 androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "uiToolingPreview" }
 auth-kt = { module = "io.github.jan-tennert.supabase:auth-kt" }
 bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "bom" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
+coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coilNetworkOkhttp" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
