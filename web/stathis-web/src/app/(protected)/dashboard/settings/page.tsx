@@ -55,12 +55,13 @@ export default function SettingsPage() {
       first_name: "",
       last_name: "",
       email: "",
-      user_role: "",
+      user_role: "student",
       picture_url: "",
       school_attending: "",
       year_level: "",
       course_enrolled: "",
     },
+    mode: "onChange"
   });
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export default function SettingsPage() {
             first_name: userProfile.first_name || "",
             last_name: userProfile.last_name || "",
             email: userProfile.email || "",
-            user_role: userProfile.user_role || "",
+            user_role: userProfile.user_role || "student",
             picture_url: userProfile.picture_url || "",
             school_attending: userProfile.school_attending || "",
             year_level: userProfile.year_level || "",
@@ -143,14 +144,59 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // Delete old image if exists
+      const currentPictureUrl = form.getValues('picture_url');
+      if (currentPictureUrl) {
+        try {
+          console.log('Found existing picture URL:', currentPictureUrl);
+          
+          // Extract the path components from the URL
+          // URL format is like: https://ehigwmhdzgpgdogtgsry.supabase.co/storage/v1/object/public/user-avatars/user-id/filename.ext
+          // We need to extract just "user-id/filename.ext"
+          
+          // Check if this is a Supabase URL
+          if (currentPictureUrl.includes('supabase.co/storage')) {
+            // Split the URL by "user-avatars/"
+            const parts = currentPictureUrl.split('user-avatars/');
+            if (parts.length > 1) {
+              // The path will be everything after "user-avatars/"
+              const pathToDelete = parts[1];
+              
+              console.log('Attempting to delete:', pathToDelete);
+              
+              // Delete the file
+              const { data, error: deleteError } = await supabase.storage
+                .from('user-avatars')
+                .remove([pathToDelete]);
+                
+              if (deleteError) {
+                console.error('Failed to delete image:', deleteError);
+              } else {
+                console.log('Successfully deleted old image:', data);
+              }
+            } else {
+              console.log('Could not parse image path correctly:', parts);
+            }
+          } else {
+            console.log('URL does not appear to be a Supabase storage URL');
+          }
+        } catch (deleteError) {
+          console.error('Error handling image deletion:', deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+
       // Create a unique file name
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${Date.now()}.${fileExt}`;
+      
+      // Use user ID as folder path to match RLS policies
+      const filePath = `${user.id}/${fileName}`;
 
       // Upload the file
       const { data, error } = await supabase.storage
         .from('user-avatars')
-        .upload(fileName, file, {
+        .upload(filePath, file, {
           cacheControl: '3600',
           upsert: true
         });
@@ -175,18 +221,40 @@ export default function SettingsPage() {
     }
   };
 
-  async function onSubmit(data: UserProfileFormValues) {
+  // Create a manual submit handler that will be called when the form is submitted
+  const handleFormSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    
+    console.log("Form submitted manually");
+    
+    // Get all form values
+    const formValues = form.getValues();
+    console.log("Form values:", formValues);
+    
+    // Check if required fields are filled
+    if (!formValues.first_name || !formValues.last_name) {
+      toast.error("Please fill in required fields");
+      return;
+    }
+    
+    // Ensure user_role is set
+    if (!formValues.user_role) {
+      formValues.user_role = 'student';
+    }
+    
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      await updateUserProfile(data);
+      // Call the update function
+      await updateUserProfile(formValues);
       toast.success("Profile updated successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      toast.error(`Failed to update profile: ${error.message || 'Unknown error'}`);
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -253,7 +321,7 @@ export default function SettingsPage() {
             </TabsList>
             
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form onSubmit={handleFormSubmit} className="space-y-6">
                 <TabsContent value="personal" className="space-y-6">
                   <Card>
                     <CardHeader>
@@ -305,7 +373,7 @@ export default function SettingsPage() {
                                     )}
                                   </Button>
                                   <FormControl>
-                                    <Input {...field} className="hidden" />
+                                    <Input {...field} value={field.value || ''} className="hidden" />
                                   </FormControl>
                                   <FormDescription className="text-xs">
                                     Upload JPG or PNG (max 2MB)
@@ -336,7 +404,7 @@ export default function SettingsPage() {
                             <FormItem>
                               <FormLabel>First Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="First name" {...field} />
+                                <Input placeholder="First name" {...field} value={field.value || ''} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -349,7 +417,7 @@ export default function SettingsPage() {
                             <FormItem>
                               <FormLabel>Last Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="Last name" {...field} />
+                                <Input placeholder="Last name" {...field} value={field.value || ''} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -364,7 +432,7 @@ export default function SettingsPage() {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input placeholder="Email" type="email" {...field} disabled className="bg-muted/40" />
+                              <Input placeholder="Email" type="email" {...field} value={field.value || ''} disabled className="bg-muted/40" />
                             </FormControl>
                             <FormDescription>Email cannot be changed</FormDescription>
                             <FormMessage />
@@ -381,7 +449,7 @@ export default function SettingsPage() {
                             <FormControl>
                               <RadioGroup
                                 onValueChange={field.onChange}
-                                defaultValue={field.value}
+                                defaultValue={field.value || "student"}
                                 className="flex flex-col space-y-1"
                               >
                                 <div className="grid grid-cols-2 gap-4">
@@ -431,7 +499,7 @@ export default function SettingsPage() {
                           <FormItem>
                             <FormLabel>School</FormLabel>
                             <FormControl>
-                              <Input placeholder="School or institution" {...field} />
+                              <Input placeholder="School or institution" {...field} value={field.value || ''} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -446,7 +514,7 @@ export default function SettingsPage() {
                             <FormItem>
                               <FormLabel>Year Level</FormLabel>
                               <FormControl>
-                                <Input placeholder="Year level" {...field} />
+                                <Input placeholder="Year level" {...field} value={field.value || ''} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -459,7 +527,7 @@ export default function SettingsPage() {
                             <FormItem>
                               <FormLabel>Course</FormLabel>
                               <FormControl>
-                                <Input placeholder="Course enrolled" {...field} />
+                                <Input placeholder="Course enrolled" {...field} value={field.value || ''} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -473,10 +541,16 @@ export default function SettingsPage() {
                 <Separator className="my-8" />
                 
                 <div className="flex justify-end gap-4">
-                  <Button type="button" variant="outline">Cancel</Button>
                   <Button 
-                    type="submit" 
-                    disabled={isLoading} 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => form.reset()}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={isLoading}
                     className="min-w-[120px]"
                   >
                     {isLoading ? (

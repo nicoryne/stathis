@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200px" height="200px" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <title>User Placeholder</title>
+    <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <rect fill="#E2E8F0" x="0" y="0" width="200" height="200" rx="100"></rect>
+        <g transform="translate(60, 40)" fill="#94A3B8">
+            <circle cx="40" cy="40" r="40"></circle>
+            <path d="M80,120 C80,93.49 62.51,72 40,72 C17.49,72 0,93.49 0,120 L80,120 Z"></path>
+        </g>
+    </g>
+</svg> 

@@ -15,23 +15,23 @@ export const getUserProfile = async () => {
   }
 
   try {
-    // First try to get the user profile from the users table
+    // First try to get the user profile from the user_profile table
     const { data: userProfile, error: profileError } = await supabase
-      .from('users')
+      .from('user_profile')
       .select('*')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (userProfile) {
       return userProfile;
     }
 
-    // If not available in users table, try to get user metadata from auth.users
+    // If not available in user_profile table, try to get user metadata from auth.users
     const { data: userData } = await supabase.auth.getUser();
     
     if (userData?.user?.user_metadata) {
       return {
-        id: user.id,
+        user_id: user.id,
         email: user.email,
         first_name: userData.user.user_metadata.first_name || '',
         last_name: userData.user.user_metadata.last_name || '',
@@ -45,7 +45,7 @@ export const getUserProfile = async () => {
 
     // Return minimal info if nothing else is available
     return {
-      id: user.id,
+      user_id: user.id,
       email: user.email,
       first_name: '',
       last_name: '',
@@ -60,7 +60,7 @@ export const getUserProfile = async () => {
     
     // Return basic user info from auth
     return {
-      id: user.id,
+      user_id: user.id,
       email: user.email,
       first_name: '',
       last_name: '',
@@ -79,24 +79,29 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    console.error('Auth error:', userError);
-    throw new Error('Authentication required');
-  }
-
-  const id = user.id;
-  const email = user.email;
-  const first_name = form.first_name;
-  const last_name = form.last_name;
-  const user_role = form.user_role;
-  const picture_url = form.picture_url;
-  const school_attending = form.school_attending;
-  const year_level = form.year_level;
-  const course_enrolled = form.course_enrolled;
-
   try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error('Auth error:', userError);
+      throw new Error('Authentication required');
+    }
+
+    const user_id = user.id;
+    const email = user.email;
+    const first_name = form.first_name;
+    const last_name = form.last_name;
+    const user_role = form.user_role || 'student'; // Default to student if not set
+    const picture_url = form.picture_url || null;
+    const school_attending = form.school_attending || null;
+    const year_level = form.year_level ? parseInt(form.year_level) : null; // Convert to integer or null
+    const course_enrolled = form.course_enrolled || null;
+
+    console.log('Updating user with data:', { 
+      first_name, last_name, email, user_role, 
+      picture_url, school_attending, year_level, course_enrolled 
+    });
+
     // Try to update user metadata in auth.users
     const { error: updateError } = await supabase.auth.updateUser({
       data: {
@@ -112,65 +117,98 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
 
     if (updateError) {
       console.error('Error updating user metadata:', updateError);
-      throw new Error(updateError.message);
+      throw new Error(`Auth update failed: ${updateError.message}`);
     }
 
-    // Try to update or insert into users table if it exists
+    // Try to update or insert into user_profile table if it exists
     try {
-      // Check if the user exists in the users table
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', id)
+      console.log('Checking if user profile exists in user_profile table...');
+      
+      // Check if the user exists in the user_profile table
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user_profile')
+        .select('user_id')
+        .eq('user_id', user_id)
         .single();
+        
+      if (checkError) {
+        if (checkError.code === 'PGRST116') {
+          console.log('User not found in user_profile table. Will create new record.');
+        } else {
+          console.error('Error checking user existence:', checkError);
+        }
+      } else {
+        console.log('User found in user_profile table:', existingUser);
+      }
 
+      // Prepare profile data 
+      const profileData = {
+        first_name,
+        last_name,
+        email,
+        user_role,
+        picture_url, 
+        school_attending,
+        year_level,
+        course_enrolled
+      };
+      
+      console.log('Profile data for user_profile table:', JSON.stringify(profileData, null, 2));
+      
+      // Direct SQL approach for debugging - log the query that would be executed
+      console.log(`User profile data to save: 
+        - user_id: ${user_id}
+        - email: ${email}
+        - first_name: ${first_name}
+        - last_name: ${last_name}
+        - user_role: ${user_role}
+        - picture_url: ${picture_url}
+        - school_attending: ${school_attending || 'null'}
+        - year_level: ${year_level || 'null'}
+        - course_enrolled: ${course_enrolled || 'null'}
+      `);
+      
       if (existingUser) {
         // Update existing user
-        const { error: userUpdateError } = await supabase
-          .from('users')
-          .update({
-            first_name,
-            last_name,
-            email,
-            user_role,
-            picture_url,
-            school_attending,
-            year_level,
-            course_enrolled,
-          })
-          .eq('id', id);
+        console.log(`Updating existing user ${user_id} in user_profile table`);
+        const { data: updateData, error: userUpdateError } = await supabase
+          .from('user_profile')
+          .update(profileData)
+          .eq('user_id', user_id)
+          .select();
 
         if (userUpdateError) {
-          console.error('Error updating user in users table:', userUpdateError);
+          console.error('Error updating user in user_profile table:', userUpdateError);
+          // Don't throw since we already updated auth metadata
+        } else {
+          console.log('Successfully updated user_profile:', updateData);
         }
       } else {
         // Insert new user
-        const { error: userInsertError } = await supabase
-          .from('users')
+        console.log(`Inserting new user ${user_id} into user_profile table`);
+        const { data: insertData, error: userInsertError } = await supabase
+          .from('user_profile')
           .insert({
-            id,
-            first_name,
-            last_name,
-            email,
-            user_role,
-            picture_url,
-            school_attending,
-            year_level,
-            course_enrolled,
-          });
+            user_id,
+            ...profileData
+          })
+          .select();
 
         if (userInsertError) {
-          console.error('Error inserting user in users table:', userInsertError);
+          console.error('Error inserting user in user_profile table:', userInsertError);
+          // Don't throw since we already updated auth metadata
+        } else {
+          console.log('Successfully inserted user_profile:', insertData);
         }
       }
     } catch (error) {
-      console.error('Error with users table operations:', error);
+      console.error('Error with user_profile table operations:', error);
       // We don't throw here since we already updated the auth metadata
     }
 
     return true;
   } catch (error) {
     console.error('Error in updateUserProfile:', error);
-    throw new Error('Failed to update user profile');
+    throw error; // Rethrow so the UI can handle it
   }
 };
