@@ -2,13 +2,10 @@
 
 import { v4 as uuidv4 } from "uuid";
 import { ClassroomFormValues } from "@/lib/validations/classroom";
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/server';
 
 export const createClassroom = async (form: ClassroomFormValues) => {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  const supabase = await createClient();
   
   // Get user details from client session
   const { data: { user }, error: userError } = await supabase.auth.getUser();

@@ -7,8 +7,8 @@ import { AlertCard } from '@/components/dashboard/alert-card';
 import { LineChart } from '@/components/dashboard/line-chart';
 import { BarChart } from '@/components/dashboard/bar-chart';
 import { Button } from '@/components/ui/button';
-import { Activity, Heart, Users, Video, Bell } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Activity, Heart, Users, Video, Bell, CheckCircle, X } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ import { getUserDetails, logout } from '@/services/auth';
 import { getUserProfile } from '@/services/user-profile';
 import { useEffect, useState } from 'react';
 import { ClassroomModal } from '@/components/classroom/classroom-modal';
+import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const [userDetails, setUserDetails] = useState({
@@ -33,6 +34,34 @@ export default function DashboardPage() {
   });
   const [userProfilePicture, setUserProfilePicture] = useState('');
   const [openClassroomModal, setOpenClassroomModal] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Check for success message in URL parameters
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const message = searchParams.get('message');
+    
+    if (success === 'true' && message) {
+      setSuccessMessage(decodeURIComponent(message));
+      setShowSuccessBanner(true);
+      
+      // Remove the parameters from URL after a short delay
+      setTimeout(() => {
+        const params = new URLSearchParams(searchParams);
+        params.delete('success');
+        params.delete('message');
+        router.replace(`?${params.toString()}`);
+        
+        // Auto-dismiss banner after 5 seconds
+        setTimeout(() => {
+          setShowSuccessBanner(false);
+        }, 5000);
+      }, 300);
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -183,6 +212,34 @@ export default function DashboardPage() {
         </header>
 
         <main className="p-6">
+          {/* Success Banner */}
+          {showSuccessBanner && (
+            <div className={cn(
+              "mb-6 flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm shadow-sm transition-all duration-300 ease-in-out",
+              "bg-primary/5 border-primary/20 text-primary-foreground",
+              "dark:bg-primary/10 dark:border-primary/30"
+            )}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                  <CheckCircle className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-primary">Success!</h3>
+                  <p className="text-muted-foreground">{successMessage}</p>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-full hover:bg-primary/10"
+                onClick={() => setShowSuccessBanner(false)}
+              >
+                <X className="h-4 w-4 text-primary" />
+                <span className="sr-only">Dismiss</span>
+              </Button>
+            </div>
+          )}
+
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Dashboard</h1>
             <ClassroomModal 
