@@ -5,6 +5,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from 'sonner';
+import { DbInitializer } from '@/components/db-initializer';
 
 const outfit = Outfit({
   variable: '--font-outfit',
@@ -28,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${outfit.variable} ${inter.variable} antialiased`}>
+      <body suppressHydrationWarning>
         <QueryProvider>
           <ThemeProvider
             attribute="class"
@@ -36,8 +37,11 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Toaster />
+            <div className={`${outfit.variable} ${inter.variable} antialiased`}>
+              <DbInitializer />
+              {children}
+              <Toaster />
+            </div>
           </ThemeProvider>
         </QueryProvider>
       </body>
