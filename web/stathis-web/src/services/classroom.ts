@@ -3,6 +3,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { ClassroomFormValues } from "@/lib/validations/classroom";
 import { createClient } from '@/lib/supabase/server';
+import { createBrowserClient } from "@supabase/ssr";
 
 export const createClassroom = async (form: ClassroomFormValues) => {
   const supabase = await createClient();
