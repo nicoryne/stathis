@@ -1,12 +1,9 @@
 'use server';
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/server';
 import { UserProfileFormValues } from '@/lib/validations/user-profile';
 
 export const getUserProfile = async () => {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  const supabase = await createClient();
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
@@ -75,10 +72,7 @@ export const getUserProfile = async () => {
 };
 
 export const updateUserProfile = async (form: UserProfileFormValues) => {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  );
+  const supabase = await createClient();
 
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -92,7 +86,9 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
     const email = user.email;
     const first_name = form.first_name;
     const last_name = form.last_name;
-    const user_role = form.user_role || 'student'; // Default to student if not set
+    const user_role = (form.user_role === 'teacher' || form.user_role === 'student' || form.user_role === 'guest') 
+      ? form.user_role 
+      : 'student'; // Default to student if not set or invalid
     const picture_url = form.picture_url || null;
     const school_attending = form.school_attending || null;
     const year_level = form.year_level ? parseInt(form.year_level) : null; // Convert to integer or null
@@ -142,16 +138,12 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
         console.log('User found in user_profile table:', existingUser);
       }
 
-      // Prepare profile data 
+      // Prepare profile data - only include fields that exist in the user_profile table
       const profileData = {
         first_name,
         last_name,
-        email,
         user_role,
-        picture_url, 
-        school_attending,
-        year_level,
-        course_enrolled
+        picture_url
       };
       
       console.log('Profile data for user_profile table:', JSON.stringify(profileData, null, 2));
@@ -174,7 +166,12 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
         console.log(`Updating existing user ${user_id} in user_profile table`);
         const { data: updateData, error: userUpdateError } = await supabase
           .from('user_profile')
-          .update(profileData)
+          .update({
+            first_name,
+            last_name,
+            user_role,
+            picture_url
+          })
           .eq('user_id', user_id)
           .select();
 
@@ -191,7 +188,10 @@ export const updateUserProfile = async (form: UserProfileFormValues) => {
           .from('user_profile')
           .insert({
             user_id,
-            ...profileData
+            first_name,
+            last_name,
+            user_role,
+            picture_url
           })
           .select();
 

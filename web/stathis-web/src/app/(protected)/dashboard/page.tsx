@@ -35,32 +35,41 @@ export default function DashboardPage() {
   const [openClassroomModal, setOpenClassroomModal] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const user = await getUserDetails();
-
-      if (user) {
-        setUserDetails({
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email
-        });
-      }
-    };
-    fetchUser();
-
-    // Fetch user profile to get the profile picture
-    const fetchUserProfile = async () => {
+    const fetchUserData = async () => {
       try {
-        const userProfile = await getUserProfile();
-        if (userProfile && userProfile.picture_url) {
-          console.log('Loaded profile picture URL:', userProfile.picture_url);
-          setUserProfilePicture(userProfile.picture_url);
+        // First get basic user details that don't require additional auth
+        const user = await getUserDetails();
+
+        if (user) {
+          setUserDetails({
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email
+          });
+
+          // Check if user metadata has a picture URL
+          if (user.user_metadata && user.user_metadata.picture_url) {
+            setUserProfilePicture(user.user_metadata.picture_url);
+          }
+        }
+
+        // Try to get detailed profile with picture if not already set
+        try {
+          const userProfile = await getUserProfile();
+          if (userProfile && userProfile.picture_url) {
+            console.log('Loaded profile picture URL:', userProfile.picture_url);
+            setUserProfilePicture(userProfile.picture_url);
+          }
+        } catch (profileError) {
+          console.log('Could not load detailed profile, using basic user data instead');
+          // Already using basic user data, so no fallback needed
         }
       } catch (error) {
-        console.error('Error loading user profile picture:', error);
+        console.error('Error loading user data:', error);
       }
     };
-    fetchUserProfile();
+
+    fetchUserData();
   }, []);
 
   const handleLogout = async () => {
