@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Loader2, Settings, Bell } from "lucide-react";
+import { Loader2, Settings, Bell, Upload, User, School, BookOpen, GraduationCap } from "lucide-react";
 
 import { userProfileSchema, UserProfileFormValues } from "@/lib/validations/user-profile";
 import { getUserProfile, updateUserProfile } from "@/services/user-profile";
@@ -33,15 +33,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import ThemeSwitcher from '@/components/theme-switcher';
+import { createBrowserClient } from '@supabase/ssr';
 
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [userDetails, setUserDetails] = useState({
     first_name: '',
     last_name: '',
     email: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<UserProfileFormValues>({
     resolver: zodResolver(userProfileSchema),
@@ -88,6 +94,10 @@ export default function SettingsPage() {
             year_level: userProfile.year_level || "",
             course_enrolled: userProfile.course_enrolled || "",
           });
+          
+          if (userProfile.picture_url) {
+            setImagePreview(userProfile.picture_url);
+          }
         }
       } catch (error) {
         console.error("Error loading user profile:", error);
@@ -99,6 +109,71 @@ export default function SettingsPage() {
 
     loadUserProfile();
   }, [form]);
+
+  // Handle file upload to Supabase Storage
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.type.includes('image/jpeg') && !file.type.includes('image/png')) {
+      toast.error('Only JPEG and PNG files are allowed');
+      return;
+    }
+
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size should be less than 2MB');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      // Create a local preview
+      const objectUrl = URL.createObjectURL(file);
+      setImagePreview(objectUrl);
+
+      // Upload to Supabase
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+      );
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+
+      // Upload the file
+      const { data, error } = await supabase.storage
+        .from('user-avatars')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('user-avatars')
+        .getPublicUrl(data.path);
+
+      // Set the URL in the form
+      form.setValue('picture_url', publicUrl);
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload image');
+      // Revert preview on error
+      setImagePreview(form.getValues('picture_url') || null);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   async function onSubmit(data: UserProfileFormValues) {
     try {
@@ -118,21 +193,22 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-muted/10">
       <Sidebar className="w-64 flex-shrink-0" />
       
       <div className="flex-1">
-        <header className="bg-background border-b">
-          <div className="flex h-16 items-center justify-end gap-4 px-4">
-            <Button variant="outline" size="icon">
+        <header className="bg-background border-b sticky top-0 z-10">
+          <div className="flex h-16 items-center justify-end gap-4 px-6">
+            <Button variant="outline" size="icon" className="rounded-full">
               <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="User" />
-                    <AvatarFallback>
+                  <Avatar className="h-8 w-8 border border-muted">
+                    <AvatarImage src={imagePreview || "/placeholder.svg"} alt="User" />
+                    <AvatarFallback className="bg-primary/10 text-primary">
                       {userDetails.first_name.charAt(0).toUpperCase()}
                       {userDetails.last_name.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -158,160 +234,251 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <div className="p-6">
-          <div className="mb-6 flex items-center">
-            <Settings className="h-6 w-6 mr-2" />
+        <div className="p-6 md:p-8 max-w-5xl mx-auto">
+          <div className="mb-8 flex items-center">
+            <Settings className="h-6 w-6 mr-3 text-primary" />
             <h1 className="text-2xl font-bold">Profile Settings</h1>
           </div>
           
-          <Card className="w-full max-w-4xl mx-auto">
-            <CardHeader>
-              <CardTitle>User Information</CardTitle>
-              <CardDescription>
-                Update your personal information and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="first_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>First Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="First name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="last_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Last Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Last name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+          <Tabs defaultValue="personal" className="w-full">
+            <TabsList className="mb-6 grid w-full grid-cols-2 md:w-auto">
+              <TabsTrigger value="personal" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span>Personal Info</span>
+              </TabsTrigger>
+              <TabsTrigger value="academic" className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4" />
+                <span>Academic</span>
+              </TabsTrigger>
+            </TabsList>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <TabsContent value="personal" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Profile Picture</CardTitle>
+                      <CardDescription>
+                        Update your profile image
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="picture_url"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                              <Avatar className="h-24 w-24 border-2 border-muted">
+                                <AvatarImage src={imagePreview || "/placeholder.svg"} alt="Profile preview" />
+                                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
+                                  {userDetails.first_name?.charAt(0).toUpperCase() || ''}
+                                  {userDetails.last_name?.charAt(0).toUpperCase() || ''}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <input
+                                  type="file"
+                                  accept="image/jpeg,image/png"
+                                  onChange={handleFileUpload}
+                                  ref={fileInputRef}
+                                  className="hidden"
+                                />
+                                <div className="space-y-2">
+                                  <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="h-9"
+                                  >
+                                    {isUploading ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Uploading...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        Upload New Image
+                                      </>
+                                    )}
+                                  </Button>
+                                  <FormControl>
+                                    <Input {...field} className="hidden" />
+                                  </FormControl>
+                                  <FormDescription className="text-xs">
+                                    Upload JPG or PNG (max 2MB)
+                                  </FormDescription>
+                                </div>
+                              </div>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
 
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Email" type="email" {...field} disabled />
-                        </FormControl>
-                        <FormDescription>Email cannot be changed</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="user_role"
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>User Role</FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex flex-col space-y-1"
-                          >
-                            <FormItem className="flex items-center space-x-3 space-y-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Personal Information</CardTitle>
+                      <CardDescription>
+                        Update your personal details
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="first_name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>First Name</FormLabel>
                               <FormControl>
-                                <RadioGroupItem value="student" />
+                                <Input placeholder="First name" {...field} />
                               </FormControl>
-                              <FormLabel className="font-normal">
-                                Student
-                              </FormLabel>
+                              <FormMessage />
                             </FormItem>
-                            <FormItem className="flex items-center space-x-3 space-y-0">
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="last_name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Last Name</FormLabel>
                               <FormControl>
-                                <RadioGroupItem value="teacher" />
+                                <Input placeholder="Last name" {...field} />
                               </FormControl>
-                              <FormLabel className="font-normal">
-                                Teacher
-                              </FormLabel>
+                              <FormMessage />
                             </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          )}
+                        />
+                      </div>
 
-                  <FormField
-                    control={form.control}
-                    name="picture_url"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Profile Picture URL</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Profile picture URL" {...field} />
-                        </FormControl>
-                        <FormDescription>Direct link to your profile image (optional)</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Email" type="email" {...field} disabled className="bg-muted/40" />
+                            </FormControl>
+                            <FormDescription>Email cannot be changed</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="user_role"
+                        render={({ field }) => (
+                          <FormItem className="space-y-3">
+                            <FormLabel>User Role</FormLabel>
+                            <FormControl>
+                              <RadioGroup
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="flex flex-col space-y-1"
+                              >
+                                <div className="grid grid-cols-2 gap-4">
+                                  <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                      <RadioGroupItem value="student" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer">
+                                      Student
+                                    </FormLabel>
+                                  </FormItem>
+                                  <FormItem className="flex items-center space-x-3 space-y-0 rounded-md border p-4">
+                                    <FormControl>
+                                      <RadioGroupItem value="teacher" />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer">
+                                      Teacher
+                                    </FormLabel>
+                                  </FormItem>
+                                </div>
+                              </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                  <FormField
-                    control={form.control}
-                    name="school_attending"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>School</FormLabel>
-                        <FormControl>
-                          <Input placeholder="School or institution" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <TabsContent value="academic" className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <School className="h-5 w-5 text-primary" />
+                        <CardTitle>Academic Information</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Update your school and academic details
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="school_attending"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>School</FormLabel>
+                            <FormControl>
+                              <Input placeholder="School or institution" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="year_level"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Year Level</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Year level" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="course_enrolled"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Course</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Course enrolled" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <Button type="submit" disabled={isLoading} className="w-full">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={form.control}
+                          name="year_level"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Year Level</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Year level" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="course_enrolled"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Course</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Course enrolled" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                <Separator className="my-8" />
+                
+                <div className="flex justify-end gap-4">
+                  <Button type="button" variant="outline">Cancel</Button>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading} 
+                    className="min-w-[120px]"
+                  >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -321,10 +488,10 @@ export default function SettingsPage() {
                       "Save Changes"
                     )}
                   </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                </div>
+              </form>
+            </Form>
+          </Tabs>
         </div>
       </div>
     </div>
