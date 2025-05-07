@@ -1,3 +1,5 @@
+'use server';
+
 import { v4 as uuidv4 } from "uuid";
 import { ClassroomFormValues } from "@/lib/validations/classroom";
 import { createBrowserClient } from '@supabase/ssr';
