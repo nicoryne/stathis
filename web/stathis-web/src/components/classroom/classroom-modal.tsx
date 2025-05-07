@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createClassroom } from '@/services/classroom-client';
+import { createClassroom } from '@/services/classroom';
 import { classroomSchema, ClassroomFormValues } from '@/lib/validations/classroom';
 import { Button } from '@/components/ui/button';
 import {
