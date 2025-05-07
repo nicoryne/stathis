@@ -9,22 +9,35 @@ export const createClassroom = async (form: ClassroomFormValues) => {
   );
   
   // Get user details from client session
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    console.error('Auth error:', userError);
+    throw new Error('Authentication required');
+  }
+  
+  console.log('Authenticated user:', user.id);
   
   const name = form.name;
   const description = form.description;
 
-  const { error } = await supabase.from('classrooms').insert({
-    id: uuidv4(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    name: name,
-    description: description,
-    is_active: true,
-    teacher_id: user?.id,
-  });
-  
-  if (error) {
-    throw new Error(error.message);
+  try {
+    const { error } = await supabase.from('classrooms').insert({
+      id: uuidv4(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      name: name,
+      description: description,
+      is_active: true,
+      teacher_id: user.id,
+    });
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error('Insert error:', error);
+    throw error;
   }
 }; 
