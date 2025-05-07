@@ -25,7 +25,9 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
+import { Loader2, CheckCircle2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface ClassroomModalProps {
   open: boolean;
@@ -35,6 +37,7 @@ interface ClassroomModalProps {
 
 export function ClassroomModal({ open, onOpenChange, trigger }: ClassroomModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<ClassroomFormValues>({
     resolver: zodResolver(classroomSchema),
@@ -43,30 +46,84 @@ export function ClassroomModal({ open, onOpenChange, trigger }: ClassroomModalPr
       description: '',
     },
   });
+  
+  // Handle dialog open/close - reset the form state when closed
+  const handleOpenChange = (newOpen: boolean) => {
+    // If closing the dialog
+    if (!newOpen && isLoading) {
+      // Reset loading state if dialog is closed while loading
+      setIsLoading(false);
+    }
+    
+    // Reset form when dialog closes
+    if (!newOpen) {
+      form.reset();
+    }
+    
+    // Propagate to parent
+    onOpenChange(newOpen);
+  };
 
   const onSubmit = async (values: ClassroomFormValues) => {
     try {
       setIsLoading(true);
       await createClassroom(values);
-      toast({
-        title: 'Success',
-        description: 'Classroom created successfully',
-      });
+      
+      // Reset form
       form.reset();
+      
+      // Show success toast with modern design
+      toast.success(
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-primary" />
+          <div>
+            <p className="font-medium">Classroom created</p>
+            <p className="text-sm text-muted-foreground">
+              {values.name} has been successfully created
+            </p>
+          </div>
+        </div>,
+        {
+          duration: 4000,
+          className: "bg-background border-primary/20"
+        }
+      );
+      
+      // Reset loading state
+      setIsLoading(false);
+      
+      // Close the modal
       onOpenChange(false);
+      
+      // Add success message to URL for dashboard banner and refresh in one operation
+      const successParams = new URLSearchParams();
+      successParams.set('success', 'true');
+      successParams.set('message', `Classroom "${values.name}" has been successfully created.`);
+      
+      // Update URL with params and refresh the page to show new classroom
+      router.push(`?${successParams.toString()}`);
+      
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create classroom',
-        variant: 'destructive',
-      });
-    } finally {
+      // Show error toast
+      toast.error(
+        <div>
+          <p className="font-medium">Failed to create classroom</p>
+          <p className="text-sm">
+            {error instanceof Error ? error.message : 'An unexpected error occurred'}
+          </p>
+        </div>,
+        {
+          duration: 5000,
+        }
+      );
+      
+      // Reset loading state
       setIsLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
@@ -107,8 +164,15 @@ export function ClassroomModal({ open, onOpenChange, trigger }: ClassroomModalPr
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Creating...' : 'Create Classroom'}
+              <Button type="submit" disabled={isLoading} className="relative">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Classroom'
+                )}
               </Button>
             </DialogFooter>
           </form>
