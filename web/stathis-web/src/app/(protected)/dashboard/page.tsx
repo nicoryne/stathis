@@ -21,6 +21,7 @@ import {
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { getUserDetails, logout } from '@/services/auth';
+import { getUserProfile } from '@/services/user-profile';
 import { useEffect, useState } from 'react';
 import { ClassroomModal } from '@/components/classroom/classroom-modal';
 
@@ -30,6 +31,7 @@ export default function DashboardPage() {
     last_name: '',
     email: ''
   });
+  const [userProfilePicture, setUserProfilePicture] = useState('');
   const [openClassroomModal, setOpenClassroomModal] = useState(false);
 
   useEffect(() => {
@@ -45,6 +47,20 @@ export default function DashboardPage() {
       }
     };
     fetchUser();
+
+    // Fetch user profile to get the profile picture
+    const fetchUserProfile = async () => {
+      try {
+        const userProfile = await getUserProfile();
+        if (userProfile && userProfile.picture_url) {
+          console.log('Loaded profile picture URL:', userProfile.picture_url);
+          setUserProfilePicture(userProfile.picture_url);
+        }
+      } catch (error) {
+        console.error('Error loading user profile picture:', error);
+      }
+    };
+    fetchUserProfile();
   }, []);
 
   const handleLogout = async () => {
@@ -130,7 +146,7 @@ export default function DashboardPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="User" />
+                    <AvatarImage src={userProfilePicture || "/placeholder.svg"} alt="User" />
                     <AvatarFallback>
                       {userDetails.first_name.charAt(0).toUpperCase()}
                       {userDetails.last_name.charAt(0).toUpperCase()}
