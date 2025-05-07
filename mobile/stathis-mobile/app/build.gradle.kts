@@ -121,6 +121,30 @@ dependencies {
 
     // Biometric
     implementation(libs.androidx.biometric.ktx)
+
+    // Bluetooth dependencies
+    implementation(libs.androidx.bluetooth)
+
+    // ML Kit dependencies for pose detection
+    implementation(libs.pose.detection)
+    implementation(libs.pose.detection.accurate)
+
+    // CameraX dependencies
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
+    // Accompanist permissions for camera permission handling
+    implementation(libs.accompanist.permissions)
+
+    // Testing dependencies
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit.v115)
+    androidTestImplementation(libs.androidx.espresso.core.v351)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.ui.test.junit4)
+    debugImplementation(libs.ui.tooling)
+    debugImplementation(libs.ui.test.manifest)
 }
 
 kapt {

@@ -7,11 +7,15 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Accessibility
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Accessibility
+import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class HomeNavigationItem(
@@ -36,6 +40,13 @@ sealed class HomeNavigationItem(
         unselectedIcon = Icons.Outlined.Accessibility
     )
 
+    data object Exercise : HomeNavigationItem(
+        route = "exercise",
+        title = "Exercise",
+        selectedIcon = Icons.Filled.FitnessCenter,
+        unselectedIcon = Icons.Outlined.FitnessCenter
+    )
+
     data object Tasks : HomeNavigationItem(
         route = "tasks",
         title = "Tasks",
@@ -44,12 +55,11 @@ sealed class HomeNavigationItem(
         badgeCount = 5 // Example badge count for new tasks
     )
 
-    data object Progress : HomeNavigationItem(
-        route = "progress",
-        title = "Progress",
-        selectedIcon = Icons.Filled.EmojiEvents,
-        unselectedIcon = Icons.Outlined.EmojiEvents,
-        hasNews = true // Example notification for new achievements
+    data object Vitals : HomeNavigationItem(
+        route = "vitals",
+        title = "Vitals",
+        selectedIcon = Icons.Filled.Favorite,
+        unselectedIcon = Icons.Outlined.Favorite
     )
 
     data object Profile : HomeNavigationItem(

@@ -108,11 +108,6 @@ fun DashboardScreen(navController: NavHostController) {
                 onClick = { navController.navigate(HomeNavigationItem.Tasks.route) }
             )
 
-            // Achievements
-            AchievementsCard(
-                onClick = { navController.navigate(HomeNavigationItem.Progress.route) }
-            )
-
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
