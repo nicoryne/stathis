@@ -16,8 +16,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { signInWithEmail, signInWithOAuth } from '@/services/auth';
-import { signInSchema, type SignInFormValues } from '@/lib/validations/auth';
+import { loginWithEmail, loginWithOAuth } from '@/services/auth';
+import { loginSchema, type LoginFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import { toast } from 'sonner';
 import {
@@ -32,46 +32,46 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Provider } from '@supabase/supabase-js';
 import { PasswordInput } from '@/components/auth/password-input';
 
-export default function SignInPage() {
+export default function LoginPage() {
   const router = useRouter();
 
-  const form = useFormValidation(signInSchema, {
+  const form = useFormValidation(loginSchema, {
     email: '',
     password: '',
     rememberMe: false
   });
 
-  const signInEmailMutation = useMutation({
-    mutationFn: signInWithEmail,
+  const loginEmailMutation = useMutation({
+    mutationFn: loginWithEmail,
     onSuccess: () => {
-      toast.success('Sign In successful', {
+      toast.success('Login successful', {
         description: 'Redirecting to dashboard...'
       });
       router.replace('/dashboard');
     },
     onError: (error) => {
-      toast.error('Sign In failed', {
+      toast.error('Login failed', {
         description: error.message || 'Please check your credentials and try again'
       });
     }
   });
 
-  const signInOAuthMutation = useMutation({
-    mutationFn: signInWithOAuth,
+  const loginOAuthMutation = useMutation({
+    mutationFn: loginWithOAuth,
     onSuccess: () => {},
     onError: (error) => {
-      toast.error('Sign In failed', {
+      toast.error('Login failed', {
         description: error.message || 'Please check your credentials and try again'
       });
     }
   });
 
-  const onSubmitEmail = (data: SignInFormValues) => {
-    signInEmailMutation.mutate(data);
+  const onSubmitEmail = (data: LoginFormValues) => {
+    loginEmailMutation.mutate(data);
   };
 
   const onSubmitOAuth = (provider: Provider) => {
-    signInOAuthMutation.mutate(provider);
+    loginOAuthMutation.mutate(provider);
   };
 
   return (
@@ -192,7 +192,7 @@ export default function SignInPage() {
         </div>
       </div>
 
-      {/* Right Panel - Sign In Form */}
+      {/* Right Panel - Login Form */}
       <div className="flex w-full items-center justify-center p-8 md:w-1/2">
         <div className="w-full max-w-md">
           {/* Mobile Logo - Only visible on mobile */}
@@ -231,7 +231,7 @@ export default function SignInPage() {
                           placeholder="name@example.com"
                           type="email"
                           className="h-11"
-                          disabled={signInEmailMutation.isPending}
+                          disabled={loginEmailMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -258,7 +258,7 @@ export default function SignInPage() {
                         <PasswordInput
                           placeholder="••••••••"
                           className="h-11"
-                          disabled={signInEmailMutation.isPending}
+                          disabled={loginEmailMutation.isPending}
                           autoComplete="false"
                           {...field}
                         />
@@ -277,7 +277,7 @@ export default function SignInPage() {
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
-                          disabled={signInEmailMutation.isPending}
+                          disabled={loginEmailMutation.isPending}
                         />
                       </FormControl>
                       <FormLabel className="cursor-pointer text-xs font-normal">
@@ -290,9 +290,9 @@ export default function SignInPage() {
                 <Button
                   type="submit"
                   className="h-11 w-full"
-                  disabled={signInEmailMutation.isPending}
+                  disabled={loginEmailMutation.isPending}
                 >
-                  {signInEmailMutation.isPending ? (
+                  {loginEmailMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Signing in...
@@ -321,7 +321,7 @@ export default function SignInPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={signInOAuthMutation.isPending}
+                disabled={loginOAuthMutation.isPending}
                 onClick={() => onSubmitOAuth('azure')}
               >
                 <Microsoft className="mr-2 h-4 w-4" />
@@ -330,7 +330,7 @@ export default function SignInPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={signInOAuthMutation.isPending}
+                disabled={loginOAuthMutation.isPending}
                 onClick={() => onSubmitOAuth('google')}
               >
                 <Mail className="mr-2 h-4 w-4" />

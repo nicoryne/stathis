@@ -378,7 +378,7 @@ export default function SignUpPage() {
                 className="h-11 font-normal"
                 disabled={signUpMutation.isPending}
                 onClick={() => {
-                  toast.info('Microsoft sign-in is not implemented in this demo');
+                  toast.info('Microsoft login is not implemented in this demo');
                 }}
               >
                 <Microsoft className="mr-2 h-4 w-4" />
@@ -389,7 +389,7 @@ export default function SignUpPage() {
                 className="h-11 font-normal"
                 disabled={signUpMutation.isPending}
                 onClick={() => {
-                  toast.info('Google sign-in is not implemented in this demo');
+                  toast.info('Google login is not implemented in this demo');
                 }}
               >
                 <Mail className="mr-2 h-4 w-4" />
@@ -399,7 +399,7 @@ export default function SignUpPage() {
 
             <div className="mt-8 space-y-2 text-center">
               <Link
-                href="/sign-in"
+                href="/login"
                 className="text-muted-foreground hover:text-primary text-sm transition-colors"
               >
                 Already have an account? <span className="text-primary font-medium">Sign in</span>

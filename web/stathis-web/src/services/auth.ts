@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import {
   ForgotPasswordFormValues,
-  SignInFormValues,
+  LoginFormValues,
   SignUpFormValues
 } from '@/lib/validations/auth';
 import { Provider } from '@supabase/supabase-js';
@@ -36,7 +36,7 @@ export const signUp = async (form: SignUpFormValues) => {
   }
 };
 
-export const signInWithEmail = async (form: SignInFormValues) => {
+export const loginWithEmail = async (form: LoginFormValues) => {
   const supabase = await createClient();
 
   const email = form.email;
@@ -49,7 +49,7 @@ export const signInWithEmail = async (form: SignInFormValues) => {
   }
 };
 
-export const signInWithOAuth = async (provider: Provider) => {
+export const loginWithOAuth = async (provider: Provider) => {
   const supabase = await createClient();
 
   const authCallbackUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/callback`
