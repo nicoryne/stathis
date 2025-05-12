@@ -1,5 +1,4 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -17,9 +16,10 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { isUserVerified, register } from '@/services/auth';
-import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
+import { signInWithEmail, signInWithOAuth } from '@/services/auth';
+import { signInSchema, type SignInFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
+import { toast } from 'sonner';
 import {
   Form,
   FormControl,
@@ -29,43 +29,49 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { VerificationModal } from '@/components/auth/verification-modal';
-import { PasswordStrengthIndicator } from '@/components/auth/password-strength-indicator';
+import { Provider } from '@supabase/supabase-js';
 import { PasswordInput } from '@/components/auth/password-input';
-import { toast } from 'sonner';
 
-export default function RegisterPage() {
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState('');
-  const [password, setPassword] = useState('');
+export default function SignInPage() {
+  const router = useRouter();
 
-  const form = useFormValidation(registerSchema, {
-    firstName: '',
-    lastName: '',
+  const form = useFormValidation(signInSchema, {
     email: '',
     password: '',
-    confirmPassword: '',
-    terms: false
+    rememberMe: false
   });
 
-  const registerMutation = useMutation({
-    mutationFn: register,
+  const signInEmailMutation = useMutation({
+    mutationFn: signInWithEmail,
     onSuccess: () => {
-      toast.success('Registration successful', {
-        description: 'Please verify your email to continue'
+      toast.success('Sign In successful', {
+        description: 'Redirecting to dashboard...'
       });
-      setRegisteredEmail(form.getValues().email);
-      setShowVerificationModal(true);
+      router.replace('/dashboard');
     },
     onError: (error) => {
-      toast.error('Registration failed', {
-        description: error.message || 'Please check your information and try again'
+      toast.error('Sign In failed', {
+        description: error.message || 'Please check your credentials and try again'
       });
     }
   });
 
-  const onSubmit = (data: RegisterFormValues) => {
-    registerMutation.mutate(data);
+  const signInOAuthMutation = useMutation({
+    mutationFn: signInWithOAuth,
+    onSuccess: () => {},
+    onError: (error) => {
+      toast.error('Sign In failed', {
+        description: error.message || 'Please check your credentials and try again'
+      });
+    }
+  });
+
+  const onSubmitEmail = (data: SignInFormValues) => {
+    signInEmailMutation.mutate(data);
+  };
+
+  const onSubmitOAuth = (provider: Provider) => {
+    signInOAuthMutation.mutate(provider);
   };
 
   return (
@@ -115,7 +121,7 @@ export default function RegisterPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Join Stathis Today
+              Welcome to Stathis
             </motion.h1>
             <motion.p
               className="mb-12 max-w-md text-lg text-white/90"
@@ -123,8 +129,7 @@ export default function RegisterPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              Create your account and start monitoring physical education with AI-powered safety
-              tools
+              AI-Powered Posture and Vitals Monitoring for Safe Physical Education
             </motion.p>
 
             <div className="space-y-6">
@@ -138,9 +143,9 @@ export default function RegisterPage() {
                   <Activity className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="mb-1 font-medium">Comprehensive Dashboard</h3>
+                  <h3 className="mb-1 font-medium">Real-time Monitoring</h3>
                   <p className="text-sm text-white/80">
-                    Monitor all your students from a single interface
+                    Track posture and vital signs during physical activities
                   </p>
                 </div>
               </motion.div>
@@ -155,9 +160,9 @@ export default function RegisterPage() {
                   <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="mb-1 font-medium">Data Security</h3>
+                  <h3 className="mb-1 font-medium">Enhanced Safety</h3>
                   <p className="text-sm text-white/80">
-                    Your students' health data is encrypted and protected
+                    Prevent injuries with early detection and alerts
                   </p>
                 </div>
               </motion.div>
@@ -172,9 +177,9 @@ export default function RegisterPage() {
                   <Users className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="mb-1 font-medium">Team Collaboration</h3>
+                  <h3 className="mb-1 font-medium">Personalized Insights</h3>
                   <p className="text-sm text-white/80">
-                    Invite colleagues to collaborate on student monitoring
+                    Tailored feedback and analytics for each student
                   </p>
                 </div>
               </motion.div>
@@ -187,7 +192,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Panel - Registration Form */}
+      {/* Right Panel - Sign In Form */}
       <div className="flex w-full items-center justify-center p-8 md:w-1/2">
         <div className="w-full max-w-md">
           {/* Mobile Logo - Only visible on mobile */}
@@ -204,8 +209,8 @@ export default function RegisterPage() {
             transition={{ duration: 0.5 }}
             className="mb-8"
           >
-            <h1 className="mb-2 text-2xl font-bold">Create an account</h1>
-            <p className="text-muted-foreground">Sign up for Stathis to get started</p>
+            <h1 className="mb-2 text-2xl font-bold">Sign in to your account</h1>
+            <p className="text-muted-foreground">Enter your credentials to access your dashboard</p>
           </motion.div>
 
           <motion.div
@@ -214,47 +219,7 @@ export default function RegisterPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="John"
-                            className="h-11"
-                            disabled={registerMutation.isPending}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Doe"
-                            className="h-11"
-                            disabled={registerMutation.isPending}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
+              <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -266,7 +231,7 @@ export default function RegisterPage() {
                           placeholder="name@example.com"
                           type="email"
                           className="h-11"
-                          disabled={registerMutation.isPending}
+                          disabled={signInEmailMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -280,36 +245,21 @@ export default function RegisterPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <FormLabel className="mb-0">Password</FormLabel>
+                        <Link
+                          href="/forgot-password"
+                          className="text-muted-foreground hover:text-primary text-xs transition-colors"
+                        >
+                          Forgot password?
+                        </Link>
+                      </div>
                       <FormControl>
                         <PasswordInput
                           placeholder="••••••••"
                           className="h-11"
-                          disabled={registerMutation.isPending}
-                          onChange={(e) => {
-                            field.onChange(e);
-                            setPassword(e.target.value);
-                          }}
-                          value={field.value}
-                        />
-                      </FormControl>
-                      <PasswordStrengthIndicator password={password} />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <PasswordInput
-                          placeholder="••••••••"
-                          className="h-11"
-                          disabled={registerMutation.isPending}
+                          disabled={signInEmailMutation.isPending}
+                          autoComplete="false"
                           {...field}
                         />
                       </FormControl>
@@ -320,40 +270,35 @@ export default function RegisterPage() {
 
                 <FormField
                   control={form.control}
-                  name="terms"
+                  name="rememberMe"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-y-0 space-x-2">
+                    <FormItem className="flex flex-row items-center space-y-0 space-x-2">
                       <FormControl>
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
-                          disabled={registerMutation.isPending}
+                          disabled={signInEmailMutation.isPending}
                         />
                       </FormControl>
-                      <div className="leading-tight">
-                        <FormLabel className="text-xs font-normal">
-                          I agree to the{' '}
-                          <a href="#" className="hover:text-primary underline underline-offset-2">
-                            Terms of Service
-                          </a>{' '}
-                          and{' '}
-                          <a href="#" className="hover:text-primary underline underline-offset-2">
-                            Privacy Policy
-                          </a>
-                        </FormLabel>
-                      </div>
+                      <FormLabel className="cursor-pointer text-xs font-normal">
+                        Remember me for 30 days
+                      </FormLabel>
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit" className="h-11 w-full" disabled={registerMutation.isPending}>
-                  {registerMutation.isPending ? (
+                <Button
+                  type="submit"
+                  className="h-11 w-full"
+                  disabled={signInEmailMutation.isPending}
+                >
+                  {signInEmailMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
+                      Signing in...
                     </>
                   ) : (
-                    'Create account'
+                    'Sign in'
                   )}
                 </Button>
               </form>
@@ -376,10 +321,8 @@ export default function RegisterPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={registerMutation.isPending}
-                onClick={() => {
-                  toast.info('Microsoft login is not implemented in this demo');
-                }}
+                disabled={signInOAuthMutation.isPending}
+                onClick={() => onSubmitOAuth('azure')}
               >
                 <Microsoft className="mr-2 h-4 w-4" />
                 Microsoft
@@ -387,10 +330,8 @@ export default function RegisterPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={registerMutation.isPending}
-                onClick={() => {
-                  toast.info('Google login is not implemented in this demo');
-                }}
+                disabled={signInOAuthMutation.isPending}
+                onClick={() => onSubmitOAuth('google')}
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Google
@@ -399,10 +340,10 @@ export default function RegisterPage() {
 
             <div className="mt-8 space-y-2 text-center">
               <Link
-                href="/login"
+                href="/sign-up"
                 className="text-muted-foreground hover:text-primary text-sm transition-colors"
               >
-                Already have an account? <span className="text-primary font-medium">Sign in</span>
+                Don't have an account? <span className="text-primary font-medium">Sign up</span>
               </Link>
               <div>
                 <Link
@@ -417,13 +358,6 @@ export default function RegisterPage() {
           </motion.div>
         </div>
       </div>
-
-      {/* Verification Modal */}
-      <VerificationModal
-        isOpen={showVerificationModal}
-        onOpenChange={setShowVerificationModal}
-        email={registeredEmail}
-      />
     </div>
   );
 }

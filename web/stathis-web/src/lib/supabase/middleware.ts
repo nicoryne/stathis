@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
-const loggedInRoutes = ['/', '/login', '/register', '/forgot-password']
+const loggedInRoutes = ['/', '/sign-in', '/sign-up', '/forgot-password']
 
 export const updateSession = async (request: NextRequest) => {
   try {
@@ -41,7 +41,7 @@ export const updateSession = async (request: NextRequest) => {
 
     // protected routes
     if (user.error && currentPath.startsWith('/dashboard')) {
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.redirect(new URL('/sign-in', request.url));
     }
 
     if (!user.error && loggedInRoutes.includes(currentPath)) {

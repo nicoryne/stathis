@@ -45,7 +45,7 @@ export function Navbar() {
               About
             </a>
             <Button variant="default">
-              <Link href="/login">Get Started</Link>
+              <Link href="/sign-in">Get Started</Link>
             </Button>
             <ThemeSwitcher />
           </nav>

@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -16,10 +17,9 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { loginWithEmail, loginWithOAuth } from '@/services/auth';
-import { loginSchema, type LoginFormValues } from '@/lib/validations/auth';
+import { isUserVerified, signUp } from '@/services/auth';
+import { signUpSchema, type SignUpFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
-import { toast } from 'sonner';
 import {
   Form,
   FormControl,
@@ -29,49 +29,43 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Provider } from '@supabase/supabase-js';
+import { VerificationModal } from '@/components/auth/verification-modal';
+import { PasswordStrengthIndicator } from '@/components/auth/password-strength-indicator';
 import { PasswordInput } from '@/components/auth/password-input';
+import { toast } from 'sonner';
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function SignUpPage() {
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [signedUpEmail, setSignedUpEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-  const form = useFormValidation(loginSchema, {
+  const form = useFormValidation(signUpSchema, {
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
-    rememberMe: false
+    confirmPassword: '',
+    terms: false
   });
 
-  const loginEmailMutation = useMutation({
-    mutationFn: loginWithEmail,
+  const signUpMutation = useMutation({
+    mutationFn: signUp,
     onSuccess: () => {
-      toast.success('Login successful', {
-        description: 'Redirecting to dashboard...'
+      toast.success('Sign Up successful', {
+        description: 'Please verify your email to continue'
       });
-      router.replace('/dashboard');
+      setSignedUpEmail(form.getValues().email);
+      setShowVerificationModal(true);
     },
     onError: (error) => {
-      toast.error('Login failed', {
-        description: error.message || 'Please check your credentials and try again'
+      toast.error('Sign Up failed', {
+        description: error.message || 'Please check your information and try again'
       });
     }
   });
 
-  const loginOAuthMutation = useMutation({
-    mutationFn: loginWithOAuth,
-    onSuccess: () => {},
-    onError: (error) => {
-      toast.error('Login failed', {
-        description: error.message || 'Please check your credentials and try again'
-      });
-    }
-  });
-
-  const onSubmitEmail = (data: LoginFormValues) => {
-    loginEmailMutation.mutate(data);
-  };
-
-  const onSubmitOAuth = (provider: Provider) => {
-    loginOAuthMutation.mutate(provider);
+  const onSubmit = (data: SignUpFormValues) => {
+    signUpMutation.mutate(data);
   };
 
   return (
@@ -121,7 +115,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Welcome to Stathis
+              Join Stathis Today
             </motion.h1>
             <motion.p
               className="mb-12 max-w-md text-lg text-white/90"
@@ -129,7 +123,8 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              AI-Powered Posture and Vitals Monitoring for Safe Physical Education
+              Create your account and start monitoring physical education with AI-powered safety
+              tools
             </motion.p>
 
             <div className="space-y-6">
@@ -143,9 +138,9 @@ export default function LoginPage() {
                   <Activity className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="mb-1 font-medium">Real-time Monitoring</h3>
+                  <h3 className="mb-1 font-medium">Comprehensive Dashboard</h3>
                   <p className="text-sm text-white/80">
-                    Track posture and vital signs during physical activities
+                    Monitor all your students from a single interface
                   </p>
                 </div>
               </motion.div>
@@ -160,9 +155,9 @@ export default function LoginPage() {
                   <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="mb-1 font-medium">Enhanced Safety</h3>
+                  <h3 className="mb-1 font-medium">Data Security</h3>
                   <p className="text-sm text-white/80">
-                    Prevent injuries with early detection and alerts
+                    Your students' health data is encrypted and protected
                   </p>
                 </div>
               </motion.div>
@@ -177,9 +172,9 @@ export default function LoginPage() {
                   <Users className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="mb-1 font-medium">Personalized Insights</h3>
-                  <p className="text-sm text-white/80">
-                    Tailored feedback and analytics for each student
+                  <h3 className="mb-1 font-medium">Team Collaboration</h3>
+                <p className="text-sm text-white/80">
+                    Invite colleagues to collaborate on student monitoring
                   </p>
                 </div>
               </motion.div>
@@ -192,7 +187,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Panel - Login Form */}
+      {/* Right Panel - Sign Up Form */}
       <div className="flex w-full items-center justify-center p-8 md:w-1/2">
         <div className="w-full max-w-md">
           {/* Mobile Logo - Only visible on mobile */}
@@ -209,8 +204,8 @@ export default function LoginPage() {
             transition={{ duration: 0.5 }}
             className="mb-8"
           >
-            <h1 className="mb-2 text-2xl font-bold">Sign in to your account</h1>
-            <p className="text-muted-foreground">Enter your credentials to access your dashboard</p>
+            <h1 className="mb-2 text-2xl font-bold">Create an account</h1>
+            <p className="text-muted-foreground">Sign up for Stathis to get started</p>
           </motion.div>
 
           <motion.div
@@ -219,7 +214,47 @@ export default function LoginPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
           >
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="John"
+                            className="h-11"
+                            disabled={signUpMutation.isPending}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Doe"
+                            className="h-11"
+                            disabled={signUpMutation.isPending}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="email"
@@ -231,7 +266,7 @@ export default function LoginPage() {
                           placeholder="name@example.com"
                           type="email"
                           className="h-11"
-                          disabled={loginEmailMutation.isPending}
+                          disabled={signUpMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -245,21 +280,36 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <div className="mb-1.5 flex items-center justify-between">
-                        <FormLabel className="mb-0">Password</FormLabel>
-                        <Link
-                          href="/forgot-password"
-                          className="text-muted-foreground hover:text-primary text-xs transition-colors"
-                        >
-                          Forgot password?
-                        </Link>
-                      </div>
+                      <FormLabel>Password</FormLabel>
                       <FormControl>
                         <PasswordInput
                           placeholder="••••••••"
                           className="h-11"
-                          disabled={loginEmailMutation.isPending}
-                          autoComplete="false"
+                          disabled={signUpMutation.isPending}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setPassword(e.target.value);
+                          }}
+                          value={field.value}
+                        />
+                      </FormControl>
+                      <PasswordStrengthIndicator password={password} />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <PasswordInput
+                          placeholder="••••••••"
+                          className="h-11"
+                          disabled={signUpMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -270,35 +320,40 @@ export default function LoginPage() {
 
                 <FormField
                   control={form.control}
-                  name="rememberMe"
+                  name="terms"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-y-0 space-x-2">
+                    <FormItem className="flex flex-row items-start space-y-0 space-x-2">
                       <FormControl>
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
-                          disabled={loginEmailMutation.isPending}
+                          disabled={signUpMutation.isPending}
                         />
                       </FormControl>
-                      <FormLabel className="cursor-pointer text-xs font-normal">
-                        Remember me for 30 days
-                      </FormLabel>
+                      <div className="leading-tight">
+                        <FormLabel className="text-xs font-normal">
+                          I agree to the{' '}
+                          <a href="#" className="hover:text-primary underline underline-offset-2">
+                            Terms of Service
+                          </a>{' '}
+                          and{' '}
+                          <a href="#" className="hover:text-primary underline underline-offset-2">
+                            Privacy Policy
+                          </a>
+                        </FormLabel>
+                      </div>
                     </FormItem>
                   )}
                 />
 
-                <Button
-                  type="submit"
-                  className="h-11 w-full"
-                  disabled={loginEmailMutation.isPending}
-                >
-                  {loginEmailMutation.isPending ? (
+                <Button type="submit" className="h-11 w-full" disabled={signUpMutation.isPending}>
+                  {signUpMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
+                      Signing Up...
                     </>
                   ) : (
-                    'Sign in'
+                    'Sign Up'
                   )}
                 </Button>
               </form>
@@ -321,8 +376,10 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={loginOAuthMutation.isPending}
-                onClick={() => onSubmitOAuth('azure')}
+                disabled={signUpMutation.isPending}
+                onClick={() => {
+                  toast.info('Microsoft sign-in is not implemented in this demo');
+                }}
               >
                 <Microsoft className="mr-2 h-4 w-4" />
                 Microsoft
@@ -330,8 +387,10 @@ export default function LoginPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={loginOAuthMutation.isPending}
-                onClick={() => onSubmitOAuth('google')}
+                disabled={signUpMutation.isPending}
+                onClick={() => {
+                  toast.info('Google sign-in is not implemented in this demo');
+                }}
               >
                 <Mail className="mr-2 h-4 w-4" />
                 Google
@@ -340,10 +399,10 @@ export default function LoginPage() {
 
             <div className="mt-8 space-y-2 text-center">
               <Link
-                href="/register"
+                href="/sign-in"
                 className="text-muted-foreground hover:text-primary text-sm transition-colors"
               >
-                Don't have an account? <span className="text-primary font-medium">Sign up</span>
+                Already have an account? <span className="text-primary font-medium">Sign in</span>
               </Link>
               <div>
                 <Link
@@ -358,6 +417,13 @@ export default function LoginPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* Verification Modal */}
+      <VerificationModal
+        isOpen={showVerificationModal}
+        onOpenChange={setShowVerificationModal}
+        email={signedUpEmail}
+      />
     </div>
   );
 }

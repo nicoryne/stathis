@@ -3,14 +3,14 @@
 import { createClient } from '@/lib/supabase/server';
 import {
   ForgotPasswordFormValues,
-  LoginFormValues,
-  RegisterFormValues
+  SignInFormValues,
+  SignUpFormValues
 } from '@/lib/validations/auth';
 import { Provider } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-export const register = async (form: RegisterFormValues) => {
+export const signUp = async (form: SignUpFormValues) => {
   const supabase = await createClient();
 
   const email = form.email;
@@ -36,7 +36,7 @@ export const register = async (form: RegisterFormValues) => {
   }
 };
 
-export const loginWithEmail = async (form: LoginFormValues) => {
+export const signInWithEmail = async (form: SignInFormValues) => {
   const supabase = await createClient();
 
   const email = form.email;
@@ -49,7 +49,7 @@ export const loginWithEmail = async (form: LoginFormValues) => {
   }
 };
 
-export const loginWithOAuth = async (provider: Provider) => {
+export const signInWithOAuth = async (provider: Provider) => {
   const supabase = await createClient();
 
   const authCallbackUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/callback`
@@ -69,7 +69,7 @@ export const loginWithOAuth = async (provider: Provider) => {
 }
 
 
-export const logout = async () => {
+export const signOut = async () => {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signOut();
