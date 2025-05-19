@@ -20,7 +20,7 @@ public class TokenService {
 
   @Autowired private PasswordEncoder passwordEncoder;
 
-  public record CreatedToken(String rawToken, Token savedToken, OffsetDateTime expiresAt) {}
+  public record CreatedToken(String rawToken, Token savedToken) {}
 
   @Transactional
   public CreatedToken createToken(User user, TokenTypeEnum tokenType, OffsetDateTime expiresAt) {
@@ -37,7 +37,7 @@ public class TokenService {
             .build();
 
     tokenRepo.save(token);
-    return new CreatedToken(tokenValue, token, expiresAt);
+    return new CreatedToken(tokenValue, token);
   }
 
   public CreatedToken createRefreshToken(User user) {

@@ -137,13 +137,8 @@ public class UserService {
     String accessToken = jwtUtil.generateToken(user);
     CreatedToken refresh = tokenService.createRefreshToken(user);
     String tokenValue = refresh.rawToken();
-    OffsetDateTime expiresAt = refresh.expiresAt();
 
-    return AuthResponseDTO.builder()
-        .accessToken(accessToken)
-        .refreshToken(tokenValue)
-        .expiresAt(expiresAt)
-        .build();
+    return AuthResponseDTO.builder().accessToken(accessToken).refreshToken(tokenValue).build();
   }
 
   @Transactional
@@ -164,13 +159,8 @@ public class UserService {
     String accessToken = jwtUtil.generateToken(user);
     CreatedToken refresh = tokenService.createRefreshToken(user);
     String newRefreshToken = refresh.rawToken();
-    OffsetDateTime expiresAt = refresh.expiresAt();
 
-    return AuthResponseDTO.builder()
-        .accessToken(accessToken)
-        .refreshToken(newRefreshToken)
-        .expiresAt(expiresAt)
-        .build();
+    return AuthResponseDTO.builder().accessToken(accessToken).refreshToken(tokenValue).build();
   }
 
   @Transactional

@@ -1,6 +1,5 @@
 package edu.cit.stathis.auth.dto;
 
-import java.time.OffsetDateTime;
 import lombok.*;
 
 @Getter
@@ -11,5 +10,4 @@ import lombok.*;
 public class AuthResponseDTO {
   private String accessToken;
   private String refreshToken;
-  private OffsetDateTime expiresAt;
 }

@@ -5,7 +5,6 @@ import edu.cit.stathis.auth.dto.CreateUserDTO;
 import edu.cit.stathis.auth.dto.LoginDTO;
 import edu.cit.stathis.auth.dto.UserResponseDTO;
 import edu.cit.stathis.auth.entity.User;
-import edu.cit.stathis.auth.enums.UserRoleEnum;
 import edu.cit.stathis.auth.repository.TokenRepository;
 import edu.cit.stathis.auth.service.TokenService;
 import edu.cit.stathis.auth.service.UserService;
@@ -38,7 +37,7 @@ public class AuthController {
 
   @PostMapping("/register")
   public ResponseEntity<UserResponseDTO> registerUser(@RequestBody CreateUserDTO userDTO) {
-    User user = userService.createUser(userDTO, UserRoleEnum.STUDENT);
+    User user = userService.createUser(userDTO, userDTO.getUserRole());
     UserResponseDTO response = userService.buildUserResponse(user);
     return new ResponseEntity<>(response, HttpStatus.CREATED);
   }
