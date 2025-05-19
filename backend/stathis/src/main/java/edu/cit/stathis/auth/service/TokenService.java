@@ -5,6 +5,8 @@ import edu.cit.stathis.auth.entity.User;
 import edu.cit.stathis.auth.enums.TokenTypeEnum;
 import edu.cit.stathis.auth.repository.TokenRepository;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,7 +20,7 @@ public class TokenService {
 
   @Autowired private PasswordEncoder passwordEncoder;
 
-  public record CreatedToken(String rawToken, Token savedToken) {}
+  public record CreatedToken(String rawToken, Token savedToken, OffsetDateTime expiresAt) {}
 
   @Transactional
   public CreatedToken createToken(User user, TokenTypeEnum tokenType, OffsetDateTime expiresAt) {
@@ -35,7 +37,7 @@ public class TokenService {
             .build();
 
     tokenRepo.save(token);
-    return new CreatedToken(tokenValue, token);
+    return new CreatedToken(tokenValue, token, expiresAt);
   }
 
   public CreatedToken createRefreshToken(User user) {
@@ -53,6 +55,16 @@ public class TokenService {
                     && !token.getExpiresAt().isBefore(OffsetDateTime.now())
                     && token.getTokenType() == expectedType)
         .orElse(false);
+  }
+
+  public Optional<Token> getValidToken(String rawToken, TokenTypeEnum expectedType) {
+    List<Token> tokens =
+        tokenRepo.findAllByTokenTypeAndRevokedFalseAndExpiresAtAfter(
+            expectedType, OffsetDateTime.now());
+
+    return tokens.stream()
+        .filter(token -> passwordEncoder.matches(rawToken, token.getTokenHash()))
+        .findFirst();
   }
 
   @Transactional

@@ -4,16 +4,13 @@ import edu.cit.stathis.auth.dto.AuthResponseDTO;
 import edu.cit.stathis.auth.dto.CreateUserDTO;
 import edu.cit.stathis.auth.dto.LoginDTO;
 import edu.cit.stathis.auth.dto.UserResponseDTO;
-import edu.cit.stathis.auth.entity.Token;
 import edu.cit.stathis.auth.entity.User;
-import edu.cit.stathis.auth.enums.TokenTypeEnum;
 import edu.cit.stathis.auth.enums.UserRoleEnum;
 import edu.cit.stathis.auth.repository.TokenRepository;
 import edu.cit.stathis.auth.service.TokenService;
 import edu.cit.stathis.auth.service.UserService;
 import edu.cit.stathis.common.utils.JwtUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -66,23 +63,7 @@ public class AuthController {
 
   @PostMapping("/refresh")
   public ResponseEntity<AuthResponseDTO> refreshToken(@RequestParam String refreshToken) {
-    Optional<Token> tokenOpt = tokenRepo.findByTokenHash(refreshToken);
-    if (tokenOpt.isEmpty() || !tokenService.validateToken(refreshToken, TokenTypeEnum.REFRESH)) {
-      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-    }
-
-    Token oldToken = tokenOpt.get();
-    User user = oldToken.getUser();
-    tokenService.revokeToken(refreshToken);
-
-    String newAccessToken = jwtUtil.generateToken(user);
-    TokenService.CreatedToken newRefresh = tokenService.createRefreshToken(user);
-
-    return ResponseEntity.ok(
-        AuthResponseDTO.builder()
-            .accessToken(newAccessToken)
-            .refreshToken(newRefresh.rawToken())
-            .build());
+    return ResponseEntity.ok(userService.refreshToken(refreshToken));
   }
 
   @PostMapping("/logout")

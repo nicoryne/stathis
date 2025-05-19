@@ -132,11 +132,45 @@ public class UserService {
       throw new IllegalArgumentException("Email not verified.");
     }
 
+    tokenService.revokeAllTokensForUser(user, TokenTypeEnum.REFRESH);
+
     String accessToken = jwtUtil.generateToken(user);
     CreatedToken refresh = tokenService.createRefreshToken(user);
     String tokenValue = refresh.rawToken();
+    OffsetDateTime expiresAt = refresh.expiresAt();
 
-    return AuthResponseDTO.builder().accessToken(accessToken).refreshToken(tokenValue).build();
+    return AuthResponseDTO.builder()
+        .accessToken(accessToken)
+        .refreshToken(tokenValue)
+        .expiresAt(expiresAt)
+        .build();
+  }
+
+  @Transactional
+  public AuthResponseDTO refreshToken(String tokenValue) {
+    Token token =
+        tokenService
+            .getValidToken(tokenValue, TokenTypeEnum.REFRESH)
+            .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token."));
+
+    if (token.getUsedAt() != null) {
+      throw new IllegalArgumentException("Token already used.");
+    }
+
+    User user = token.getUser();
+
+    tokenService.revokeAllTokensForUser(user, TokenTypeEnum.REFRESH);
+
+    String accessToken = jwtUtil.generateToken(user);
+    CreatedToken refresh = tokenService.createRefreshToken(user);
+    String newRefreshToken = refresh.rawToken();
+    OffsetDateTime expiresAt = refresh.expiresAt();
+
+    return AuthResponseDTO.builder()
+        .accessToken(accessToken)
+        .refreshToken(newRefreshToken)
+        .expiresAt(expiresAt)
+        .build();
   }
 
   @Transactional
@@ -182,21 +216,18 @@ public class UserService {
   @Transactional
   public void verifyEmail(String tokenValue) {
     Token token =
-        tokenRepo
-            .findByTokenHash(tokenValue)
+        tokenService
+            .getValidToken(tokenValue, TokenTypeEnum.EMAIL_VERIFICATION)
             .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token."));
-    if (token.isRevoked()
-        || token.getExpiresAt().isBefore(OffsetDateTime.now())
-        || token.getUsedAt() != null) {
-      throw new IllegalArgumentException("Invalid or expired token.");
-    }
-    if (token.getTokenType() != TokenTypeEnum.EMAIL_VERIFICATION) {
-      throw new IllegalArgumentException("Invalid token type.");
+
+    if (token.getUsedAt() != null) {
+      throw new IllegalArgumentException("Token already used.");
     }
 
     User user = token.getUser();
     user.setEmailVerified(true);
     token.setUsedAt(OffsetDateTime.now());
+
     uRepo.save(user);
     tokenRepo.save(token);
   }
