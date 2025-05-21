@@ -1,4 +1,7 @@
-import java.util.Properties
+import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+
+val supabaseUrl: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.url")
+val supabaseAnonKey: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.anon.key")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -23,8 +26,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SUPABASE_URL", "\"${project.findProperty("supabase.url") ?: ""}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("supabase.anon.key") ?: ""}\"")
+        buildConfigField("String", "SUPABASE_URL", supabaseUrl)
+        buildConfigField("String", "SUPABASE_ANON_KEY", supabaseAnonKey)
     }
 
     buildTypes {
@@ -56,6 +59,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
+    implementation(libs.androidx.biometric.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -88,6 +92,9 @@ dependencies {
     // Data Store
     implementation(libs.androidx.datastore.preferences)
 
+    // Lottie
+    implementation(libs.lottie.compose)
+
     // Jetpack Compose
     val composeBom = platform("androidx.compose:compose-bom:2025.02.00")
     implementation(composeBom)
@@ -107,6 +114,37 @@ dependencies {
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.android)
+
+    // Coil
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp)
+
+    // Biometric
+    implementation(libs.androidx.biometric.ktx)
+
+    // Bluetooth dependencies
+    implementation(libs.androidx.bluetooth)
+
+    // ML Kit dependencies for pose detection
+    implementation(libs.pose.detection)
+    implementation(libs.pose.detection.accurate)
+
+    // CameraX dependencies
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
+    // Accompanist permissions for camera permission handling
+    implementation(libs.accompanist.permissions)
+
+    // Testing dependencies
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit.v115)
+    androidTestImplementation(libs.androidx.espresso.core.v351)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.ui.test.junit4)
+    debugImplementation(libs.ui.tooling)
+    debugImplementation(libs.ui.test.manifest)
 }
 
 kapt {

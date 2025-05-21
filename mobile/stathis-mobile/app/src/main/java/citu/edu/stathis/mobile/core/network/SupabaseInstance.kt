@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.core.network
 
+import android.util.Log
 import cit.edu.stathis.mobile.BuildConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth

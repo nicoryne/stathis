@@ -4,13 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import {
   ForgotPasswordFormValues,
   LoginFormValues,
-  RegisterFormValues
+  SignUpFormValues
 } from '@/lib/validations/auth';
 import { Provider } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-export const register = async (form: RegisterFormValues) => {
+export const signUp = async (form: SignUpFormValues) => {
   const supabase = await createClient();
 
   const email = form.email;
@@ -69,7 +69,7 @@ export const loginWithOAuth = async (provider: Provider) => {
 }
 
 
-export const logout = async () => {
+export const signOut = async () => {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signOut();

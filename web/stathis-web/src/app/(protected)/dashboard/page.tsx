@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
-import { getUserDetails, logout } from '@/services/auth';
+import { getUserDetails, signOut } from '@/services/auth';
 import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
@@ -45,8 +45,8 @@ export default function DashboardPage() {
     fetchUser();
   }, []);
 
-  const handleLogout = async () => {
-    await logout();
+  const handlesignOut = async () => {
+    await signOut();
   };
 
   // Mock data for the dashboard
@@ -148,7 +148,7 @@ export default function DashboardPage() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handlesignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeSwitcher />

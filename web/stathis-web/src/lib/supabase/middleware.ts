@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 
-const loggedInRoutes = ['/', '/login', '/register', '/forgot-password']
+const loggedInRoutes = ['/', '/login', '/sign-up', '/forgot-password']
 
 export const updateSession = async (request: NextRequest) => {
   try {

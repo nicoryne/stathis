@@ -48,7 +48,7 @@ export default function Home() {
               </p>
               <div className="flex flex-col gap-4 pt-4 sm:flex-row">
                 <Button size="lg" className="font-medium">
-                  <Link href="/login">Get Started</Link>
+                  <Link href="/sign-in">Get Started</Link>
                 </Button>
                 <Button size="lg" variant="outline" className="font-medium">
                   Learn More
@@ -301,7 +301,7 @@ export default function Home() {
             </p>
 
             <Button size="lg" className="font-medium">
-              <Link href="/login">Get Started Today</Link>
+              <Link href="/sign-in">Get Started</Link>
             </Button>
           </motion.div>
         </div>

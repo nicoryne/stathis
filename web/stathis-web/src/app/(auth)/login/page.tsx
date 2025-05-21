@@ -340,7 +340,7 @@ export default function LoginPage() {
 
             <div className="mt-8 space-y-2 text-center">
               <Link
-                href="/register"
+                href="/sign-up"
                 className="text-muted-foreground hover:text-primary text-sm transition-colors"
               >
                 Don't have an account? <span className="text-primary font-medium">Sign up</span>

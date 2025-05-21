@@ -17,8 +17,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { isUserVerified, register } from '@/services/auth';
-import { registerSchema, type RegisterFormValues } from '@/lib/validations/auth';
+import { isUserVerified, signUp } from '@/services/auth';
+import { signUpSchema, type SignUpFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import {
   Form,
@@ -34,12 +34,12 @@ import { PasswordStrengthIndicator } from '@/components/auth/password-strength-i
 import { PasswordInput } from '@/components/auth/password-input';
 import { toast } from 'sonner';
 
-export default function RegisterPage() {
+export default function SignUpPage() {
   const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [signedUpEmail, setSignedUpEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const form = useFormValidation(registerSchema, {
+  const form = useFormValidation(signUpSchema, {
     firstName: '',
     lastName: '',
     email: '',
@@ -48,24 +48,24 @@ export default function RegisterPage() {
     terms: false
   });
 
-  const registerMutation = useMutation({
-    mutationFn: register,
+  const signUpMutation = useMutation({
+    mutationFn: signUp,
     onSuccess: () => {
-      toast.success('Registration successful', {
+      toast.success('Sign Up successful', {
         description: 'Please verify your email to continue'
       });
-      setRegisteredEmail(form.getValues().email);
+      setSignedUpEmail(form.getValues().email);
       setShowVerificationModal(true);
     },
     onError: (error) => {
-      toast.error('Registration failed', {
+      toast.error('Sign Up failed', {
         description: error.message || 'Please check your information and try again'
       });
     }
   });
 
-  const onSubmit = (data: RegisterFormValues) => {
-    registerMutation.mutate(data);
+  const onSubmit = (data: SignUpFormValues) => {
+    signUpMutation.mutate(data);
   };
 
   return (
@@ -173,7 +173,7 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <h3 className="mb-1 font-medium">Team Collaboration</h3>
-                  <p className="text-sm text-white/80">
+                <p className="text-sm text-white/80">
                     Invite colleagues to collaborate on student monitoring
                   </p>
                 </div>
@@ -187,7 +187,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Panel - Registration Form */}
+      {/* Right Panel - Sign Up Form */}
       <div className="flex w-full items-center justify-center p-8 md:w-1/2">
         <div className="w-full max-w-md">
           {/* Mobile Logo - Only visible on mobile */}
@@ -226,7 +226,7 @@ export default function RegisterPage() {
                           <Input
                             placeholder="John"
                             className="h-11"
-                            disabled={registerMutation.isPending}
+                            disabled={signUpMutation.isPending}
                             {...field}
                           />
                         </FormControl>
@@ -245,7 +245,7 @@ export default function RegisterPage() {
                           <Input
                             placeholder="Doe"
                             className="h-11"
-                            disabled={registerMutation.isPending}
+                            disabled={signUpMutation.isPending}
                             {...field}
                           />
                         </FormControl>
@@ -266,7 +266,7 @@ export default function RegisterPage() {
                           placeholder="name@example.com"
                           type="email"
                           className="h-11"
-                          disabled={registerMutation.isPending}
+                          disabled={signUpMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -285,7 +285,7 @@ export default function RegisterPage() {
                         <PasswordInput
                           placeholder="••••••••"
                           className="h-11"
-                          disabled={registerMutation.isPending}
+                          disabled={signUpMutation.isPending}
                           onChange={(e) => {
                             field.onChange(e);
                             setPassword(e.target.value);
@@ -309,7 +309,7 @@ export default function RegisterPage() {
                         <PasswordInput
                           placeholder="••••••••"
                           className="h-11"
-                          disabled={registerMutation.isPending}
+                          disabled={signUpMutation.isPending}
                           {...field}
                         />
                       </FormControl>
@@ -327,7 +327,7 @@ export default function RegisterPage() {
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
-                          disabled={registerMutation.isPending}
+                          disabled={signUpMutation.isPending}
                         />
                       </FormControl>
                       <div className="leading-tight">
@@ -346,14 +346,14 @@ export default function RegisterPage() {
                   )}
                 />
 
-                <Button type="submit" className="h-11 w-full" disabled={registerMutation.isPending}>
-                  {registerMutation.isPending ? (
+                <Button type="submit" className="h-11 w-full" disabled={signUpMutation.isPending}>
+                  {signUpMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating account...
+                      Signing Up...
                     </>
                   ) : (
-                    'Create account'
+                    'Sign Up'
                   )}
                 </Button>
               </form>
@@ -376,7 +376,7 @@ export default function RegisterPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={registerMutation.isPending}
+                disabled={signUpMutation.isPending}
                 onClick={() => {
                   toast.info('Microsoft login is not implemented in this demo');
                 }}
@@ -387,7 +387,7 @@ export default function RegisterPage() {
               <Button
                 variant="outline"
                 className="h-11 font-normal"
-                disabled={registerMutation.isPending}
+                disabled={signUpMutation.isPending}
                 onClick={() => {
                   toast.info('Google login is not implemented in this demo');
                 }}
@@ -422,7 +422,7 @@ export default function RegisterPage() {
       <VerificationModal
         isOpen={showVerificationModal}
         onOpenChange={setShowVerificationModal}
-        email={registeredEmail}
+        email={signedUpEmail}
       />
     </div>
   );

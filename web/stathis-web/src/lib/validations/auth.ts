@@ -10,7 +10,7 @@ export const loginSchema = z.object({
 
 export type LoginFormValues = z.infer<typeof loginSchema>
 
-export const registerSchema = z
+export const signUpSchema = z
   .object({
     firstName: z.string().min(2, {
       message: "First name must be at least 2 characters",
@@ -46,7 +46,7 @@ export const registerSchema = z
     path: ["confirmPassword"],
   })
 
-export type RegisterFormValues = z.infer<typeof registerSchema>
+export type SignUpFormValues = z.infer<typeof signUpSchema>
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
