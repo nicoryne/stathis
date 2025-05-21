@@ -160,7 +160,7 @@ public class UserService {
     CreatedToken refresh = tokenService.createRefreshToken(user);
     String newRefreshToken = refresh.rawToken();
 
-    return AuthResponseDTO.builder().accessToken(accessToken).refreshToken(tokenValue).build();
+    return AuthResponseDTO.builder().accessToken(accessToken).refreshToken(newRefreshToken).build();
   }
 
   @Transactional

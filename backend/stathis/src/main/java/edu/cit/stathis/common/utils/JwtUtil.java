@@ -2,12 +2,15 @@ package edu.cit.stathis.common.utils;
 
 import edu.cit.stathis.auth.entity.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +23,10 @@ public class JwtUtil {
   @Value("${jwt.expiration}")
   private Long expiration;
 
+  private SecretKey getSigningKey() {
+    return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+  }
+
   public String generateToken(User user) {
     Map<String, Object> claims = new HashMap<>();
     claims.put("role", user.getUserRole().toString());
@@ -28,11 +35,11 @@ public class JwtUtil {
 
   private String createToken(Map<String, Object> claims, String subject) {
     return Jwts.builder()
-        .setClaims(claims)
-        .setSubject(subject)
-        .setIssuedAt(new Date(System.currentTimeMillis()))
-        .setExpiration(new Date(System.currentTimeMillis() + expiration))
-        .signWith(SignatureAlgorithm.HS512, secret)
+        .claims(claims)
+        .subject(subject)
+        .issuedAt(new Date(System.currentTimeMillis()))
+        .expiration(new Date(System.currentTimeMillis() + expiration))
+        .signWith(getSigningKey())
         .compact();
   }
 
@@ -46,7 +53,11 @@ public class JwtUtil {
   }
 
   private Claims extractAllClaims(String token) {
-    return Jwts.parser().setSigningKey(secret).build().parseClaimsJws(token).getBody();
+    JwtParser parser = Jwts.parser().verifyWith(getSigningKey()).build();
+
+    Claims claims = parser.parseSignedClaims(token).getPayload();
+
+    return claims;
   }
 
   public Boolean validateToken(String token, String username) {

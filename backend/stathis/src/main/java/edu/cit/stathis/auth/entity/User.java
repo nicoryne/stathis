@@ -6,7 +6,6 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
@@ -20,7 +19,6 @@ public class User {
 
   @Id
   @GeneratedValue(generator = "UUID")
-  @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
   @Column(name = "user_id", updatable = false, nullable = false)
   private UUID userId;
 

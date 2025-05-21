@@ -5,10 +5,8 @@ import edu.cit.stathis.auth.dto.CreateUserDTO;
 import edu.cit.stathis.auth.dto.LoginDTO;
 import edu.cit.stathis.auth.dto.UserResponseDTO;
 import edu.cit.stathis.auth.entity.User;
-import edu.cit.stathis.auth.repository.TokenRepository;
 import edu.cit.stathis.auth.service.TokenService;
 import edu.cit.stathis.auth.service.UserService;
-import edu.cit.stathis.common.utils.JwtUtil;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -22,8 +20,6 @@ public class AuthController {
 
   @Autowired private UserService userService;
   @Autowired private TokenService tokenService;
-  @Autowired private JwtUtil jwtUtil;
-  @Autowired private TokenRepository tokenRepo;
 
   @GetMapping("/test")
   public ResponseEntity<String> test() {
