@@ -53,6 +53,12 @@ public class UserProfile {
   @Column(name = "position_title")
   private String positionTitle;
 
+  @Column(name = "height_in_meters")
+  private Double heightInMeters;
+
+  @Column(name = "weight_in_kg")
+  private Double weightInKg;
+
   @CreationTimestamp
   @Column(name = "created_at")
   private OffsetDateTime createdAt;
@@ -60,4 +66,27 @@ public class UserProfile {
   @UpdateTimestamp
   @Column(name = "updated_at")
   private OffsetDateTime updatedAt;
+
+  @Transient
+  public Integer getAge() {
+    if (birthdate == null) return null;
+
+    LocalDate dateNow = LocalDate.now();
+
+    return dateNow.getYear()
+        - birthdate.getYear()
+        - (dateNow.getDayOfYear() < birthdate.getDayOfYear() ? 1 : 0);
+  }
+
+  @Transient
+  public Double getBmi() {
+    if (heightInMeters == null || weightInKg == null || heightInMeters == 0) return null;
+
+    return weightInKg / (heightInMeters * heightInMeters);
+  }
+
+  public String getBmiFormatted() {
+    Double bmi = getBmi();
+    return bmi != null ? String.format("%.2f", bmi) : null;
+  }
 }
