@@ -20,7 +20,6 @@ public class ClassroomBodyDTO {
     private String description;
 
     @NotBlank(message = "Teacher ID is required")
-    @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", 
-             message = "Invalid teacher ID format")
+    @Pattern(regexp = "^\\d{2}-\\d{4}-\\d{3}$", message = "Invalid teacher ID format")
     private String teacherId;
 }

@@ -8,6 +8,7 @@ import edu.cit.stathis.task.dto.TaskBodyDTO;
 import edu.cit.stathis.task.dto.TaskResponseDTO;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Random;
 
 @Service
 public class TaskService {
@@ -16,6 +17,7 @@ public class TaskService {
 
     public Task createTask(TaskBodyDTO taskBodyDTO) {
         Task task = new Task();
+        task.setPhysicalId(provideUniquePhysicalId());
         task.setName(taskBodyDTO.getName());
         task.setDescription(taskBodyDTO.getDescription());
         task.setSubmissionDate(OffsetDateTime.parse(taskBodyDTO.getSubmissionDate()));
@@ -73,5 +75,21 @@ public class TaskService {
             .createdAt(task.getCreatedAt().toString())
             .updatedAt(task.getUpdatedAt().toString())
             .build();
+    }
+
+    private String generatePhysicalId() {
+        String year = String.valueOf(OffsetDateTime.now().getYear()).substring(2);
+        Random random = new Random();
+        String secondPart = String.format("%04d", random.nextInt(10000));
+        String thirdPart = String.format("%03d", random.nextInt(1000));
+        return String.format("TASK-%s-%s-%s", year, secondPart, thirdPart);
+    }
+    
+    private String provideUniquePhysicalId() {
+        String generatedPhysicalId;
+        do {
+            generatedPhysicalId = generatePhysicalId();
+        } while (taskRepository.existsByPhysicalId(generatedPhysicalId));
+        return generatedPhysicalId;
     }
 }

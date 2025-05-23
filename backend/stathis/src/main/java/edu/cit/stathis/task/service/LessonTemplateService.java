@@ -23,7 +23,7 @@ public class LessonTemplateService {
     }
 
     public LessonTemplate getLessonTemplate(String physicalId) {
-        return lessonTemplateRepository.findByPhysicalId(physicalId);
+        return lessonTemplateRepository.findByPhysicalId(physicalId).orElse(null);
     }
 
     public List<LessonTemplate> getAllLessonTemplates() {
