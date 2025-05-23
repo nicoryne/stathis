@@ -44,6 +44,9 @@ public class Classroom {
 
     @Column(name = "teacher_id")
     private String teacherId;
+
+    @Column(name = "classroom_code")
+    private String classroomCode;
     
     @JsonIgnoreProperties("classroom")
     @Column(name = "classroom_students")
