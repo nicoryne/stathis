@@ -129,7 +129,7 @@ public class ClassroomService {
             .email(classroomStudents.getStudent().getUser().getEmail())
             .profilePictureUrl(classroomStudents.getStudent().getProfilePictureUrl())
             .joinedAt(classroomStudents.getCreatedAt().toString())
-            .verified(classroomStudents.isVerified())
+            .isVerified(classroomStudents.isVerified())
             .build();
     }
 

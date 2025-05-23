@@ -14,5 +14,5 @@ public class StudentListResponseDTO {
     private String email;
     private String profilePictureUrl;
     private String joinedAt;
-    private boolean verified;
+    private boolean isVerified;
 }

@@ -33,6 +33,6 @@ public class ClassroomStudents {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    @Column(name = "verified")
-    private boolean verified;
+    @Column(name = "is_verified")
+    private boolean isVerified;
 }
