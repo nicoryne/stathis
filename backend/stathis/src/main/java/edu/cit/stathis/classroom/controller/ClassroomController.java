@@ -19,6 +19,7 @@ import edu.cit.stathis.classroom.service.ClassroomService;
 import edu.cit.stathis.classroom.entity.Classroom;
 import edu.cit.stathis.classroom.dto.ClassroomBodyDTO;
 import edu.cit.stathis.classroom.dto.ClassroomResponseDTO;
+import edu.cit.stathis.classroom.dto.StudentListResponseDTO;
 
 @RestController
 @RequestMapping("/api/classrooms")
@@ -73,5 +74,35 @@ public class ClassroomController {
             .map(classroomService::buildClassroomResponse)
             .collect(Collectors.toList());
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/{classroomPhysicalId}/enroll")
+    public ResponseEntity<Void> enrollStudentInClassroom(@PathVariable String classroomPhysicalId, @RequestBody String studentId) {
+        classroomService.enrollStudentInClassroom(classroomPhysicalId, studentId);
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+    @GetMapping("/{classroomPhysicalId}/students")
+    public ResponseEntity<List<StudentListResponseDTO>> getStudentListByClassroomPhysicalId(@PathVariable String classroomPhysicalId) {
+        List<StudentListResponseDTO> students = classroomService.getStudentListByClassroomPhysicalId(classroomPhysicalId);
+        return new ResponseEntity<>(students, HttpStatus.OK);
+    }
+
+    @PostMapping("/{classroomPhysicalId}/students/{studentId}/verify")
+    public ResponseEntity<Void> verifyStudentStatus(@PathVariable String classroomPhysicalId, @PathVariable String studentId) {
+        classroomService.verifyStudentStatus(classroomPhysicalId, studentId);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PostMapping("/{classroomPhysicalId}/deactivate")
+    public ResponseEntity<Void> deactivateClassroom(@PathVariable String classroomPhysicalId) {
+        classroomService.deactivateClassroom(classroomPhysicalId);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PostMapping("/{classroomPhysicalId}/activate")
+    public ResponseEntity<Void> activateClassroom(@PathVariable String classroomPhysicalId) {
+        classroomService.activateClassroom(classroomPhysicalId);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }

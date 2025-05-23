@@ -5,13 +5,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import edu.cit.stathis.classroom.repository.ClassroomRepository;
 import edu.cit.stathis.classroom.dto.ClassroomBodyDTO;
 import edu.cit.stathis.classroom.dto.ClassroomResponseDTO;
+import edu.cit.stathis.classroom.dto.StudentListResponseDTO;
 import edu.cit.stathis.classroom.entity.Classroom;
+import edu.cit.stathis.classroom.entity.ClassroomStudents;
 import edu.cit.stathis.auth.service.UserService;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Random;
 import java.util.UUID;
 import java.util.List;
+import java.util.Base64;
+import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @Service
 public class ClassroomService {
@@ -65,6 +70,69 @@ public class ClassroomService {
         return classroomRepository.findByClassroomStudents_Student_UserId(UUID.fromString(studentId));
     }
 
+    public String generateClassroomCode(Classroom classroom) {
+        String classroomCode = Base64.getEncoder().encodeToString(classroom.getPhysicalId().getBytes());
+        classroom.setClassroomCode(classroomCode);
+        classroomRepository.save(classroom);
+        return classroomCode;
+    }
+
+    public void enrollStudentInClassroom(String classroomCode, String studentId) {
+        Classroom classroom = classroomRepository.findByClassroomCode(classroomCode)
+            .orElseThrow(() -> new RuntimeException("Classroom not found"));
+        
+        if (!classroom.isActive()) {
+            throw new RuntimeException("Classroom is not active");
+        }
+        
+        boolean alreadyEnrolled = classroom.getClassroomStudents().stream()
+            .anyMatch(cs -> cs.getStudent().getUserId().equals(UUID.fromString(studentId)));
+        if (alreadyEnrolled) {
+            throw new RuntimeException("Student is already enrolled");
+        }
+        
+        ClassroomStudents classroomStudents = new ClassroomStudents();
+        classroomStudents.setClassroom(classroom);
+        classroomStudents.setStudent(userService.findUserProfileByUserId(UUID.fromString(studentId)));
+        classroomStudents.setCreatedAt(OffsetDateTime.now());
+        classroomStudents.setUpdatedAt(OffsetDateTime.now());
+        classroomStudents.setVerified(false);
+        classroom.getClassroomStudents().add(classroomStudents);
+        classroomRepository.save(classroom);
+    }
+
+    public List<StudentListResponseDTO> getStudentListByClassroomPhysicalId(String classroomPhysicalId) {
+        Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
+            .orElseThrow(() -> new RuntimeException("Classroom not found"));
+        return classroom.getClassroomStudents().stream()
+            .map(this::buildStudentListResponse)
+            .collect(Collectors.toList());
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    public void verifyStudentStatus(String classroomPhysicalId, String studentId) {
+        Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
+            .orElseThrow(() -> new RuntimeException("Classroom not found"));
+        ClassroomStudents classroomStudents = classroom.getClassroomStudents().stream()
+            .filter(cs -> cs.getStudent().getUserId().equals(UUID.fromString(studentId)))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Student not found in classroom"));
+        classroomStudents.setVerified(true);
+        classroomRepository.save(classroom);
+    }
+
+    private StudentListResponseDTO buildStudentListResponse(ClassroomStudents classroomStudents) {
+        return StudentListResponseDTO.builder()
+            .physicalId(classroomStudents.getStudent().getUserId().toString())
+            .firstName(classroomStudents.getStudent().getFirstName())
+            .lastName(classroomStudents.getStudent().getLastName())
+            .email(classroomStudents.getStudent().getUser().getEmail())
+            .profilePictureUrl(classroomStudents.getStudent().getProfilePictureUrl())
+            .joinedAt(classroomStudents.getCreatedAt().toString())
+            .isVerified(classroomStudents.isVerified())
+            .build();
+    }
+
     public ClassroomResponseDTO buildClassroomResponse(Classroom classroom) {
         return ClassroomResponseDTO.builder()
             .physicalId(classroom.getPhysicalId())
@@ -96,5 +164,27 @@ public class ClassroomService {
             generatedPhysicalId = generatePhysicalId();
         } while (classroomRepository.existsByPhysicalId(generatedPhysicalId));
         return generatedPhysicalId;
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @Transactional
+    public void deactivateClassroom(String physicalId) {
+        Classroom classroom = getClassroomById(physicalId);
+        if (!classroom.isActive()) {
+            throw new RuntimeException("Classroom is already deactivated");
+        }
+        classroom.setActive(false);
+        classroomRepository.save(classroom);
+    }
+
+    @PreAuthorize("hasRole('TEACHER')")
+    @Transactional
+    public void activateClassroom(String physicalId) {
+        Classroom classroom = getClassroomById(physicalId);
+        if (classroom.isActive()) {
+            throw new RuntimeException("Classroom is already active");
+        }
+        classroom.setActive(true);
+        classroomRepository.save(classroom);
     }
 }

@@ -13,4 +13,5 @@ public interface ClassroomRepository extends JpaRepository<Classroom, UUID> {
     boolean existsByPhysicalId(String physicalId);
     Optional<Classroom> findByPhysicalId(String physicalId);
     List<Classroom> findByClassroomStudents_Student_UserId(UUID studentId);
+    Optional<Classroom> findByClassroomCode(String classroomCode);
 }
