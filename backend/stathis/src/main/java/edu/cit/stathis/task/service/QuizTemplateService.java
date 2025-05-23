@@ -24,7 +24,7 @@ public class QuizTemplateService {
     }
 
     public QuizTemplate getQuizTemplate(String physicalId) {
-        return quizTemplateRepository.findByPhysicalId(physicalId);
+        return quizTemplateRepository.findByPhysicalId(physicalId).orElse(null);
     }
 
     public List<QuizTemplate> getAllQuizTemplates() {

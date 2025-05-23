@@ -2,55 +2,53 @@ package edu.cit.stathis.classroom.entity;
 
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
-import java.util.UUID;
-import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.HashSet;
+import java.util.Set;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "classrooms")
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-@Builder
-@Table(name = "classroom")
 public class Classroom {
     @Id
-    @GeneratedValue(generator = "UUID")
-    @Column(name = "classroom_id", updatable = false, nullable = false)
-    private UUID id;
-
-    @Column(length = 11, name = "physical_id", nullable = false, unique = true)
     private String physicalId;
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private OffsetDateTime createdAt;
-  
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private OffsetDateTime updatedAt;
-    
-    @Column(name = "name")
+    @Column(nullable = false)
     private String name;
 
-    @Column(name = "description")
+    @Column
     private String description;
-    
-    @Column(name = "is_active")
-    private boolean isActive;
 
-    @Column(name = "teacher_id")
+    @Column(nullable = false)
     private String teacherId;
 
-    @Column(name = "classroom_code")
+    @Column(nullable = false)
     private String classroomCode;
-    
-    @JsonIgnoreProperties("classroom")
-    @Column(name = "classroom_students")
+
+    @Column(nullable = false)
+    private boolean active = true;
+
+    @Column(nullable = false)
+    private OffsetDateTime createdAt;
+
+    @Column(nullable = false)
+    private OffsetDateTime updatedAt;
+
     @OneToMany(mappedBy = "classroom", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ClassroomStudents> classroomStudents;
-    
+    private Set<ClassroomStudents> classroomStudents = new HashSet<>();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
 }

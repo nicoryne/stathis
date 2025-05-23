@@ -1,38 +1,46 @@
 package edu.cit.stathis.classroom.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
-import edu.cit.stathis.auth.entity.UserProfile;
 import java.time.OffsetDateTime;
-import java.util.UUID;
+import edu.cit.stathis.auth.entity.UserProfile;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "classroom_students")
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-@Builder
-@Table(name = "classroom_students")
 public class ClassroomStudents {
     @Id
-    @GeneratedValue(generator = "UUID")
-    @Column(name = "classroom_students_id", updatable = false, nullable = false)
-    private UUID id;
+    private String physicalId;
 
     @ManyToOne
-    @JoinColumn(name = "classroom_id")
+    @JoinColumn(name = "classroom_id", nullable = false)
     private Classroom classroom;
 
     @ManyToOne
-    @JoinColumn(name = "student_id")
+    @JoinColumn(name = "student_id", nullable = false)
     private UserProfile student;
 
-    @Column(name = "created_at")
+    @Column(nullable = false)
+    private boolean verified = false;
+
+    @Column(nullable = false)
     private OffsetDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(nullable = false)
     private OffsetDateTime updatedAt;
 
-    @Column(name = "is_verified")
-    private boolean isVerified;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = OffsetDateTime.now();
+        updatedAt = OffsetDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = OffsetDateTime.now();
+    }
 }

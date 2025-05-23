@@ -12,7 +12,6 @@ import edu.cit.stathis.auth.service.UserService;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Random;
-import java.util.UUID;
 import java.util.List;
 import java.util.Base64;
 import java.util.stream.Collectors;
@@ -66,8 +65,8 @@ public class ClassroomService {
         return classroomRepository.findByTeacherId(teacherId);
     }
 
-    public List<Classroom> getClassroomsByStudentId(String studentId) {
-        return classroomRepository.findByClassroomStudents_Student_UserId(UUID.fromString(studentId));
+    public List<Classroom> getClassroomsByStudentId(String studentPhysicalId) {
+        return classroomRepository.findByClassroomStudents_Student_User_PhysicalId(studentPhysicalId);
     }
 
     public String generateClassroomCode(Classroom classroom) {
@@ -77,7 +76,7 @@ public class ClassroomService {
         return classroomCode;
     }
 
-    public void enrollStudentInClassroom(String classroomCode, String studentId) {
+    public void enrollStudentInClassroom(String classroomCode, String studentPhysicalId) {
         Classroom classroom = classroomRepository.findByClassroomCode(classroomCode)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
         
@@ -86,14 +85,14 @@ public class ClassroomService {
         }
         
         boolean alreadyEnrolled = classroom.getClassroomStudents().stream()
-            .anyMatch(cs -> cs.getStudent().getUserId().equals(UUID.fromString(studentId)));
+            .anyMatch(cs -> cs.getStudent().getUser().getPhysicalId().equals(studentPhysicalId));
         if (alreadyEnrolled) {
             throw new RuntimeException("Student is already enrolled");
         }
         
         ClassroomStudents classroomStudents = new ClassroomStudents();
         classroomStudents.setClassroom(classroom);
-        classroomStudents.setStudent(userService.findUserProfileByUserId(UUID.fromString(studentId)));
+        classroomStudents.setStudent(userService.findUserProfileByPhysicalId(studentPhysicalId));
         classroomStudents.setCreatedAt(OffsetDateTime.now());
         classroomStudents.setUpdatedAt(OffsetDateTime.now());
         classroomStudents.setVerified(false);
@@ -110,11 +109,11 @@ public class ClassroomService {
     }
 
     @PreAuthorize("hasRole('TEACHER')")
-    public void verifyStudentStatus(String classroomPhysicalId, String studentId) {
+    public void verifyStudentStatus(String classroomPhysicalId, String studentPhysicalId) {
         Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
         ClassroomStudents classroomStudents = classroom.getClassroomStudents().stream()
-            .filter(cs -> cs.getStudent().getUserId().equals(UUID.fromString(studentId)))
+            .filter(cs -> cs.getStudent().getUser().getPhysicalId().equals(studentPhysicalId))
             .findFirst()
             .orElseThrow(() -> new RuntimeException("Student not found in classroom"));
         classroomStudents.setVerified(true);
@@ -123,7 +122,7 @@ public class ClassroomService {
 
     private StudentListResponseDTO buildStudentListResponse(ClassroomStudents classroomStudents) {
         return StudentListResponseDTO.builder()
-            .physicalId(classroomStudents.getStudent().getUserId().toString())
+            .physicalId(classroomStudents.getStudent().getUser().getPhysicalId())
             .firstName(classroomStudents.getStudent().getFirstName())
             .lastName(classroomStudents.getStudent().getLastName())
             .email(classroomStudents.getStudent().getUser().getEmail())
@@ -147,7 +146,8 @@ public class ClassroomService {
     }
 
     public String getTeacherName(String teacherId) {
-        return userService.findUserProfileByUserId(UUID.fromString(teacherId)).getFirstName() + " " + userService.findUserProfileByUserId(UUID.fromString(teacherId)).getLastName();
+        return userService.findUserProfileByPhysicalId(teacherId).getFirstName() + " " + 
+               userService.findUserProfileByPhysicalId(teacherId).getLastName();
     }
 
     private String generatePhysicalId() {
