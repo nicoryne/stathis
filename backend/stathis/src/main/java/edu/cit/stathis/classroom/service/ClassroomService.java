@@ -17,8 +17,6 @@ import java.util.List;
 import java.util.Base64;
 import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
-import edu.cit.stathis.auth.entity.UserProfile;
-import edu.cit.stathis.auth.enums.UserRoleEnum;
 
 @Service
 public class ClassroomService {
