@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -30,6 +31,7 @@ public class ClassroomController {
     private ClassroomService classroomService;
 
     @PostMapping
+    @Operation(summary = "Create a new classroom", description = "Create a new classroom")
     public ResponseEntity<ClassroomResponseDTO> createClassroom(@RequestBody ClassroomBodyDTO classroomDTO) {
         Classroom classroom = classroomService.createClassroom(classroomDTO, classroomDTO.getTeacherId());
         ClassroomResponseDTO response = classroomService.buildClassroomResponse(classroom);
@@ -37,6 +39,7 @@ public class ClassroomController {
     }
 
     @GetMapping("/{physicalId}")
+    @Operation(summary = "Get a classroom by its physical ID", description = "Get a classroom by its physical ID")
     public ResponseEntity<ClassroomResponseDTO> getClassroomById(@PathVariable String physicalId) {
         Classroom classroom = classroomService.getClassroomById(physicalId);
         ClassroomResponseDTO response = classroomService.buildClassroomResponse(classroom);
@@ -44,6 +47,7 @@ public class ClassroomController {
     }
 
     @PatchMapping("/{physicalId}")
+    @Operation(summary = "Update a classroom by its physical ID", description = "Update a classroom by its physical ID")
     public ResponseEntity<ClassroomResponseDTO> updateClassroomById(
             @PathVariable String physicalId, 
             @RequestBody ClassroomBodyDTO classroomDTO) {
@@ -53,12 +57,14 @@ public class ClassroomController {
     }
 
     @DeleteMapping("/{physicalId}")
+    @Operation(summary = "Delete a classroom by its physical ID", description = "Delete a classroom by its physical ID")
     public ResponseEntity<Void> deleteClassroomById(@PathVariable String physicalId) {
         classroomService.deleteClassroomById(physicalId);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @GetMapping("/teacher/{teacherId}")
+    @Operation(summary = "Get classrooms by teacher ID", description = "Get classrooms by teacher ID")
     public ResponseEntity<List<ClassroomResponseDTO>> getClassroomsByTeacherId(@PathVariable String teacherId) {
         List<Classroom> classrooms = classroomService.getClassroomsByTeacherId(teacherId);
         List<ClassroomResponseDTO> response = classrooms.stream()
@@ -68,6 +74,7 @@ public class ClassroomController {
     }
 
     @GetMapping("/student/{studentId}")
+    @Operation(summary = "Get classrooms by student ID", description = "Get classrooms by student ID")
     public ResponseEntity<List<ClassroomResponseDTO>> getClassroomsByStudentId(@PathVariable String studentId) {
         List<Classroom> classrooms = classroomService.getClassroomsByStudentId(studentId);
         List<ClassroomResponseDTO> response = classrooms.stream()
@@ -77,30 +84,35 @@ public class ClassroomController {
     }
 
     @PostMapping("/{classroomPhysicalId}/enroll")
+    @Operation(summary = "Enroll a student in a classroom", description = "Enroll a student in a classroom")
     public ResponseEntity<Void> enrollStudentInClassroom(@PathVariable String classroomPhysicalId, @RequestBody String studentId) {
         classroomService.enrollStudentInClassroom(classroomPhysicalId, studentId);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
     @GetMapping("/{classroomPhysicalId}/students")
+    @Operation(summary = "Get students in a classroom", description = "Get students in a classroom")
     public ResponseEntity<List<StudentListResponseDTO>> getStudentListByClassroomPhysicalId(@PathVariable String classroomPhysicalId) {
         List<StudentListResponseDTO> students = classroomService.getStudentListByClassroomPhysicalId(classroomPhysicalId);
         return new ResponseEntity<>(students, HttpStatus.OK);
     }
 
     @PostMapping("/{classroomPhysicalId}/students/{studentId}/verify")
+    @Operation(summary = "Verify a student's status in a classroom", description = "Verify a student's status in a classroom")
     public ResponseEntity<Void> verifyStudentStatus(@PathVariable String classroomPhysicalId, @PathVariable String studentId) {
         classroomService.verifyStudentStatus(classroomPhysicalId, studentId);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/{classroomPhysicalId}/deactivate")
+    @Operation(summary = "Deactivate a classroom", description = "Deactivate a classroom")
     public ResponseEntity<Void> deactivateClassroom(@PathVariable String classroomPhysicalId) {
         classroomService.deactivateClassroom(classroomPhysicalId);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @PostMapping("/{classroomPhysicalId}/activate")
+    @Operation(summary = "Activate a classroom", description = "Activate a classroom")
     public ResponseEntity<Void> activateClassroom(@PathVariable String classroomPhysicalId) {
         classroomService.activateClassroom(classroomPhysicalId);
         return new ResponseEntity<>(HttpStatus.OK);
