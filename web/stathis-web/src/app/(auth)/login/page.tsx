@@ -16,7 +16,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { loginWithEmail, loginWithOAuth } from '@/services/auth';
+import { loginWithEmail, loginWithOAuth } from '@/services/api-auth-client';
 import { loginSchema, type LoginFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import { toast } from 'sonner';
@@ -29,7 +29,7 @@ import {
   FormMessage
 } from '@/components/ui/form';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Provider } from '@supabase/supabase-js';
+import { Provider } from '@/services/api-auth-client';
 import { PasswordInput } from '@/components/auth/password-input';
 
 export default function LoginPage() {

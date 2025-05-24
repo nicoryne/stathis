@@ -20,11 +20,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
-import { getUserDetails, signOut } from '@/services/auth';
+import { getUserDetails, signOut } from '@/services/api-auth-client';
 import { useEffect, useState } from 'react';
 
+// Define user interface to match API response
+interface UserDetails {
+  first_name: string;
+  last_name: string;
+  email: string;
+  [key: string]: any; // For any additional properties
+}
+
 export default function DashboardPage() {
-  const [userDetails, setUserDetails] = useState({
+  const [userDetails, setUserDetails] = useState<UserDetails>({
     first_name: '',
     last_name: '',
     email: ''
@@ -32,14 +40,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const user = await getUserDetails();
-
-      if (user) {
-        setUserDetails({
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email
-        });
+      try {
+        const user = await getUserDetails();
+        
+        if (user && typeof user === 'object') {
+          // Type assertion to allow property access
+          const userObj = user as Record<string, any>;
+          setUserDetails({
+            first_name: userObj.first_name || '',
+            last_name: userObj.last_name || '',
+            email: userObj.email || '',
+            ...userObj // Include any other properties
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user details:', error);
       }
     };
     fetchUser();

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
-import { forgotPassword } from '@/services/auth';
+import { forgotPassword } from '@/services/api-auth-client';
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import {
