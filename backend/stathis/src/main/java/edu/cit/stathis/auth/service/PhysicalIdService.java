@@ -21,14 +21,15 @@ public class PhysicalIdService {
      */
     public String getCurrentUserPhysicalId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        System.out.println("Authentication: " + authentication);
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalStateException("No authenticated user found");
         }
-
         String email = authentication.getName();
+        System.out.println("Authenticated email: " + email);
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new IllegalStateException("User not found"));
-
+        System.out.println("User physicalId: " + user.getPhysicalId());
         return user.getPhysicalId();
     }
 
