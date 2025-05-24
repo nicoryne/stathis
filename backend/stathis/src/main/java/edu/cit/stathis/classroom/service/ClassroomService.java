@@ -9,6 +9,7 @@ import edu.cit.stathis.classroom.dto.StudentListResponseDTO;
 import edu.cit.stathis.classroom.entity.Classroom;
 import edu.cit.stathis.classroom.entity.ClassroomStudents;
 import edu.cit.stathis.auth.service.UserService;
+import edu.cit.stathis.auth.service.PhysicalIdService;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Random;
@@ -25,13 +26,16 @@ public class ClassroomService {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private PhysicalIdService physicalIdService;
+
     @Transactional
-    public Classroom createClassroom(ClassroomBodyDTO createClassroomDTO, String teacherId) {
+    public Classroom createClassroom(ClassroomBodyDTO createClassroomDTO) {
         Classroom classroom = new Classroom();
         classroom.setPhysicalId(provideUniquePhysicalId());
         classroom.setName(createClassroomDTO.getName());
         classroom.setDescription(createClassroomDTO.getDescription());
-        classroom.setTeacherId(teacherId);
+        classroom.setTeacherId(physicalIdService.getCurrentUserPhysicalId());
         return classroomRepository.save(classroom);
     }
 
@@ -40,7 +44,7 @@ public class ClassroomService {
         Classroom classroom = classroomRepository.findByPhysicalId(physicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
 
-        if (!classroomDTO.getTeacherId().equals(classroom.getTeacherId())) {
+        if (!physicalIdService.getCurrentUserPhysicalId().equals(classroom.getTeacherId())) {
             throw new RuntimeException("You are not authorized to update this classroom");
         }
 
@@ -61,12 +65,13 @@ public class ClassroomService {
         classroomRepository.delete(classroom);
     }
 
-    public List<Classroom> getClassroomsByTeacherId(String teacherId) {
-        return classroomRepository.findByTeacherId(teacherId);
+    public List<Classroom> getClassroomsByCurrentTeacher() {
+        return classroomRepository.findByTeacherId(physicalIdService.getCurrentUserPhysicalId());
     }
 
-    public List<Classroom> getClassroomsByStudentId(String studentPhysicalId) {
-        return classroomRepository.findByClassroomStudents_Student_User_PhysicalId(studentPhysicalId);
+    public List<Classroom> getClassroomsByCurrentStudent() {
+        return classroomRepository.findByClassroomStudents_Student_User_PhysicalId(
+            physicalIdService.getCurrentUserPhysicalId());
     }
 
     public String generateClassroomCode(Classroom classroom) {

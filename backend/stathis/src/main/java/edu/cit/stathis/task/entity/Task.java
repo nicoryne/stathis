@@ -51,6 +51,9 @@ public class Task {
     @Column(name = "is_active")
     private boolean isActive;
 
+    @Column(name = "is_started")
+    private boolean isStarted;
+
     @Column(name = "classroom_id")
     private String classroomPhysicalId;
     

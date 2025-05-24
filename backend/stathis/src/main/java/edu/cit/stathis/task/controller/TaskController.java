@@ -60,4 +60,11 @@ public class TaskController {
         taskService.deleteTaskByPhysicalId(physicalId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{physicalId}/start")
+    @Operation(summary = "Start a task", description = "Start a task to begin monitoring student vitals during exercises")
+    public ResponseEntity<TaskResponseDTO> startTask(@PathVariable String physicalId) {
+        Task task = taskService.startTask(physicalId);
+        return ResponseEntity.ok(taskService.getTaskResponseDTO(task.getPhysicalId()));
+    }
 }

@@ -33,7 +33,7 @@ public class ClassroomController {
     @PostMapping
     @Operation(summary = "Create a new classroom", description = "Create a new classroom")
     public ResponseEntity<ClassroomResponseDTO> createClassroom(@RequestBody ClassroomBodyDTO classroomDTO) {
-        Classroom classroom = classroomService.createClassroom(classroomDTO, classroomDTO.getTeacherId());
+        Classroom classroom = classroomService.createClassroom(classroomDTO);
         ClassroomResponseDTO response = classroomService.buildClassroomResponse(classroom);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
@@ -63,20 +63,20 @@ public class ClassroomController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    @GetMapping("/teacher/{teacherId}")
-    @Operation(summary = "Get classrooms by teacher ID", description = "Get classrooms by teacher ID")
-    public ResponseEntity<List<ClassroomResponseDTO>> getClassroomsByTeacherId(@PathVariable String teacherId) {
-        List<Classroom> classrooms = classroomService.getClassroomsByTeacherId(teacherId);
+    @GetMapping("/teacher")
+    @Operation(summary = "Get classrooms by current teacher", description = "Get classrooms by current teacher")
+    public ResponseEntity<List<ClassroomResponseDTO>> getClassroomsByCurrentTeacher() {
+        List<Classroom> classrooms = classroomService.getClassroomsByCurrentTeacher();
         List<ClassroomResponseDTO> response = classrooms.stream()
             .map(classroomService::buildClassroomResponse)
             .collect(Collectors.toList());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @GetMapping("/student/{studentId}")
-    @Operation(summary = "Get classrooms by student ID", description = "Get classrooms by student ID")
-    public ResponseEntity<List<ClassroomResponseDTO>> getClassroomsByStudentId(@PathVariable String studentId) {
-        List<Classroom> classrooms = classroomService.getClassroomsByStudentId(studentId);
+    @GetMapping("/student")
+    @Operation(summary = "Get classrooms by current student", description = "Get classrooms by current student")
+    public ResponseEntity<List<ClassroomResponseDTO>> getClassroomsByCurrentStudent() {
+        List<Classroom> classrooms = classroomService.getClassroomsByCurrentStudent();
         List<ClassroomResponseDTO> response = classrooms.stream()
             .map(classroomService::buildClassroomResponse)
             .collect(Collectors.toList());

@@ -1,7 +1,6 @@
 package edu.cit.stathis.classroom.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -18,8 +17,4 @@ public class ClassroomBodyDTO {
     @NotBlank(message = "Description is required")
     @Size(max = 500, message = "Description cannot exceed 500 characters")
     private String description;
-
-    @NotBlank(message = "Teacher ID is required")
-    @Pattern(regexp = "^ROOM-\\d{2}-\\d{4}-\\d{3}$", message = "Invalid teacher ID format")
-    private String teacherId;
 }

@@ -18,6 +18,7 @@ public class StudentTaskResponseDTO {
     private ExerciseTemplateResponseDTO exerciseTemplate;
     private ScoreDTO score;
     private boolean isCompleted;
+    private boolean isStarted;
     private String createdAt;
     private String updatedAt;
 } 
