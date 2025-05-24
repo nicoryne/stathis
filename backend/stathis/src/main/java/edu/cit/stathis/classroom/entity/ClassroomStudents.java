@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ClassroomStudents {
     @Id
+    @Column(name = "physical_id", length = 15)
     private String physicalId;
 
     @ManyToOne

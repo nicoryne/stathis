@@ -155,7 +155,7 @@ public class ClassroomService {
         Random random = new Random();
         String secondPart = String.format("%04d", random.nextInt(10000));
         String thirdPart = String.format("%03d", random.nextInt(1000));
-        return String.format("%s-%s-%s", year, secondPart, thirdPart);
+        return String.format("ROOM-%s-%s-%s", year, secondPart, thirdPart);
     }
     
     private String provideUniquePhysicalId() {
