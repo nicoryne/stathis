@@ -28,6 +28,7 @@ public class TaskService {
         task.setLessonTemplateId(taskBodyDTO.getLessonTemplateId());
         task.setQuizTemplateId(taskBodyDTO.getQuizTemplateId());
         task.setActive(true);
+        task.setStarted(false);
         return taskRepository.save(task);
     }
 
@@ -72,9 +73,19 @@ public class TaskService {
             .lessonTemplateId(task.getLessonTemplateId())
             .quizTemplateId(task.getQuizTemplateId())
             .isActive(task.isActive())
+            .isStarted(task.isStarted())
             .createdAt(task.getCreatedAt().toString())
             .updatedAt(task.getUpdatedAt().toString())
             .build();
+    }
+
+    public Task startTask(String physicalId) {
+        Task task = getTaskByPhysicalId(physicalId);
+        if (!task.isActive()) {
+            throw new IllegalStateException("Cannot start an inactive task");
+        }
+        task.setStarted(true);
+        return taskRepository.save(task);
     }
 
     private String generatePhysicalId() {

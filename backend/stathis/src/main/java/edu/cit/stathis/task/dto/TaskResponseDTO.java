@@ -19,6 +19,7 @@ public class TaskResponseDTO {
     private String lessonTemplateId;
     private String quizTemplateId;
     private boolean isActive;
+    private boolean isStarted;
     private String createdAt;
     private String updatedAt;
 }

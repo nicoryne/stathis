@@ -91,6 +91,7 @@ public class StudentTaskService {
                 buildExerciseTemplateDTO(task.getExerciseTemplateId()) : null)
             .score(score != null ? buildScoreDTO(score) : null)
             .isCompleted(score != null && score.isCompleted())
+            .isStarted(task.isStarted())
             .createdAt(task.getCreatedAt().toString())
             .updatedAt(task.getUpdatedAt().toString())
             .build();
