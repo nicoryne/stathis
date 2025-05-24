@@ -15,6 +15,8 @@ import edu.cit.stathis.task.entity.ExerciseTemplate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import io.swagger.v3.oas.annotations.Operation;
+
 @RestController
 @RequestMapping("/exercise-templates")
 public class ExerciseTemplateController {
@@ -22,18 +24,21 @@ public class ExerciseTemplateController {
     private ExerciseTemplateService exerciseTemplateService;
 
     @PostMapping
+    @Operation(summary = "Create a new exercise template", description = "Create a new exercise template")
     public ResponseEntity<ExerciseTemplateResponseDTO> createExerciseTemplate(@RequestBody ExerciseTemplateBodyDTO exerciseTemplateBodyDTO) {
         ExerciseTemplate exerciseTemplate = exerciseTemplateService.createExerciseTemplate(exerciseTemplateBodyDTO);
         return ResponseEntity.ok(exerciseTemplateService.getExerciseTemplateResponseDTO(exerciseTemplate.getPhysicalId()));
     }
 
     @GetMapping("/{physicalId}")
+    @Operation(summary = "Get an exercise template by its physical ID", description = "Get an exercise template by its physical ID")
     public ResponseEntity<ExerciseTemplateResponseDTO> getExerciseTemplate(@PathVariable String physicalId) {
         ExerciseTemplate exerciseTemplate = exerciseTemplateService.getExerciseTemplate(physicalId);
         return ResponseEntity.ok(exerciseTemplateService.getExerciseTemplateResponseDTO(exerciseTemplate.getPhysicalId()));
     }
 
     @GetMapping("/all")
+    @Operation(summary = "Get all exercise templates", description = "Get all exercise templates")
     public ResponseEntity<List<ExerciseTemplateResponseDTO>> getAllExerciseTemplates() {
         List<ExerciseTemplate> exerciseTemplates = exerciseTemplateService.getAllExerciseTemplates();
         return ResponseEntity.ok(exerciseTemplates.stream()

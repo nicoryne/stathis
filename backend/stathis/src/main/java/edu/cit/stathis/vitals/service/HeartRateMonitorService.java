@@ -7,7 +7,6 @@ import edu.cit.stathis.vitals.dto.VitalSignsDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import java.util.UUID;
 
 @Service
 public class HeartRateMonitorService {
@@ -21,7 +20,7 @@ public class HeartRateMonitorService {
     private SimpMessagingTemplate messagingTemplate;
 
     public void checkHeartRate(VitalSignsDTO vitalSignsDTO) {
-        UserProfile userProfile = userProfileRepository.findById(UUID.fromString(vitalSignsDTO.getStudentId().toString()))
+        UserProfile userProfile = userProfileRepository.findByUser_PhysicalId(vitalSignsDTO.getStudentId())
                 .orElse(null);
 
         if (userProfile == null || userProfile.getAge() == null) {

@@ -3,6 +3,7 @@ package edu.cit.stathis.vitals.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Data
@@ -12,14 +13,17 @@ public class VitalSigns {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "physical_id", unique = true, nullable = false)
+    private String physicalId;
+
     @Column(name = "student_id", nullable = false)
-    private Long studentId;
+    private String studentId;
 
     @Column(name = "classroom_id", nullable = false)
-    private Long classroomId;
+    private String classroomId;
 
     @Column(name = "task_id", nullable = false)
-    private Long taskId;
+    private String taskId;
 
     @Column(name = "heart_rate")
     private Integer heartRate;
@@ -35,4 +39,9 @@ public class VitalSigns {
 
     @Column(name = "is_post_activity", nullable = false)
     private Boolean isPostActivity;
+
+    @PrePersist
+    protected void onCreate() {
+        physicalId = "VITAL-" + UUID.randomUUID().toString();
+    }
 } 

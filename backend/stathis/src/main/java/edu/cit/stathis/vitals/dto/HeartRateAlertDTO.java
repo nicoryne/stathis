@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 public class HeartRateAlertDTO {
-    private Long studentId;
+    private String studentId;
     private String studentName;
     private Integer currentHeartRate;
     private Integer thresholdHeartRate;

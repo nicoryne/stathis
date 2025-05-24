@@ -36,7 +36,8 @@ public class VitalSignsService {
         vitalSigns.setIsPostActivity(vitalSignsDTO.getIsPostActivity());
 
         // Save to database
-        vitalSignsRepository.save(vitalSigns);
+        vitalSigns = vitalSignsRepository.save(vitalSigns);
+        vitalSignsDTO.setPhysicalId(vitalSigns.getPhysicalId());
 
         // Check heart rate and send alerts if necessary
         heartRateMonitorService.checkHeartRate(vitalSignsDTO);
@@ -46,19 +47,19 @@ public class VitalSignsService {
         messagingTemplate.convertAndSend(destination, vitalSignsDTO);
     }
 
-    public List<VitalSigns> getVitalSignsByClassroomAndTask(Long classroomId, Long taskId) {
+    public List<VitalSigns> getVitalSignsByClassroomAndTask(String classroomId, String taskId) {
         return vitalSignsRepository.findByClassroomIdAndTaskId(classroomId, taskId);
     }
 
-    public List<VitalSigns> getVitalSignsByStudentAndTask(Long studentId, Long taskId) {
+    public List<VitalSigns> getVitalSignsByStudentAndTask(String studentId, String taskId) {
         return vitalSignsRepository.findByStudentIdAndTaskId(studentId, taskId);
     }
 
-    public List<VitalSigns> getPreActivityVitalSigns(Long studentId, Long taskId) {
+    public List<VitalSigns> getPreActivityVitalSigns(String studentId, String taskId) {
         return vitalSignsRepository.findByStudentIdAndTaskIdAndIsPreActivity(studentId, taskId, true);
     }
 
-    public List<VitalSigns> getPostActivityVitalSigns(Long studentId, Long taskId) {
+    public List<VitalSigns> getPostActivityVitalSigns(String studentId, String taskId) {
         return vitalSignsRepository.findByStudentIdAndTaskIdAndIsPostActivity(studentId, taskId, true);
     }
 } 
