@@ -108,7 +108,7 @@ public class ClassroomService {
             .collect(Collectors.toList());
     }
 
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAuthority('TEACHER')")
     public void verifyStudentStatus(String classroomPhysicalId, String studentPhysicalId) {
         Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
@@ -166,7 +166,7 @@ public class ClassroomService {
         return generatedPhysicalId;
     }
 
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAuthority('TEACHER')")
     @Transactional
     public void deactivateClassroom(String physicalId) {
         Classroom classroom = getClassroomById(physicalId);
@@ -177,7 +177,7 @@ public class ClassroomService {
         classroomRepository.save(classroom);
     }
 
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAuthority('TEACHER')")
     @Transactional
     public void activateClassroom(String physicalId) {
         Classroom classroom = getClassroomById(physicalId);
