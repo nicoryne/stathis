@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,6 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
   @Autowired private JwtUtil jwtUtil;
 
@@ -33,33 +36,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
+        try {
     String authHeader = request.getHeader("Authorization");
-    String token = null;
-    String username = null;
+            logger.debug("Authorization header: {}", authHeader);
 
-    if (authHeader != null && authHeader.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
-      username = jwtUtil.extractUsername(token);
-    }
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                logger.debug("No valid Authorization header found");
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String token = authHeader.substring(7).trim();
+            logger.debug("Extracted token: {}", token);
+
+            if (token.isEmpty()) {
+                logger.debug("Empty token after trimming");
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String username = jwtUtil.extractUsername(token);
+            logger.debug("Extracted username: {}", username);
 
     if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
       UserDetails userDetails = userDetailsService.loadUserByUsername(username);
       if (jwtUtil.validateToken(token, username)) {
-        String role = jwtUtil.extractClaim(token, claims -> claims.get("role", String.class));
-        if (!role.startsWith("ROLE_")) {
-            role = "ROLE_" + role;
-        }
-        System.out.println("Role from token: " + role);
-        System.out.println("User authorities: " + userDetails.getAuthorities());
+                    String role = jwtUtil.extractClaim(token, claims -> claims.get("role", String.class));
+                    if (!role.startsWith("ROLE_")) {
+                        role = "ROLE_" + role;
+                    }
+                    logger.debug("Role from token: {}", role);
+                    logger.debug("User authorities: {}", userDetails.getAuthorities());
+
         UsernamePasswordAuthenticationToken authToken =
             new UsernamePasswordAuthenticationToken(
-                userDetails,
-                null,
-                Collections.singletonList(new SimpleGrantedAuthority(role)));
+                            userDetails,
+                            null,
+                            Collections.singletonList(new SimpleGrantedAuthority(role)));
         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
         SecurityContextHolder.getContext().setAuthentication(authToken);
-        System.out.println("Authentication set in context: " + SecurityContextHolder.getContext().getAuthentication());
+                    logger.debug("Authentication set in context: {}", 
+                        SecurityContextHolder.getContext().getAuthentication());
       }
+            }
+        } catch (Exception e) {
+            logger.error("Error processing JWT token: {}", e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
     }
 
     filterChain.doFilter(request, response);

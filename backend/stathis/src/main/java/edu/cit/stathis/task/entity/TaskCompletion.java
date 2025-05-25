@@ -41,4 +41,10 @@ public class TaskCompletion {
 
     @Column
     private OffsetDateTime completedAt;
+
+    @Column(name = "submitted_for_review", nullable = false)
+    private boolean submittedForReview;
+
+    @Column(name = "submitted_at")
+    private OffsetDateTime submittedAt;
 } 

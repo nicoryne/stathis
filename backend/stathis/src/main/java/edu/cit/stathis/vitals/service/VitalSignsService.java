@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class VitalSignsService {
@@ -34,7 +35,8 @@ public class VitalSignsService {
     @Transactional
     public void processVitalSigns(VitalSignsDTO vitalSignsDTO) {
         // Check if task is started
-        Task task = taskRepository.findByPhysicalId(vitalSignsDTO.getTaskId());
+        Optional<Task> taskOptional = taskRepository.findByPhysicalId(vitalSignsDTO.getTaskId());
+        Task task = taskOptional.orElse(null);
         if (task == null || !task.isStarted()) {
             return; // Skip processing if task is not started
         }

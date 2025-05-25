@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 import edu.cit.stathis.classroom.service.ClassroomService;
 import edu.cit.stathis.classroom.entity.Classroom;
@@ -83,10 +84,11 @@ public class ClassroomController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PostMapping("/{classroomPhysicalId}/enroll")
+    @PostMapping("/enroll")
     @Operation(summary = "Enroll a student in a classroom", description = "Enroll a student in a classroom")
-    public ResponseEntity<Void> enrollStudentInClassroom(@PathVariable String classroomPhysicalId, @RequestBody String studentId) {
-        classroomService.enrollStudentInClassroom(classroomPhysicalId, studentId);
+    public ResponseEntity<Void> enrollStudentInClassroom(@RequestBody Map<String, String> body) {
+        String classroomCode = body.get("classroomCode");
+        classroomService.enrollStudentInClassroom(null, classroomCode);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 

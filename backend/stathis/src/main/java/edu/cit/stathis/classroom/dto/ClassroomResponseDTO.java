@@ -16,4 +16,5 @@ public class ClassroomResponseDTO {
     private boolean isActive;
     private String teacherName;
     private int studentCount;
+    private String classroomCode;
 }
