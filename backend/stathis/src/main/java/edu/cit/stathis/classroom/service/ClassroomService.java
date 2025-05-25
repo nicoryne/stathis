@@ -29,6 +29,7 @@ public class ClassroomService {
     @Autowired
     private PhysicalIdService physicalIdService;
 
+    @PreAuthorize("hasRole('TEACHER')")
     @Transactional
     public Classroom createClassroom(ClassroomBodyDTO createClassroomDTO) {
         Classroom classroom = new Classroom();
@@ -36,6 +37,10 @@ public class ClassroomService {
         classroom.setName(createClassroomDTO.getName());
         classroom.setDescription(createClassroomDTO.getDescription());
         classroom.setTeacherId(physicalIdService.getCurrentUserPhysicalId());
+        classroom.setClassroomCode(generateClassroomCode(classroom));
+        OffsetDateTime now = OffsetDateTime.now();
+        classroom.setCreatedAt(now);
+        classroom.setUpdatedAt(now);
         return classroomRepository.save(classroom);
     }
 
@@ -113,7 +118,7 @@ public class ClassroomService {
             .collect(Collectors.toList());
     }
 
-    @PreAuthorize("hasAuthority('TEACHER')")
+    @PreAuthorize("hasRole('TEACHER')")
     public void verifyStudentStatus(String classroomPhysicalId, String studentPhysicalId) {
         Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
@@ -158,9 +163,8 @@ public class ClassroomService {
     private String generatePhysicalId() {
         String year = String.valueOf(OffsetDateTime.now().getYear()).substring(2);
         Random random = new Random();
-        String secondPart = String.format("%04d", random.nextInt(10000));
-        String thirdPart = String.format("%03d", random.nextInt(1000));
-        return String.format("ROOM-%s-%s-%s", year, secondPart, thirdPart);
+        String secondPart = String.format("%03d", random.nextInt(1000));
+        return String.format("ROOM-%s-%s", year, secondPart);
     }
     
     private String provideUniquePhysicalId() {
@@ -171,7 +175,7 @@ public class ClassroomService {
         return generatedPhysicalId;
     }
 
-    @PreAuthorize("hasAuthority('TEACHER')")
+    @PreAuthorize("hasRole('TEACHER')")
     @Transactional
     public void deactivateClassroom(String physicalId) {
         Classroom classroom = getClassroomById(physicalId);
@@ -182,7 +186,7 @@ public class ClassroomService {
         classroomRepository.save(classroom);
     }
 
-    @PreAuthorize("hasAuthority('TEACHER')")
+    @PreAuthorize("hasRole('TEACHER')")
     @Transactional
     public void activateClassroom(String physicalId) {
         Classroom classroom = getClassroomById(physicalId);
