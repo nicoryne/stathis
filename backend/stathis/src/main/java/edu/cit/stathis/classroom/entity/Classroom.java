@@ -27,7 +27,7 @@ public class Classroom {
     @Column(nullable = false)
     private String teacherId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String classroomCode;
 
     @Column(nullable = false)
