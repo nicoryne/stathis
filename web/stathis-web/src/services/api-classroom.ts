@@ -11,24 +11,20 @@ import { getCurrentUserPhysicalId, getCurrentUserEmail, getCurrentUserRole } fro
 export interface ClassroomBodyDTO {
   name: string;
   description: string;
-  // teacherId is not part of the DTO - it's derived from security context on the backend
-  // Note: These fields were removed as they don't exist in the backend DTO
-  // capacity: number;
-  // startDate?: string;
-  // endDate?: string;
 }
+
 
 export interface ClassroomResponseDTO {
   physicalId: string;
   name: string;
   description: string;
-  capacity: number;
   teacherId: string;
-  isActive: boolean;
+  active: boolean; // Changed from isActive to match backend
+  classroomCode: string; // Added field from backend
   createdAt: string;
   updatedAt: string;
-  startDate?: string;
-  endDate?: string;
+  teacherName?: string; // Optional field that might be returned
+  studentCount?: number; // Optional field that might be returned
 }
 
 export interface StudentListResponseDTO {

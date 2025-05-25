@@ -129,8 +129,8 @@ export default function ClassroomPage() {
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl">{classroom.name}</CardTitle>
-                  <Badge variant={classroom.isActive ? "default" : "secondary"}>
-                    {classroom.isActive ? 'Active' : 'Inactive'}
+                  <Badge variant={classroom.active ? "default" : "secondary"}>
+                    {classroom.active ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
                 <CardDescription className="line-clamp-2 h-10">
@@ -141,21 +141,17 @@ export default function ClassroomPage() {
               <CardContent>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Capacity:</span>
-                    <span>{classroom.capacity} students</span>
+                    <span className="text-muted-foreground">Students:</span>
+                    <span>{classroom.studentCount || 0} students</span>
                   </div>
-                  {classroom.startDate && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Start Date:</span>
-                      <span>{new Date(classroom.startDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  {classroom.endDate && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">End Date:</span>
-                      <span>{new Date(classroom.endDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Teacher:</span>
+                    <span>{classroom.teacherName || 'Not assigned'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Created:</span>
+                    <span>{new Date(classroom.createdAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
               </CardContent>
               
