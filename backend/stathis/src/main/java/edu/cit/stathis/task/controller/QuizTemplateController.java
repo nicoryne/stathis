@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/quiz-templates")
+@RequestMapping("/api/quiz-templates")
 public class QuizTemplateController {
     @Autowired
     private QuizTemplateService quizTemplateService;

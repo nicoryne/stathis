@@ -1,23 +1,78 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getClassroomById, getClassroomStudents } from '@/services/api-classroom-client';
+import { getClassroomById, getClassroomStudents, deleteClassroom, activateClassroom, deactivateClassroom, verifyClassroomStudent } from '@/services/api-classroom-client';
 import { getCurrentUserEmail, getCurrentUserRole } from '@/lib/utils/jwt';
+import { TemplateCreationTab } from '@/components/templates/template-creation-tab';
+import { TaskCreationTab } from '@/components/tasks/task-creation-tab';
+import { Sidebar } from '@/components/dashboard/sidebar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import ThemeSwitcher from '@/components/theme-switcher';
+import { Progress } from '@/components/ui/progress';
+// We'll use the standard Dialog component since AlertDialog isn't available
+
+// StatCard Component for reuse
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: React.ElementType;
+  className?: string;
+}
+
+const StatCard = ({ title, value, description, icon: Icon, className = '' }: StatCardProps) => (
+  <Card className={`overflow-hidden ${className}`}>
+    <CardHeader className="pb-2">
+      <div className="flex items-center justify-between">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
+      <p className="text-xs text-muted-foreground mt-1">{description}</p>
+    </CardContent>
+  </Card>
+);
 
 export default function ClassroomDetailPage({ params }: { params: { physicalId: string } }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  // Direct access to params is still supported in current Next.js version
   const { physicalId } = params;
   const userEmail = getCurrentUserEmail();
   const userRole = getCurrentUserRole();
+  
+  // State for dialog visibility
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  // User details for the header
+  const [userDetails, setUserDetails] = useState({
+    first_name: '',
+    last_name: '',
+    email: userEmail || ''
+  });
+  
+  // Tab state for the main content
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Ensure we have a valid user email before proceeding
   useEffect(() => {
@@ -27,6 +82,54 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
       toast.error('User information not found. Please log in again.');
     }
   }, [userEmail, router]);
+  
+  // Mutation for deleting a classroom
+  const deleteClassroomMutation = useMutation({
+    mutationFn: () => deleteClassroom(physicalId),
+    onSuccess: () => {
+      toast.success('Classroom deleted successfully');
+      router.push('/classroom');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+  
+  // Mutation for activating a classroom
+  const activateClassroomMutation = useMutation({
+    mutationFn: () => activateClassroom(physicalId),
+    onSuccess: () => {
+      toast.success('Classroom activated successfully');
+      queryClient.invalidateQueries({ queryKey: ['classroom', physicalId] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to activate classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+  
+  // Mutation for deactivating a classroom
+  const deactivateClassroomMutation = useMutation({
+    mutationFn: () => deactivateClassroom(physicalId),
+    onSuccess: () => {
+      toast.success('Classroom deactivated successfully');
+      queryClient.invalidateQueries({ queryKey: ['classroom', physicalId] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to deactivate classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
+  
+  // Mutation for verifying a student
+  const verifyStudentMutation = useMutation({
+    mutationFn: (studentId: string) => verifyClassroomStudent(physicalId, studentId),
+    onSuccess: () => {
+      toast.success('Student verified successfully');
+      queryClient.invalidateQueries({ queryKey: ['classroom-students', physicalId] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to verify student: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  });
   
   // Fetch classroom details
   const { 
@@ -51,18 +154,68 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
     enabled: !!userEmail && !!physicalId && userRole === 'TEACHER',
   });
 
+  // Render basic layout for error and loading states
+  const renderErrorOrLoadingState = (content: React.ReactNode) => (
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 flex-shrink-0" />
+      <div className="flex-1">
+        <header className="bg-background border-b">
+          <div className="flex h-16 items-center justify-end gap-4 px-4">
+            <Button variant="outline" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src="/placeholder.svg" alt="User" />
+                    <AvatarFallback>
+                      {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
+                      {userDetails.last_name.charAt(0).toUpperCase() || ''}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm leading-none font-medium">
+                      {userDetails.first_name || userEmail || 'User'}
+                    </p>
+                    <p className="text-muted-foreground text-xs leading-none">
+                      {userDetails.email || userEmail || ''}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ThemeSwitcher />
+          </div>
+        </header>
+        <main className="p-6 flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          {content}
+        </main>
+      </div>
+    </div>
+  );
+
   // Handle error cases
   if (isErrorClassroom) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
-        <div className="text-red-500 mb-4 text-5xl">
-          <ClipboardCheck />
+    return renderErrorOrLoadingState(
+      <div className="flex flex-col items-center justify-center text-center max-w-md">
+        <div className="text-destructive mb-4 text-5xl">
+          <ClipboardCheck className="h-12 w-12 mx-auto" />
         </div>
         <h1 className="text-2xl font-bold mb-2">Error Loading Classroom</h1>
         <p className="text-muted-foreground mb-6">
           {classroomError instanceof Error ? classroomError.message : 'Failed to load classroom details'}
         </p>
-        <Button onClick={() => router.push('/classroom')} variant="outline">
+        <Button onClick={() => router.push('/classroom')} className="mt-2">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Classrooms
         </Button>
@@ -72,25 +225,25 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
 
   // Show loading state
   if (isLoadingClassroom) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin mb-4" />
-        <p className="text-muted-foreground">Loading classroom details...</p>
+    return renderErrorOrLoadingState(
+      <div className="flex flex-col items-center justify-center text-center">
+        <Loader2 className="h-12 w-12 animate-spin mb-4 text-primary" />
+        <p className="text-muted-foreground text-lg">Loading classroom details...</p>
       </div>
     );
   }
 
   if (!classroom) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6">
+    return renderErrorOrLoadingState(
+      <div className="flex flex-col items-center justify-center text-center max-w-md">
         <div className="text-muted-foreground mb-4 text-5xl">
-          <Book />
+          <Book className="h-12 w-12 mx-auto" />
         </div>
         <h1 className="text-2xl font-bold mb-2">Classroom Not Found</h1>
         <p className="text-muted-foreground mb-6">
           The classroom you're looking for doesn't exist or you don't have permission to view it.
         </p>
-        <Button onClick={() => router.push('/classroom')} variant="outline">
+        <Button onClick={() => router.push('/classroom')} className="mt-2">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Classrooms
         </Button>
@@ -99,211 +252,318 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Back button and classroom status */}
-      <div className="flex justify-between items-center">
-        <Button 
-          onClick={() => router.push('/classroom')} 
-          variant="outline"
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Classrooms
-        </Button>
-        <Badge variant={classroom.active ? "default" : "secondary"}>
-          {classroom.active ? 'Active' : 'Inactive'}
-        </Badge>
-      </div>
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 flex-shrink-0" />
       
-      {/* Classroom header */}
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">{classroom.name}</h1>
-        <p className="text-muted-foreground">{classroom.description}</p>
-      </div>
-      
-      <Separator />
-      
-      {/* Classroom info cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <Users className="mr-2 h-4 w-4" />
-              Students
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{classroom.studentCount || 0}</p>
-          </CardContent>
-        </Card>
+      <div className="flex-1">
+        <header className="bg-background border-b">
+          <div className="flex h-16 items-center justify-end gap-4 px-4">
+            <Button variant="outline" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src="/placeholder.svg" alt="User" />
+                    <AvatarFallback>
+                      {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
+                      {userDetails.last_name.charAt(0).toUpperCase() || ''}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm leading-none font-medium">
+                      {userDetails.first_name || userEmail || 'User'}
+                    </p>
+                    <p className="text-muted-foreground text-xs leading-none">
+                      {userDetails.email || userEmail || ''}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ThemeSwitcher />
+          </div>
+        </header>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <Calendar className="mr-2 h-4 w-4" />
-              Created
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-md">{new Date(classroom.createdAt).toLocaleDateString()}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center">
-              <ClipboardCheck className="mr-2 h-4 w-4" />
-              Classroom Code
-            </CardTitle>
-            <CardDescription>Share with students to join</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-mono bg-muted p-2 rounded text-center">
-              {classroom.classroomCode}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Separator />
-      
-      {/* Tabs for different classroom functions */}
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full md:w-auto grid-cols-3 md:grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          {userRole === 'TEACHER' && (
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          )}
-        </TabsList>
-        
-        <TabsContent value="overview" className="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Classroom Details</CardTitle>
-              <CardDescription>
-                Complete information about this classroom
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium text-sm text-muted-foreground">Name</h3>
-                  <p>{classroom.name}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm text-muted-foreground">Teacher</h3>
-                  <p>{classroom.teacherName || 'Not assigned'}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm text-muted-foreground">Created At</h3>
-                  <p>{new Date(classroom.createdAt).toLocaleString()}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm text-muted-foreground">Last Updated</h3>
-                  <p>{new Date(classroom.updatedAt).toLocaleString()}</p>
-                </div>
-                <div className="md:col-span-2">
-                  <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
-                  <p>{classroom.description}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="students" className="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Students</CardTitle>
-              <CardDescription>
-                Students enrolled in this classroom
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isLoadingStudents ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : !students || students.students.length === 0 ? (
-                <p className="text-center py-8 text-muted-foreground">
-                  No students enrolled in this classroom yet.
-                </p>
-              ) : (
-                <div className="divide-y">
-                  {students.students.map((student) => (
-                    <div key={student.physicalId} className="py-3 flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{student.firstName} {student.lastName}</p>
-                        <p className="text-sm text-muted-foreground">{student.email}</p>
-                      </div>
-                      <Badge variant={student.isVerified ? "default" : "outline"}>
-                        {student.isVerified ? 'Verified' : 'Pending'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
+        <main className="p-6">
+          {/* Breadcrumb and classroom status */}
+          <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
+            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+              <Button 
+                onClick={() => router.push('/classroom')} 
+                variant="ghost"
+                size="sm"
+                className="hover:bg-transparent p-0 hover:text-primary"
+              >
+                Classrooms
+              </Button>
+              <ChevronRight className="h-4 w-4" />
+              <span className="font-medium text-foreground">{classroom.name}</span>
+              <Badge variant={classroom.active ? "default" : "secondary"} className="ml-2">
+                {classroom.active ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            
+            <Button onClick={() => router.push(`/classroom/${physicalId}/edit`)} variant="outline" size="sm">
+              <Settings2 className="mr-2 h-4 w-4" />
+              Manage Classroom
+            </Button>
+          </div>
+          
+          {/* Classroom header */}
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold tracking-tight">{classroom.name}</h1>
+            <p className="text-muted-foreground mt-1">{classroom.description}</p>
+          </div>
+          
+          {/* Classroom stats */}
+          <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total Students"
+              value={classroom.studentCount || 0}
+              description="Students enrolled"
+              icon={Users}
+            />
+            <StatCard
+              title="Completion Rate"
+              value="78%"
+              description="Average task completion"
+              icon={Activity}
+            />
+            <StatCard
+              title="Join Code"
+              value={classroom.classroomCode}
+              description="Share with students"
+              icon={ClipboardCheck}
+            />
+            <StatCard
+              title="Last Activity"
+              value={new Date(classroom.updatedAt).toLocaleDateString()}
+              description="Most recent update"
+              icon={Clock}
+            />
+          </div>
+          
+          {/* Tabs for different classroom functions */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full md:w-auto inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground mb-6">
+              <TabsTrigger value="overview" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Overview</TabsTrigger>
+              <TabsTrigger value="students" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Students</TabsTrigger>
+              <TabsTrigger value="tasks" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Tasks</TabsTrigger>
+              {userRole === 'TEACHER' && (
+                <TabsTrigger value="templates" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Templates</TabsTrigger>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="tasks" className="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tasks</CardTitle>
-              <CardDescription>
-                Assignments and activities for this classroom
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center py-8 text-muted-foreground">
-                Task functionality will be implemented in the next phase.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {userRole === 'TEACHER' && (
-          <TabsContent value="settings" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Classroom Settings</CardTitle>
-                <CardDescription>
-                  Manage classroom settings and configuration
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">Classroom Status</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {classroom.active 
-                        ? 'This classroom is currently active and visible to students' 
-                        : 'This classroom is currently inactive and hidden from students'
-                      }
-                    </p>
+              {userRole === 'TEACHER' && (
+                <TabsTrigger value="settings" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Settings</TabsTrigger>
+              )}
+            </TabsList>
+            
+            <TabsContent value="overview" className="space-y-4 mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Classroom Details</CardTitle>
+                  <CardDescription>
+                    Complete information about this classroom
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-medium text-sm text-muted-foreground">Name</h3>
+                      <p>{classroom.name}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-sm text-muted-foreground">Teacher</h3>
+                      <p>{classroom.teacherName || 'Not assigned'}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-sm text-muted-foreground">Created At</h3>
+                      <p>{new Date(classroom.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-sm text-muted-foreground">Last Updated</h3>
+                      <p>{new Date(classroom.updatedAt).toLocaleString()}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
+                      <p>{classroom.description}</p>
+                    </div>
                   </div>
-                  <Button variant={classroom.active ? "destructive" : "default"}>
-                    {classroom.active ? 'Deactivate' : 'Activate'}
-                  </Button>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-medium">Delete Classroom</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Permanently delete this classroom and all its data
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="students" className="space-y-4 mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Students</CardTitle>
+                  <CardDescription>
+                    Students enrolled in this classroom
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingStudents ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : !students || students.students.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">
+                      No students enrolled in this classroom yet.
                     </p>
-                  </div>
-                  <Button variant="destructive">Delete</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-      </Tabs>
+                  ) : (
+                    <div className="divide-y">
+                      {students.students.map((student) => (
+                        <div key={student.physicalId} className="py-3 flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{student.firstName} {student.lastName}</p>
+                            <p className="text-sm text-muted-foreground">{student.email}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!student.isVerified && userRole === 'TEACHER' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => verifyStudentMutation.mutate(student.physicalId)}
+                                disabled={verifyStudentMutation.isPending}
+                              >
+                                {verifyStudentMutation.isPending ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                    Verifying...
+                                  </>
+                                ) : 'Verify'}
+                              </Button>
+                            )}
+                            <Badge variant={student.isVerified ? "default" : "outline"}>
+                              {student.isVerified ? 'Verified' : 'Pending'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="tasks" className="space-y-4 mt-6">
+              <TaskCreationTab classroomId={physicalId} />
+            </TabsContent>
+            
+            {userRole === 'TEACHER' && (
+              <TabsContent value="templates" className="space-y-4 mt-6">
+                <TemplateCreationTab classroomId={physicalId} />
+              </TabsContent>
+            )}
+            
+            {userRole === 'TEACHER' && (
+              <TabsContent value="settings" className="space-y-4 mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Classroom Settings</CardTitle>
+                    <CardDescription>
+                      Manage classroom settings and configuration
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-medium">Classroom Status</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {classroom.active 
+                            ? 'This classroom is currently active and visible to students' 
+                            : 'This classroom is currently inactive and hidden from students'
+                          }
+                        </p>
+                      </div>
+                      {classroom.active ? (
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => deactivateClassroomMutation.mutate()}
+                          disabled={deactivateClassroomMutation.isPending}
+                        >
+                          {deactivateClassroomMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Deactivating...
+                            </>
+                          ) : 'Deactivate'}
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="default" 
+                          onClick={() => activateClassroomMutation.mutate()}
+                          disabled={activateClassroomMutation.isPending}
+                        >
+                          {activateClassroomMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Activating...
+                            </>
+                          ) : 'Activate'}
+                        </Button>
+                      )}
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-medium">Delete Classroom</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Permanently delete this classroom and all its data
+                        </p>
+                      </div>
+                      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">Delete</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Classroom</DialogTitle>
+                            <DialogDescription>
+                              Are you sure you want to delete this classroom? This action cannot be undone 
+                              and will permanently remove all classroom data, including student enrollments and tasks.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <Button 
+                              variant="outline" 
+                              onClick={() => setDeleteDialogOpen(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              onClick={() => deleteClassroomMutation.mutate()}
+                              disabled={deleteClassroomMutation.isPending}
+                            >
+                              {deleteClassroomMutation.isPending ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Deleting...
+                                </>
+                              ) : 'Delete Classroom'}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 }

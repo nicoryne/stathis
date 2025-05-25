@@ -16,7 +16,7 @@ import edu.cit.stathis.task.dto.LessonTemplateResponseDTO;
 import edu.cit.stathis.task.entity.LessonTemplate;
 
 @RestController
-@RequestMapping("/lesson-templates")
+@RequestMapping("/api/lesson-templates")
 public class LessonTemplateController {
     @Autowired
     private LessonTemplateService lessonTemplateService;

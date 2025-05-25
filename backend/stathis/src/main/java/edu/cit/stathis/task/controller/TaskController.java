@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
-@RequestMapping("/tasks")
+@RequestMapping("/api/tasks")
 public class TaskController {
     @Autowired
     private TaskService taskService;

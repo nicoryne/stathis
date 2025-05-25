@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
-@RequestMapping("/exercise-templates")
+@RequestMapping("/api/exercise-templates")
 public class ExerciseTemplateController {
     @Autowired
     private ExerciseTemplateService exerciseTemplateService;

@@ -22,6 +22,7 @@ import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { getUserDetails, signOut } from '@/services/api-auth-client';
 import { useEffect, useState } from 'react';
+import { getCurrentUserEmail } from '@/lib/utils/jwt';
 
 // Define user interface to match API response
 interface UserDetails {
@@ -32,10 +33,14 @@ interface UserDetails {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  
+  // Get user email from JWT token or localStorage using the utility function
+  const userEmail = getCurrentUserEmail();
   const [userDetails, setUserDetails] = useState<UserDetails>({
     first_name: '',
     last_name: '',
-    email: ''
+    email: userEmail || ''
   });
 
   useEffect(() => {
@@ -145,8 +150,8 @@ export default function DashboardPage() {
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="/placeholder.svg" alt="User" />
                     <AvatarFallback>
-                      {userDetails.first_name.charAt(0).toUpperCase()}
-                      {userDetails.last_name.charAt(0).toUpperCase()}
+                      {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
+                      {userDetails.last_name.charAt(0).toUpperCase() || ''}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -155,13 +160,16 @@ export default function DashboardPage() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm leading-none font-medium">
-                      {userDetails.first_name} {userDetails.last_name}
+                      {userDetails.first_name || userEmail || 'User'}
                     </p>
                     <p className="text-muted-foreground text-xs leading-none">
-                      {userDetails.email}
+                      {userDetails.email || userEmail || ''}
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handlesignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
