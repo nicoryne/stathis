@@ -5,6 +5,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from 'sonner';
+import { AuthInitializer } from '@/components/auth/auth-initializer';
 
 const outfit = Outfit({
   variable: '--font-outfit',
@@ -36,6 +37,8 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            {/* Clean up duplicate tokens on app initialization */}
+            <AuthInitializer />
             {children}
             <Toaster />
           </ThemeProvider>

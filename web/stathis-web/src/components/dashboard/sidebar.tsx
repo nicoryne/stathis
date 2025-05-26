@@ -9,9 +9,12 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Activity,
   BarChart3,
+  BookOpen,
+  GraduationCap,
   Heart,
   Home,
   Menu,
+  School,
   Settings,
   Shield,
   Users,
@@ -34,6 +37,24 @@ export function Sidebar({ className }: SidebarProps) {
       icon: Home,
       href: '/dashboard',
       active: pathname === '/dashboard'
+    },
+    {
+      label: 'Classrooms',
+      icon: School,
+      href: '/classroom',
+      active: pathname.startsWith('/classroom')
+    },
+    {
+      label: 'Tasks',
+      icon: BookOpen,
+      href: '/dashboard/tasks',
+      active: pathname.startsWith('/dashboard/tasks')
+    },
+    {
+      label: 'Students',
+      icon: GraduationCap,
+      href: '/dashboard/students',
+      active: pathname === '/dashboard/students'
     },
     {
       label: 'Posture Analysis',
@@ -64,12 +85,6 @@ export function Sidebar({ className }: SidebarProps) {
       icon: BarChart3,
       href: '/dashboard/analytics',
       active: pathname === '/dashboard/analytics'
-    },
-    {
-      label: 'Students',
-      icon: Users,
-      href: '/dashboard/students',
-      active: pathname === '/dashboard/students'
     },
     {
       label: 'Settings',

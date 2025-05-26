@@ -20,26 +20,46 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
-import { getUserDetails, signOut } from '@/services/auth';
+import { getUserDetails, signOut } from '@/services/api-auth-client';
 import { useEffect, useState } from 'react';
+import { getCurrentUserEmail } from '@/lib/utils/jwt';
+
+// Define user interface to match API response
+interface UserDetails {
+  first_name: string;
+  last_name: string;
+  email: string;
+  [key: string]: any; // For any additional properties
+}
 
 export default function DashboardPage() {
-  const [userDetails, setUserDetails] = useState({
+  const router = useRouter();
+  
+  // Get user email from JWT token or localStorage using the utility function
+  const userEmail = getCurrentUserEmail();
+  const [userDetails, setUserDetails] = useState<UserDetails>({
     first_name: '',
     last_name: '',
-    email: ''
+    email: userEmail || ''
   });
 
   useEffect(() => {
     const fetchUser = async () => {
-      const user = await getUserDetails();
-
-      if (user) {
-        setUserDetails({
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email
-        });
+      try {
+        const user = await getUserDetails();
+        
+        if (user && typeof user === 'object') {
+          // Type assertion to allow property access
+          const userObj = user as Record<string, any>;
+          setUserDetails({
+            first_name: userObj.first_name || '',
+            last_name: userObj.last_name || '',
+            email: userObj.email || '',
+            ...userObj // Include any other properties
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user details:', error);
       }
     };
     fetchUser();
@@ -130,8 +150,8 @@ export default function DashboardPage() {
                   <Avatar className="h-8 w-8">
                     <AvatarImage src="/placeholder.svg" alt="User" />
                     <AvatarFallback>
-                      {userDetails.first_name.charAt(0).toUpperCase()}
-                      {userDetails.last_name.charAt(0).toUpperCase()}
+                      {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
+                      {userDetails.last_name.charAt(0).toUpperCase() || ''}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -140,13 +160,16 @@ export default function DashboardPage() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm leading-none font-medium">
-                      {userDetails.first_name} {userDetails.last_name}
+                      {userDetails.first_name || userEmail || 'User'}
                     </p>
                     <p className="text-muted-foreground text-xs leading-none">
-                      {userDetails.email}
+                      {userDetails.email || userEmail || ''}
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handlesignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
