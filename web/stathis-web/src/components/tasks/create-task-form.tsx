@@ -11,10 +11,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, Plus } from 'lucide-react';
 import { createTask } from '@/services/tasks/api-task-client';
 import { TaskBodyDTO } from '@/services/tasks/api-task-client';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Form,
   FormControl,
@@ -30,6 +30,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
+  SelectGroup,
+  SelectLabel
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 import { 
@@ -37,6 +40,7 @@ import {
   getAllQuizTemplates, 
   getAllExerciseTemplates 
 } from '@/services/templates/api-template-client';
+import { TemplateCreationModal } from '@/components/templates/template-creation-modal';
 
 // Task form schema
 const taskFormSchema = z.object({
@@ -65,6 +69,7 @@ interface CreateTaskFormProps {
 
 export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: CreateTaskFormProps) {
   const [selectedTemplateType, setSelectedTemplateType] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // Fetch templates based on the selected type
   const { 
@@ -114,20 +119,74 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
   const handleTemplateTypeChange = (value: string) => {
     setSelectedTemplateType(value);
   };
+  
+  const handleTemplateCreated = () => {
+    // Invalidate relevant template queries when a new template is created
+    if (selectedTemplateType === 'LESSON') {
+      queryClient.invalidateQueries({ queryKey: ['lesson-templates'] });
+    } else if (selectedTemplateType === 'QUIZ') {
+      queryClient.invalidateQueries({ queryKey: ['quiz-templates'] });
+    } else if (selectedTemplateType === 'EXERCISE') {
+      queryClient.invalidateQueries({ queryKey: ['exercise-templates'] });
+    }
+    toast.success('Template created successfully');
+  };
 
   const createTaskMutation = useMutation({
     mutationFn: (data: TaskFormValues) => {
-      // Create the task DTO
+      // Ensure classroom ID follows the required pattern: [A-Z0-9-]+
+      // Convert to uppercase if needed
+      const formattedClassroomId = classroomPhysicalId.toUpperCase();
+      
+      // Format dates according to API specification, ensuring proper ISO format
+      // The spec requires: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)$
+      const dueDate = data.dueDate.toISOString();
+      // Trim milliseconds if present to match exact pattern
+      const formattedDueDate = dueDate.replace(/\.\d{3}/, '');
+      
+      // Create task data with strict adherence to schema requirements
       const taskData: TaskBodyDTO = {
-        title: data.title,
-        description: data.description,
-        classroomPhysicalId,
-        dueDate: data.dueDate.toISOString(),
-        templatePhysicalId: data.templatePhysicalId,
-        templateType: data.templateType,
-        points: data.points
+        name: data.title,
+        description: data.description || '',
+        submissionDate: formattedDueDate,
+        closingDate: formattedDueDate,
+        classroomPhysicalId: formattedClassroomId
       };
       
+      // Set the appropriate template ID based on selected type
+      // Ensuring they match the exact required patterns
+      if (data.templateType === 'EXERCISE') {
+        // Pattern must be: ^EXERCISE-[A-Z0-9-]+$
+        // Ensure it starts with EXERCISE- prefix
+        let exerciseId = data.templatePhysicalId;
+        if (!exerciseId.startsWith('EXERCISE-')) {
+          exerciseId = exerciseId.includes('EXERCISE-') 
+            ? exerciseId 
+            : `EXERCISE-${exerciseId}`;
+        }
+        taskData.exerciseTemplateId = exerciseId.toUpperCase();
+      } else if (data.templateType === 'LESSON') {
+        // Pattern must be: ^LESSON-[A-Z0-9-]+$
+        // Ensure it starts with LESSON- prefix
+        let lessonId = data.templatePhysicalId;
+        if (!lessonId.startsWith('LESSON-')) {
+          lessonId = lessonId.includes('LESSON-') 
+            ? lessonId 
+            : `LESSON-${lessonId}`;
+        }
+        taskData.lessonTemplateId = lessonId.toUpperCase();
+      } else if (data.templateType === 'QUIZ') {
+        // Pattern must be: ^[A-Za-z0-9-]+$
+        // This is already satisfied by any alphanumeric ID
+        taskData.quizTemplateId = data.templatePhysicalId;
+      }
+      
+      // Add maxAttempts if points are specified
+      if (data.points !== undefined && data.points !== null) {
+        taskData.maxAttempts = data.points;
+      }
+      
+      console.log('Sending task data to API with strict validation:', taskData);
       return createTask(taskData);
     },
     onSuccess: () => {
@@ -141,6 +200,11 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
   });
 
   const onSubmit = (values: TaskFormValues) => {
+    // Check if the user selected the "create new template" option
+    if (values.templatePhysicalId === 'create-new') {
+      toast.error('Please create and select a template first');
+      return;
+    }
     createTaskMutation.mutate(values);
   };
 
@@ -246,7 +310,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
             name="points"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Points</FormLabel>
+                <FormLabel>Max Attempts</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -258,7 +322,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                   />
                 </FormControl>
                 <FormDescription>
-                  Maximum points students can earn
+                  Maximum number of attempts allowed for this task
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -304,10 +368,28 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
             name="templatePhysicalId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Template</FormLabel>
+                <div className="flex justify-between items-center">
+                  <FormLabel>Template</FormLabel>
+                  <TemplateCreationModal 
+                    templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
+                    onTemplateCreated={handleTemplateCreated}
+                    trigger={
+                      <Button variant="ghost" size="sm" className="h-8 px-2">
+                        <Plus className="h-4 w-4 mr-1" />
+                        New Template
+                      </Button>
+                    }
+                  />
+                </div>
                 <Select 
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
+                  onValueChange={(value) => {
+                    if (value === 'create-new') {
+                      // This is handled in the SelectItem click now with the modal
+                      return;
+                    }
+                    field.onChange(value);
+                  }}
+                  value={field.value}
                   disabled={isLoadingTemplates()}
                 >
                   <FormControl>
@@ -328,12 +410,18 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                         No templates available. Please create a template first.
                       </div>
                     ) : (
-                      getAvailableTemplates().map((template: any) => (
-                        <SelectItem key={template.physicalId} value={template.physicalId}>
-                          {template.title}
-                        </SelectItem>
-                      ))
+                      <>
+                        <SelectGroup>
+                          <SelectLabel>Available Templates</SelectLabel>
+                          {getAvailableTemplates().map((template: any) => (
+                            <SelectItem key={template.physicalId} value={template.physicalId}>
+                              {template.title}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </>
                     )}
+                    <SelectSeparator />
                   </SelectContent>
                 </Select>
                 <FormDescription>

@@ -18,7 +18,9 @@ import {
   Settings,
   Shield,
   Users,
-  Video
+  Video,
+  Award,
+  UserCircle
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -33,7 +35,7 @@ export function Sidebar({ className }: SidebarProps) {
 
   const routes = [
     {
-      label: 'Dashboard',
+      label: 'Dashboard and Analytics',
       icon: Home,
       href: '/dashboard',
       active: pathname === '/dashboard'
@@ -45,53 +47,23 @@ export function Sidebar({ className }: SidebarProps) {
       active: pathname.startsWith('/classroom')
     },
     {
-      label: 'Tasks',
-      icon: BookOpen,
-      href: '/dashboard/tasks',
-      active: pathname.startsWith('/dashboard/tasks')
+      label: 'Student Progress',
+      icon: Award,
+      href: '/student-progress',
+      active: pathname.startsWith('/student-progress')
     },
     {
-      label: 'Students',
-      icon: GraduationCap,
-      href: '/dashboard/students',
-      active: pathname === '/dashboard/students'
-    },
-    {
-      label: 'Posture Analysis',
+      label: 'Monitoring',
       icon: Activity,
-      href: '/dashboard/posture',
-      active: pathname === '/dashboard/posture'
+      href: '/monitoring',
+      active: pathname === '/monitoring'
     },
     {
-      label: 'Health Vitals',
-      icon: Heart,
-      href: '/dashboard/vitals',
-      active: pathname === '/dashboard/vitals'
+      label: 'Profile',
+      icon: UserCircle,
+      href: '/profile',
+      active: pathname === '/profile'
     },
-    {
-      label: 'Exercise Activities',
-      icon: Video,
-      href: '/dashboard/exercises',
-      active: pathname === '/dashboard/exercises'
-    },
-    {
-      label: 'Safety Alerts',
-      icon: Shield,
-      href: '/dashboard/alerts',
-      active: pathname === '/dashboard/alerts'
-    },
-    {
-      label: 'Analytics',
-      icon: BarChart3,
-      href: '/dashboard/analytics',
-      active: pathname === '/dashboard/analytics'
-    },
-    {
-      label: 'Settings',
-      icon: Settings,
-      href: '/dashboard/settings',
-      active: pathname === '/dashboard/settings'
-    }
   ];
 
   return (

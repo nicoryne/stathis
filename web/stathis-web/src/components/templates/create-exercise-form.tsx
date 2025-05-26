@@ -33,11 +33,11 @@ import { toast } from 'sonner';
 const exerciseTemplateSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(100, 'Title cannot exceed 100 characters'),
   description: z.string().min(3, 'Description must be at least 3 characters').max(500, 'Description cannot exceed 500 characters'),
-  exerciseType: z.string().uuid('Exercise type must be a valid UUID'),
-  exerciseDifficulty: z.string().uuid('Exercise difficulty must be a valid UUID'),
-  goalReps: z.string().uuid('Goal reps must be a valid UUID'),
-  goalAccuracy: z.string().uuid('Goal accuracy must be a valid UUID'),
-  goalTime: z.string().uuid('Goal time must be a valid UUID')
+  exerciseType: z.string().min(1, 'Exercise type is required'),
+  exerciseDifficulty: z.string().min(1, 'Exercise difficulty is required'),
+  goalReps: z.string().min(1, 'Goal reps is required').regex(/^[0-9]+$/, 'Goal reps must be a number'),
+  goalAccuracy: z.string().min(1, 'Goal accuracy is required').regex(/^[0-9]+$/, 'Goal accuracy must be a number'),
+  goalTime: z.string().min(1, 'Goal time is required').regex(/^[0-9]+$/, 'Goal time must be a number')
 });
 
 // Form values type
@@ -48,27 +48,37 @@ interface CreateExerciseFormProps {
   onCancel: () => void;
 }
 
-// Mock data for dropdowns (in a real app, these would come from API calls)
+// Options based on API requirements
 const exerciseTypes = [
-  { id: "12345678-1234-1234-1234-123456789012", name: "PUSH_UP" },
-  { id: "12345678-1234-1234-1234-123456789013", name: "SQUATS" }
+  { value: "PUSH_UP", label: "Push Up" },
+  { value: "SIT_UP", label: "Sit Up" },
+  { value: "JUMPING_JACK", label: "Jumping Jack" },
+  { value: "TYPE1", label: "Type 1" },
+  { value: "TYPE2", label: "Type 2" }
 ];
 
 const exerciseDifficulties = [
-  { id: "12345678-1234-1234-1234-123456789014", name: "BEGINNER" },
-  { id: "12345678-1234-1234-1234-123456789015", name: "EXPERT" }
+  { value: "BEGINNER", label: "Beginner" },
+  { value: "INTERMEDIATE", label: "Intermediate" },
+  { value: "ADVANCED", label: "Advanced" }
 ];
 
-const goalOptions = [
-  { id: "12345678-1234-1234-1234-123456789016", name: "10", type: "reps" },
-  { id: "12345678-1234-1234-1234-123456789017", name: "20", type: "reps" },
-  { id: "12345678-1234-1234-1234-123456789018", name: "30", type: "reps" },
-  { id: "12345678-1234-1234-1234-123456789019", name: "70%", type: "accuracy" },
-  { id: "12345678-1234-1234-1234-123456789020", name: "80%", type: "accuracy" },
-  { id: "12345678-1234-1234-1234-123456789021", name: "90%", type: "accuracy" },
-  { id: "12345678-1234-1234-1234-123456789022", name: "30 seconds", type: "time" },
-  { id: "12345678-1234-1234-1234-123456789023", name: "1 minute", type: "time" },
-  { id: "12345678-1234-1234-1234-123456789024", name: "2 minutes", type: "time" }
+const goalRepsOptions = [
+  { value: "10", label: "10 repetitions" },
+  { value: "20", label: "20 repetitions" },
+  { value: "30", label: "30 repetitions" }
+];
+
+const goalAccuracyOptions = [
+  { value: "70", label: "70%" },
+  { value: "80", label: "80%" },
+  { value: "90", label: "90%" }
+];
+
+const goalTimeOptions = [
+  { value: "30", label: "30 seconds" },
+  { value: "60", label: "1 minute" },
+  { value: "120", label: "2 minutes" }
 ];
 
 export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormProps) {
@@ -87,16 +97,18 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
 
   const createExerciseMutation = useMutation({
     mutationFn: (data: ExerciseTemplateFormValues) => {
-      // Create the template DTO
+      // Create the template DTO with proper format for API
       const templateData: ExerciseTemplateBodyDTO = {
         title: data.title,
         description: data.description,
-        exerciseType: data.exerciseType,
-        exerciseDifficulty: data.exerciseDifficulty,
+        exerciseType: data.exerciseType as 'PUSH_UP' | 'SIT_UP' | 'JUMPING_JACK' | 'TYPE1' | 'TYPE2',
+        exerciseDifficulty: data.exerciseDifficulty as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED',
         goalReps: data.goalReps,
         goalAccuracy: data.goalAccuracy,
         goalTime: data.goalTime
       };
+      
+      console.log('Sending exercise template data:', templateData);
       
       return createExerciseTemplate(templateData);
     },
@@ -164,8 +176,8 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
                   </FormControl>
                   <SelectContent>
                     {exerciseTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -189,8 +201,8 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
                   </FormControl>
                   <SelectContent>
                     {exerciseDifficulties.map((difficulty) => (
-                      <SelectItem key={difficulty.id} value={difficulty.id}>
-                        {difficulty.name}
+                      <SelectItem key={difficulty.value} value={difficulty.value}>
+                        {difficulty.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -214,9 +226,9 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {goalOptions.filter(goal => goal.type === 'reps').map((goal) => (
-                    <SelectItem key={goal.id} value={goal.id}>
-                      {goal.name}
+                  {goalRepsOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -242,9 +254,9 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {goalOptions.filter(goal => goal.type === 'accuracy').map((goal) => (
-                    <SelectItem key={goal.id} value={goal.id}>
-                      {goal.name}
+                  {goalAccuracyOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -270,9 +282,9 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {goalOptions.filter(goal => goal.type === 'time').map((goal) => (
-                    <SelectItem key={goal.id} value={goal.id}>
-                      {goal.name}
+                  {goalTimeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { ActivityCard } from '@/components/dashboard/activity-card';
@@ -7,7 +8,7 @@ import { AlertCard } from '@/components/dashboard/alert-card';
 import { LineChart } from '@/components/dashboard/line-chart';
 import { BarChart } from '@/components/dashboard/bar-chart';
 import { Button } from '@/components/ui/button';
-import { Activity, Heart, Users, Video, Bell } from 'lucide-react';
+import { Activity, Heart, Users, Video, Bell, Trophy, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -21,8 +22,24 @@ import {
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { getUserDetails, signOut } from '@/services/api-auth-client';
-import { useEffect, useState } from 'react';
 import { getCurrentUserEmail } from '@/lib/utils/jwt';
+import { useQuery } from '@tanstack/react-query';
+import { getTeacherClassrooms } from '@/services/api-classroom';
+import { Task, getTasksByClassroom } from '@/services/api-task-client';
+import { 
+  getTaskScores, 
+  getTaskLeaderboard, 
+  analyzeTaskScores,
+  Score,
+  TaskScoreAnalytics,
+  LeaderboardResponseDTO,
+  getCompletedTasksCount,
+  getAverageQuizScore,
+  getAverageExerciseScore
+} from '@/services/analytics/api-analytics-client';
+// Removed websocket and vital signs imports since we're not using them
+import { useTaskScores, useTaskLeaderboard, useActiveTasks } from '@/hooks/analytics';
+import { getAnalyticsClient } from '@/services/analytics/analytics-service';
 
 // Define user interface to match API response
 interface UserDetails {
@@ -32,8 +49,39 @@ interface UserDetails {
   [key: string]: any; // For any additional properties
 }
 
+// Define classroom interface
+interface Classroom {
+  physicalId: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+  teacherId?: string;
+  description?: string;
+}
+
+// Define alert interface to match the AlertCard component expectations
+interface Alert {
+  id: string;
+  student: string;
+  issue: string;
+  time: string;
+  severity: 'low' | 'medium' | 'high';
+}
+
+interface SafetyAlert {
+  id: string;
+  studentId: string;
+  studentName: string;
+  message: string;
+  timestamp: string | Date;
+  severity: 'warning' | 'error';
+  type: 'heart_rate' | 'oxygen';
+}
+
 export default function DashboardPage() {
   const router = useRouter();
+  const [selectedClassroom, setSelectedClassroom] = useState('');
+  const [selectedTask, setSelectedTask] = useState('');
   
   // Get user email from JWT token or localStorage using the utility function
   const userEmail = getCurrentUserEmail();
@@ -43,6 +91,7 @@ export default function DashboardPage() {
     email: userEmail || ''
   });
 
+  // Fetch user details
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -65,74 +114,103 @@ export default function DashboardPage() {
     fetchUser();
   }, []);
 
+  // Fetch classrooms
+  const { data: classroomsData } = useQuery<Classroom[]>({
+    queryKey: ['teacher-classrooms'],
+    queryFn: getTeacherClassrooms
+  });
+  
+  // Set selected classroom when data is available
+  React.useEffect(() => {
+    if (classroomsData && classroomsData.length > 0 && !selectedClassroom) {
+      setSelectedClassroom(classroomsData[0].physicalId);
+    }
+  }, [classroomsData, selectedClassroom]);
+
+  // Fetch tasks for selected classroom
+  const { data: tasksData } = useQuery<Task[]>({
+    queryKey: ['classroom-tasks', selectedClassroom],
+    queryFn: () => getTasksByClassroom(selectedClassroom),
+    enabled: !!selectedClassroom
+  });
+  
+  // Set selected task when data is available
+  React.useEffect(() => {
+    if (tasksData && tasksData.length > 0 && !selectedTask) {
+      setSelectedTask(tasksData[0].physicalId);
+    }
+  }, [tasksData, selectedTask]);
+
+  // Fetch task scores
+  const { data: rawTaskScoresData, isLoading: isTaskScoresLoading } = useQuery<Score[]>({
+    queryKey: ['task-scores', selectedTask],
+    queryFn: () => getTaskScores(selectedTask),
+    enabled: !!selectedTask,
+  });
+
+  // Get the selected task name
+  const selectedTaskName = tasksData?.find((task: Task) => task.physicalId === selectedTask)?.name || 'Unknown Task';
+
+  // Process raw task scores into analytics
+  const taskScoresData: TaskScoreAnalytics | undefined = rawTaskScoresData ? 
+    analyzeTaskScores(rawTaskScoresData, selectedTaskName) : undefined;
+
+  // Fetch leaderboard data
+  const { data: leaderboardData, isLoading: isLeaderboardLoading } = useQuery<LeaderboardResponseDTO[]>({
+    queryKey: ['task-leaderboard', selectedTask],
+    queryFn: () => getTaskLeaderboard(selectedTask),
+    enabled: !!selectedTask,
+  });
+
   const handlesignOut = async () => {
     await signOut();
   };
 
-  // Mock data for the dashboard
-  const recentActivities = [
+  // Define the Activity type to match what ActivityCard expects
+  type Activity = {
+    id: string;
+    name: string;
+    time: string;
+    status: "completed" | "in-progress" | "scheduled";
+  };
+
+  // Activity data from task scores API - formatted to match the ActivityCard component's expected structure
+  const recentActivities: Activity[] = taskScoresData && tasksData ? [
     {
-      id: '1',
-      name: 'Morning Stretching',
-      time: 'Today, 8:30 AM',
-      status: 'completed' as const,
-      score: 92
-    },
-    {
-      id: '2',
-      name: 'Cardio Workout',
-      time: 'Today, 10:15 AM',
-      status: 'in-progress' as const
-    },
-    {
-      id: '3',
-      name: 'Yoga Session',
-      time: 'Today, 2:00 PM',
-      status: 'scheduled' as const
-    },
-    {
-      id: '4',
-      name: 'Strength Training',
-      time: 'Yesterday, 4:30 PM',
-      status: 'completed' as const,
-      score: 85
+      id: (() => {
+        // Find the matching task
+        const matchingTask = tasksData.find(t => t.physicalId === taskScoresData.taskId);
+        return matchingTask?.name || selectedTaskName || 'Current Task';
+      })(),
+      name: (() => {
+        // Log the task ID we're looking for
+        console.log('Looking for task with ID:', taskScoresData.taskId);
+        // Log all available task IDs for debugging
+        console.log('Available task IDs:', tasksData.map(t => ({ id: t.physicalId, name: t.name })));
+        // Find the matching task
+        const matchingTask = tasksData.find(t => t.physicalId === taskScoresData.taskId);
+        return matchingTask?.name || selectedTaskName || 'Current Task';
+      })(),
+      time: new Date().toLocaleString(),
+      status: taskScoresData.completedStudents === taskScoresData.totalStudents ? "completed" as const : "in-progress" as const
     }
-  ];
+  ] : [];
 
-  const safetyAlerts = [
-    {
-      id: '1',
-      student: 'Alex Johnson',
-      issue: 'Elevated heart rate during exercise',
-      time: '10 minutes ago',
-      severity: 'medium' as const
-    },
-    {
-      id: '2',
-      student: 'Sarah Williams',
-      issue: 'Poor posture during squats',
-      time: '15 minutes ago',
-      severity: 'low' as const
-    }
-  ];
-
-  const heartRateData = [
-    { day: 'Mon', rate: 72 },
-    { day: 'Tue', rate: 75 },
-    { day: 'Wed', rate: 82 },
-    { day: 'Thu', rate: 78 },
-    { day: 'Fri', rate: 76 },
-    { day: 'Sat', rate: 80 },
-    { day: 'Sun', rate: 74 }
-  ];
-
-  const postureScoreData = [
-    { exercise: 'Squats', score: 85 },
-    { exercise: 'Lunges', score: 92 },
-    { exercise: 'Pushups', score: 78 },
-    { exercise: 'Planks', score: 95 },
-    { exercise: 'Stretches', score: 88 }
-  ];
+  // Only real data from API - we're not generating weekly performance data
+  const exerciseScoreData = (tasksData && taskScoresData) 
+    ? tasksData.slice(0, 5).map((task: Task) => ({
+        exercise: task.name || 'Unknown',
+        score: taskScoresData.averageScore || 0
+      })) 
+    : [];
+      
+  // Generate task score metrics from real task data
+  const taskScoreMetrics = (tasksData && taskScoresData) ? tasksData.map((task: Task) => ({
+    name: task.name,
+    status: task.active ? 'in-progress' as const : 
+           task.started ? 'completed' as const : 'scheduled' as const,
+    score: taskScoresData.averageScore
+  })) : [];
 
   return (
     <div className="flex min-h-screen">
@@ -181,37 +259,52 @@ export default function DashboardPage() {
         <main className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Dashboard</h1>
-            <Button>Create New Activity</Button>
+            <div className="flex gap-2">
+              <Button onClick={() => router.push('/classroom')}>Manage Classrooms</Button>
+              <Button variant="outline" onClick={() => router.push('/monitoring')}>
+                <Activity className="mr-2 h-4 w-4" />
+                View Monitoring
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Active Students"
-              value="24"
-              description="Students currently active"
+              value={taskScoresData?.totalStudents?.toString() || '0'}
+              description="Students participating in tasks"
               icon={Users}
-              trend={{ value: 12, positive: true }}
+              trend={{ value: taskScoresData?.completedStudents || 0, positive: true }}
             />
             <StatCard
               title="Exercise Activities"
-              value="8"
-              description="Activities scheduled today"
+              value={(tasksData?.length || 0).toString()}
+              description="Total activities available"
               icon={Video}
-              trend={{ value: 5, positive: true }}
+              trend={{ 
+                value: tasksData?.filter((t: Task) => t.started && !t.active)?.length || 0, 
+                positive: true 
+              }}
             />
             <StatCard
-              title="Average Heart Rate"
-              value="78 BPM"
-              description="Class average during exercise"
+              title="Average Score"
+              value={`${taskScoresData?.averageScore || 0}%`}
+              description="Class average score"
               icon={Heart}
-              trend={{ value: 3, positive: false }}
+              trend={{ 
+                value: taskScoresData?.averageScore || 0, 
+                positive: true
+              }}
             />
             <StatCard
-              title="Posture Accuracy"
-              value="87%"
-              description="Average posture score"
+              title="Completion Rate"
+              value={taskScoresData ? `${taskScoresData.completedStudents}/${taskScoresData.totalStudents}` : '0/0'}
+              description="Tasks completed by students"
               icon={Activity}
-              trend={{ value: 8, positive: true }}
+              trend={{ 
+                value: taskScoresData ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0, 
+                positive: true 
+              }}
             />
           </div>
 
@@ -221,82 +314,83 @@ export default function DashboardPage() {
               description="Current metrics for today's PE session"
               metrics={[
                 {
-                  label: 'Average Posture Score',
-                  value: '87%',
-                  progress: 87,
-                  status: 'positive'
+                  label: 'Average Task Score',
+                  value: `${taskScoresData?.averageScore || 0}%`,
+                  progress: taskScoresData?.averageScore || 0,
+                  status: (taskScoresData?.averageScore || 0) > 85 ? 'positive' : 'warning'
                 },
                 {
-                  label: 'Exercise Completion Rate',
-                  value: '24/30',
-                  progress: 80,
-                  trend: { value: 5, positive: true }
+                  label: 'Task Completion Rate',
+                  value: taskScoresData ? `${taskScoresData.completedStudents}/${taskScoresData.totalStudents}` : '0/0',
+                  progress: taskScoresData ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0,
+                  trend: { 
+                    value: taskScoresData?.completionRate || 0, 
+                    positive: true 
+                  }
                 },
                 {
-                  label: 'Safety Compliance',
-                  value: '95%',
-                  progress: 95,
-                  status: 'positive'
-                },
-                {
-                  label: 'Engagement Level',
-                  value: '78%',
-                  progress: 78,
-                  status: 'warning'
+                  label: 'Leaderboard Entries',
+                  value: `${leaderboardData?.length || 0}`,
+                  progress: leaderboardData ? Math.min(100, leaderboardData.length * 10) : 0,
+                  status: leaderboardData && leaderboardData.length > 5 ? 'positive' : 'warning'
                 }
               ]}
-              className="col-span-2 lg:col-span-1"
+              className="md:col-span-1"
             />
             <OverviewCard
-              title="Health Metrics"
-              description="Real-time vitals monitoring"
+              title="Leaderboard Overview"
+              description={"Top students by performance"}
               metrics={[
                 {
-                  label: 'Average Heart Rate',
-                  value: '78 BPM',
+                  label: 'Top Student ID',
+                  value: leaderboardData && leaderboardData.length > 0 ? leaderboardData[0].studentId || 'Unknown' : 'No data',
                   status: 'positive'
                 },
                 {
-                  label: 'Max Heart Rate',
-                  value: '142 BPM',
-                  status: 'warning'
+                  label: 'Top Score',
+                  value: leaderboardData && leaderboardData.length > 0 ? `${leaderboardData[0].score}%` : 'No data',
+                  status: 'positive'
                 },
                 {
-                  label: 'Recovery Time',
-                  value: '1m 45s',
-                  trend: { value: 12, positive: true }
+                  label: 'Participants',
+                  value: `${taskScoresData?.totalStudents || 0}`,
+                  status: 'positive'
                 },
                 {
-                  label: 'Hydration Reminders',
-                  value: '3 sent',
-                  status: 'neutral'
+                  label: 'Average Score',
+                  value: `${taskScoresData?.averageScore || 0}%`,
+                  status: (taskScoresData?.averageScore || 0) > 80 ? 'positive' : 'warning'
                 }
               ]}
-              className="col-span-2 lg:col-span-1"
+              className="md:col-span-1"
             />
           </div>
 
-          <div className="mt-6 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <ActivityCard activities={recentActivities} className="md:col-span-1 lg:col-span-1" />
-            <AlertCard alerts={safetyAlerts} className="md:col-span-1 lg:col-span-1" />
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <ActivityCard activities={recentActivities} className="md:col-span-1" />
             <LineChart
-              title="Weekly Heart Rate"
-              description="Average BPM during exercise"
-              data={heartRateData}
-              categories={['rate']}
+              title="Task Performance"
+              description="Scores by task"
+              data={exerciseScoreData.map((item: {exercise: string; score: number}) => ({
+                day: item.exercise.substring(0, 3),  // Use first 3 chars of exercise name as day
+                score: item.score
+              }))}
+              categories={['score']}
               index="day"
-              className="md:col-span-2 lg:col-span-1"
+              className="md:col-span-1"
             />
           </div>
 
-          <div className="mt-6">
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
             <BarChart
-              title="Posture Analysis by Exercise"
-              description="Average posture score by exercise type"
-              data={postureScoreData}
+              title="Exercise Performance Analysis"
+              description="Average score by exercise type"
+              data={exerciseScoreData}
               categories={['score']}
               index="exercise"
+              className="md:col-span-2"
             />
+            {/* No safety alerts displayed since we're not using vital signs data */}
           </div>
         </main>
       </div>

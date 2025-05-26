@@ -37,24 +37,24 @@ export interface QuizTemplateResponseDTO {
 }
 
 export interface ExerciseTemplateBodyDTO {
-  title: string;
-  description: string;
-  exerciseType: string;
-  exerciseDifficulty: string;
-  goalReps: string;
-  goalAccuracy: string;
-  goalTime: string;
+  title: string; // required, minLength: 3, maxLength: 100
+  description: string; // required, minLength: 0, maxLength: 500
+  exerciseType: 'PUSH_UP' | 'SIT_UP' | 'JUMPING_JACK' | 'TYPE1' | 'TYPE2'; // required
+  exerciseDifficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'; // required
+  goalReps: string; // required, pattern: ^[0-9]+$
+  goalAccuracy: string; // required, pattern: ^[0-9]+$
+  goalTime: string; // required, pattern: ^[0-9]+$
 }
 
 export interface ExerciseTemplateResponseDTO {
   physicalId: string;
   title: string;
   description: string;
-  exerciseType: 'PUSH_UP' | 'SQUATS';
-  exerciseDifficulty: 'BEGINNER' | 'EXPERT';
-  goalReps: number;
-  goalAccuracy: number;
-  goalTime: number;
+  exerciseType: 'PUSH_UP' | 'SQUATS'; // Note: API lists PUSH_UP and SQUATS as enum values
+  exerciseDifficulty: 'BEGINNER' | 'EXPERT'; // Note: API lists BEGINNER and EXPERT as enum values
+  goalReps: number; // integer
+  goalAccuracy: number; // integer
+  goalTime: number; // integer
 }
 
 /**
@@ -64,7 +64,7 @@ export async function createLessonTemplate(template: LessonTemplateBodyDTO) {
   try {
     console.log('Creating lesson template:', template);
     
-    const { data, error, status } = await serverApiClient.post('/lesson-templates', template);
+    const { data, error, status } = await serverApiClient.post('/templates/lessons', template);
     
     if (error) {
       console.error('[Lesson Template Create Error]', { error, status, requestBody: template });
@@ -83,7 +83,7 @@ export async function createLessonTemplate(template: LessonTemplateBodyDTO) {
  */
 export async function getLessonTemplate(physicalId: string) {
   try {
-    const { data, error, status } = await serverApiClient.get(`/lesson-templates/${physicalId}`);
+    const { data, error, status } = await serverApiClient.get(`/templates/lessons/${physicalId}`);
     
     if (error) {
       console.error('[Lesson Template Get Error]', { error, status });
@@ -104,7 +104,7 @@ export async function createQuizTemplate(template: QuizTemplateBodyDTO) {
   try {
     console.log('Creating quiz template:', template);
     
-    const { data, error, status } = await serverApiClient.post('/quiz-templates', template);
+    const { data, error, status } = await serverApiClient.post('/templates/quizzes', template);
     
     if (error) {
       console.error('[Quiz Template Create Error]', { error, status, requestBody: template });
@@ -123,7 +123,7 @@ export async function createQuizTemplate(template: QuizTemplateBodyDTO) {
  */
 export async function getQuizTemplate(physicalId: string) {
   try {
-    const { data, error, status } = await serverApiClient.get(`/quiz-templates/${physicalId}`);
+    const { data, error, status } = await serverApiClient.get(`/templates/quizzes/${physicalId}`);
     
     if (error) {
       console.error('[Quiz Template Get Error]', { error, status });
@@ -142,7 +142,7 @@ export async function getQuizTemplate(physicalId: string) {
  */
 export async function getAllLessonTemplates() {
   try {
-    const { data, error, status } = await serverApiClient.get('/lesson-templates/all');
+    const { data, error, status } = await serverApiClient.get('/templates/lessons');
     
     if (error) {
       console.error('[Lesson Templates Get Error]', { error, status });
@@ -217,7 +217,7 @@ function getMockLessonTemplates(): LessonTemplateResponseDTO[] {
  */
 export async function getAllQuizTemplates() {
   try {
-    const { data, error, status } = await serverApiClient.get('/quiz-templates/all');
+    const { data, error, status } = await serverApiClient.get('/templates/quizzes');
     
     if (error) {
       console.error('[Quiz Templates Get All Error]', { error, status });
@@ -238,7 +238,7 @@ export async function createExerciseTemplate(template: ExerciseTemplateBodyDTO) 
   try {
     console.log('Creating exercise template:', template);
     
-    const { data, error, status } = await serverApiClient.post('/exercise-templates', template);
+    const { data, error, status } = await serverApiClient.post('/templates/exercises', template);
     
     if (error) {
       console.error('[Exercise Template Create Error]', { error, status, requestBody: template });
@@ -257,7 +257,7 @@ export async function createExerciseTemplate(template: ExerciseTemplateBodyDTO) 
  */
 export async function getExerciseTemplate(physicalId: string) {
   try {
-    const { data, error, status } = await serverApiClient.get(`/exercise-templates/${physicalId}`);
+    const { data, error, status } = await serverApiClient.get(`/templates/exercises/${physicalId}`);
     
     if (error) {
       console.error('[Exercise Template Get Error]', { error, status });
@@ -276,16 +276,58 @@ export async function getExerciseTemplate(physicalId: string) {
  */
 export async function getAllExerciseTemplates() {
   try {
-    const { data, error, status } = await serverApiClient.get('/exercise-templates/all');
+    const { data, error, status } = await serverApiClient.get('/templates/exercises');
     
     if (error) {
       console.error('[Exercise Templates Get All Error]', { error, status });
+      
+      // If we get a 403 error, return mock data for development
+      if (status === 403) {
+        console.warn('Using mock data for exercise templates due to 403 error');
+        return getMockExerciseTemplates();
+      }
+      
       throw new Error(error);
     }
     
     return data as ExerciseTemplateResponseDTO[];
   } catch (error) {
     console.error('Error getting all exercise templates:', error);
+    
+    // Return mock data for any error during development
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('Using mock data for exercise templates due to error');
+      return getMockExerciseTemplates();
+    }
+    
     throw error;
   }
+}
+
+/**
+ * Generate mock exercise templates for development
+ */
+function getMockExerciseTemplates(): ExerciseTemplateResponseDTO[] {
+  return [
+    {
+      physicalId: 'EXERCISE-MOCK-1',
+      title: 'Basic Push-ups',
+      description: 'Standard push-up exercise for beginners',
+      exerciseType: 'PUSH_UP',
+      exerciseDifficulty: 'BEGINNER',
+      goalReps: 10,
+      goalAccuracy: 80,
+      goalTime: 60
+    },
+    {
+      physicalId: 'EXERCISE-MOCK-2',
+      title: 'Advanced Squats',
+      description: 'Deep squats for experienced students',
+      exerciseType: 'SQUATS',
+      exerciseDifficulty: 'EXPERT',
+      goalReps: 20,
+      goalAccuracy: 90,
+      goalTime: 120
+    }
+  ];
 }

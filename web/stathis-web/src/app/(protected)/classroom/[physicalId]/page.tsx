@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock } from 'lucide-react';
+import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +12,12 @@ import { Separator } from '@/components/ui/separator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getClassroomById, getClassroomStudents, deleteClassroom, activateClassroom, deactivateClassroom, verifyClassroomStudent } from '@/services/api-classroom-client';
+import { getClassroomTasks, TaskResponseDTO } from '@/services/tasks/api-task-client';
 import { getCurrentUserEmail, getCurrentUserRole } from '@/lib/utils/jwt';
 import { TemplateCreationTab } from '@/components/templates/template-creation-tab';
 import { TaskCreationTab } from '@/components/tasks/task-creation-tab';
+import { TaskScoresTab } from '@/components/scores/task-scores-tab';
+import { ApiDebugger } from '@/components/debug/api-test';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -53,11 +56,18 @@ const StatCard = ({ title, value, description, icon: Icon, className = '' }: Sta
   </Card>
 );
 
-export default function ClassroomDetailPage({ params }: { params: { physicalId: string } }) {
+type PageParams = { physicalId: string };
+
+interface ClassroomDetailPageProps {
+  params: PageParams | Promise<PageParams>;
+}
+
+export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  // Direct access to params is still supported in current Next.js version
-  const { physicalId } = params;
+  // Use React.use() to unwrap params if it's a Promise
+  const resolvedParams = React.use(params as any) as PageParams;
+  const physicalId = resolvedParams.physicalId;
   const userEmail = getCurrentUserEmail();
   const userRole = getCurrentUserRole();
   
@@ -152,6 +162,14 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
     queryKey: ['classroom-students', physicalId],
     queryFn: () => getClassroomStudents(physicalId),
     enabled: !!userEmail && !!physicalId && userRole === 'TEACHER',
+  });
+
+  // Fetch tasks for this classroom
+  const { data: tasks, isLoading: isLoadingTasks } = useQuery({
+    queryKey: ['classroom-tasks', physicalId],
+    queryFn: () => getClassroomTasks(physicalId),
+    enabled: !!physicalId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   // Render basic layout for error and loading states
@@ -361,6 +379,9 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
               <TabsTrigger value="students" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Students</TabsTrigger>
               <TabsTrigger value="tasks" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Tasks</TabsTrigger>
               {userRole === 'TEACHER' && (
+                <TabsTrigger value="scores" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Scores</TabsTrigger>
+              )}
+              {userRole === 'TEACHER' && (
                 <TabsTrigger value="templates" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Templates</TabsTrigger>
               )}
               {userRole === 'TEACHER' && (
@@ -459,13 +480,81 @@ export default function ClassroomDetailPage({ params }: { params: { physicalId: 
             <TabsContent value="tasks" className="space-y-4 mt-6">
               <TaskCreationTab classroomId={physicalId} />
             </TabsContent>
+
+            <TabsContent value="scores" className="space-y-4 mt-6">
+              {/* API Debugger for testing */}
+              <ApiDebugger />
+              
+              <div className="grid gap-6 mb-6">
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="text-xl">Student Scores</CardTitle>
+                        <CardDescription>
+                          View and manage scores for tasks in this classroom
+                        </CardDescription>
+                      </div>
+                      <Award className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingTasks ? (
+                      <div className="flex justify-center items-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <span className="ml-2">Loading tasks...</span>
+                      </div>
+                    ) : tasks && tasks.length > 0 ? (
+                      <Tabs defaultValue={tasks[0].physicalId} className="w-full">
+                        <TabsList className="mb-4 w-full overflow-x-auto flex-nowrap justify-start">
+                          {tasks.map((task: TaskResponseDTO) => (
+                            <TabsTrigger key={task.physicalId} value={task.physicalId} className="whitespace-nowrap">
+                              {task.name}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                        {tasks.map((task: TaskResponseDTO) => (
+                          <TabsContent key={task.physicalId} value={task.physicalId}>
+                            <TaskScoresTab 
+                              taskId={task.physicalId} 
+                              taskType={
+                                task.exerciseTemplateId ? 'EXERCISE' : 
+                                task.quizTemplateId ? 'QUIZ' : 
+                                task.lessonTemplateId ? 'LESSON' : undefined
+                              }
+                              templateId={
+                                task.exerciseTemplateId || 
+                                task.quizTemplateId || 
+                                task.lessonTemplateId
+                              }
+                            />
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                          <h3 className="text-lg font-medium">No tasks found</h3>
+                          <p className="text-muted-foreground mt-1">
+                            Create tasks to start tracking student scores
+                          </p>
+                          <Button onClick={() => setActiveTab('tasks')} className="mt-4">
+                            <PlusCircle className="h-4 w-4 mr-2" />
+                            Create a Task
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
             
-            {userRole === 'TEACHER' && (
-              <TabsContent value="templates" className="space-y-4 mt-6">
-                <TemplateCreationTab classroomId={physicalId} />
-              </TabsContent>
-            )}
-            
+            <TabsContent value="templates" className="space-y-4 mt-6">
+              <TemplateCreationTab classroomId={physicalId} />
+            </TabsContent>
+
             {userRole === 'TEACHER' && (
               <TabsContent value="settings" className="space-y-4 mt-6">
                 <Card>
