@@ -32,6 +32,12 @@ public class TemplateController {
             lessonTemplateService.createLessonTemplate(lessonTemplateBodyDTO).getPhysicalId()));
     }
 
+    @GetMapping("lessons/{physicalId}")
+    @Operation(summary = "Get a lesson template by its physical ID", description = "Get a lesson template by its physical ID")
+    public ResponseEntity<LessonTemplateResponseDTO> getLessonTemplate(@PathVariable String physicalId) {
+        return ResponseEntity.ok(lessonTemplateService.getLessonTemplateResponseDTO(physicalId));
+    }
+
     @GetMapping("/lessons")
     @Operation(summary = "Get all lesson templates")
     public ResponseEntity<List<LessonTemplateResponseDTO>> getAllLessonTemplates() {
@@ -49,6 +55,12 @@ public class TemplateController {
             exerciseTemplateService.createExerciseTemplate(exerciseTemplateBodyDTO).getPhysicalId()));
     }
 
+    @GetMapping("exercises/{physicalId}")
+    @Operation(summary = "Get an exercise template by its physical ID", description = "Get an exercise template by its physical ID")
+    public ResponseEntity<ExerciseTemplateResponseDTO> getExerciseTemplate(@PathVariable String physicalId) {
+        return ResponseEntity.ok(exerciseTemplateService.getExerciseTemplateResponseDTO(physicalId));
+    }
+
     @GetMapping("/exercises")
     @Operation(summary = "Get all exercise templates")
     public ResponseEntity<List<ExerciseTemplateResponseDTO>> getAllExerciseTemplates() {
@@ -64,6 +76,12 @@ public class TemplateController {
     public ResponseEntity<QuizTemplateResponseDTO> createQuizTemplate(@RequestBody QuizTemplateBodyDTO quizTemplateBodyDTO) {
         return ResponseEntity.ok(quizTemplateService.getQuizTemplateResponseDTO(
             quizTemplateService.createQuizTemplate(quizTemplateBodyDTO).getPhysicalId()));
+    }
+
+    @GetMapping("quizzes/{physicalId}")
+    @Operation(summary = "Get a quiz template by its physical ID", description = "Get a quiz template by its physical ID")
+    public ResponseEntity<QuizTemplateResponseDTO> getQuizTemplate(@PathVariable String physicalId) {
+        return ResponseEntity.ok(quizTemplateService.getQuizTemplateResponseDTO(physicalId));
     }
 
     @GetMapping("/quizzes")

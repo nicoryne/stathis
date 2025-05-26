@@ -16,7 +16,6 @@ import edu.cit.stathis.auth.repository.TokenRepository;
 import edu.cit.stathis.auth.repository.UserProfileRepository;
 import edu.cit.stathis.auth.repository.UserRepository;
 import edu.cit.stathis.auth.service.TokenService.CreatedToken;
-import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.common.utils.JwtUtil;
 import jakarta.mail.MessagingException;
 import java.time.OffsetDateTime;
