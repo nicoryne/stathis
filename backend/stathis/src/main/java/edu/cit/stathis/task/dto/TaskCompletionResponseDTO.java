@@ -10,4 +10,6 @@ public class TaskCompletionResponseDTO {
     private String message;
     private String studentId;
     private String taskId;
+    private boolean submittedForReview;
+    private String submittedAt;
 } 

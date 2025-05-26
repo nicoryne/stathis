@@ -86,7 +86,10 @@ public class ClassroomService {
         return classroomCode;
     }
 
-    public void enrollStudentInClassroom(String classroomCode, String studentPhysicalId) {
+    @PreAuthorize("hasRole('STUDENT')")
+    public void enrollStudentInClassroom(String classroomPhysicalId, String classroomCode) {
+        String studentPhysicalId = physicalIdService.getCurrentUserPhysicalId();
+        System.out.println("[DEBUG] Attempting to enroll student with physicalId: " + studentPhysicalId + " using classroomCode: " + classroomCode);
         Classroom classroom = classroomRepository.findByClassroomCode(classroomCode)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
         
@@ -100,14 +103,23 @@ public class ClassroomService {
             throw new RuntimeException("Student is already enrolled");
         }
         
+        // Debug: Try to find the user profile
+        try {
+            var studentProfile = userService.findUserProfileByPhysicalId(studentPhysicalId);
+            System.out.println("[DEBUG] Found user profile: " + studentProfile.getFirstName() + " " + studentProfile.getLastName());
         ClassroomStudents classroomStudents = new ClassroomStudents();
+            classroomStudents.setPhysicalId(provideUniqueClassroomStudentId());
         classroomStudents.setClassroom(classroom);
-        classroomStudents.setStudent(userService.findUserProfileByPhysicalId(studentPhysicalId));
+            classroomStudents.setStudent(studentProfile);
         classroomStudents.setCreatedAt(OffsetDateTime.now());
         classroomStudents.setUpdatedAt(OffsetDateTime.now());
         classroomStudents.setVerified(false);
         classroom.getClassroomStudents().add(classroomStudents);
         classroomRepository.save(classroom);
+        } catch (Exception e) {
+            System.out.println("[DEBUG] User profile not found for physicalId: " + studentPhysicalId);
+            throw e;
+        }
     }
 
     public List<StudentListResponseDTO> getStudentListByClassroomPhysicalId(String classroomPhysicalId) {
@@ -119,11 +131,12 @@ public class ClassroomService {
     }
 
     @PreAuthorize("hasRole('TEACHER')")
-    public void verifyStudentStatus(String classroomPhysicalId, String studentPhysicalId) {
+    @Transactional
+    public void verifyStudentStatus(String classroomPhysicalId, String studentId) {
         Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
         ClassroomStudents classroomStudents = classroom.getClassroomStudents().stream()
-            .filter(cs -> cs.getStudent().getUser().getPhysicalId().equals(studentPhysicalId))
+            .filter(cs -> cs.getStudent().getUser().getUserId().toString().equals(studentId))
             .findFirst()
             .orElseThrow(() -> new RuntimeException("Student not found in classroom"));
         classroomStudents.setVerified(true);
@@ -152,6 +165,7 @@ public class ClassroomService {
             .isActive(classroom.isActive())
             .teacherName(getTeacherName(classroom.getTeacherId()))
             .studentCount(classroom.getClassroomStudents().size())
+            .classroomCode(classroom.getClassroomCode())
             .build();
     }
 
@@ -175,6 +189,13 @@ public class ClassroomService {
         return generatedPhysicalId;
     }
 
+    private String provideUniqueClassroomStudentId() {
+        String year = String.valueOf(OffsetDateTime.now().getYear()).substring(2);
+        Random random = new Random();
+        String secondPart = String.format("%03d", random.nextInt(1000));
+        return String.format("CS-%s-%s", year, secondPart);
+    }
+
     @PreAuthorize("hasRole('TEACHER')")
     @Transactional
     public void deactivateClassroom(String physicalId) {
@@ -195,5 +216,18 @@ public class ClassroomService {
         }
         classroom.setActive(true);
         classroomRepository.save(classroom);
+    }
+
+    public boolean isUserEnrolledInClassroom(String userPhysicalId, String classroomPhysicalId) {
+        Classroom classroom = getClassroomById(classroomPhysicalId);
+        return classroom.getClassroomStudents().stream()
+            .anyMatch(cs -> cs.getStudent().getUser().getPhysicalId().equals(userPhysicalId)) ||
+            classroom.getTeacherId().equals(userPhysicalId);
+    }
+
+    public boolean isUserEnrolledAndVerifiedInClassroom(String userPhysicalId, String classroomPhysicalId) {
+        Classroom classroom = getClassroomById(classroomPhysicalId);
+        return classroom.getClassroomStudents().stream()
+            .anyMatch(cs -> cs.getStudent().getUser().getPhysicalId().equals(userPhysicalId) && cs.isVerified());
     }
 }

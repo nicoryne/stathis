@@ -57,20 +57,29 @@ public class UserService {
       throw new IllegalArgumentException("Email is already in use.");
     }
 
-    User user = new User();
-    user.setEmail(userDTO.getEmail());
-    user.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
-    user.setUserRole(role);
-    user.setPhysicalId(provideUniquePhysicalId());
-    user.setEmailVerified(false);
+    // Create User with all required fields
+    User user = User.builder()
+        .email(userDTO.getEmail())
+        .passwordHash(passwordEncoder.encode(userDTO.getPassword()))
+        .userRole(role)
+        .physicalId(provideUniquePhysicalId())
+        .emailVerified(false)
+        .version(0L)
+        .build();
 
-    UserProfile userProfile = new UserProfile();
-    userProfile.setUser(user);
-    userProfile.setFirstName(userDTO.getFirstName());
-    userProfile.setLastName(userDTO.getLastName());
+    // Create UserProfile with all required fields
+    UserProfile userProfile = UserProfile.builder()
+        .user(user)
+        .firstName(userDTO.getFirstName())
+        .lastName(userDTO.getLastName())
+        .version(0L)
+        .build();
 
+    // Set the bidirectional relationship
+    user.setUserProfile(userProfile);
+
+    // Save the User (which will cascade to UserProfile)
     user = uRepo.save(user);
-    upRepo.save(userProfile);
 
     CreatedToken created =
         tokenService.createToken(

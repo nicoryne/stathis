@@ -66,4 +66,10 @@ public class Score {
 
     @Column(name = "completed_at")
     private OffsetDateTime completedAt;
+
+    @Column(name = "teacher_feedback")
+    private String teacherFeedback;
+
+    @Column(name = "manual_score")
+    private Integer manualScore;
 } 
