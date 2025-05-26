@@ -39,4 +39,16 @@ public class UserController {
     UserResponseDTO response = userService.updateTeacherProfile(userId, teacherDTO);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
+
+  @GetMapping("/profile/student")
+  public ResponseEntity<UserResponseDTO> getStudentProfile() {
+    UserResponseDTO response = userService.getStudentUserProfile();
+    return new ResponseEntity<>(response, HttpStatus.OK);
+  }
+
+  @GetMapping("/profile/teacher")
+  public ResponseEntity<UserResponseDTO> getTeacherProfile() {
+    UserResponseDTO response = userService.getTeacherUserProfile();
+    return new ResponseEntity<>(response, HttpStatus.OK);
+  }
 }

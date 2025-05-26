@@ -16,6 +16,7 @@ import edu.cit.stathis.auth.repository.TokenRepository;
 import edu.cit.stathis.auth.repository.UserProfileRepository;
 import edu.cit.stathis.auth.repository.UserRepository;
 import edu.cit.stathis.auth.service.TokenService.CreatedToken;
+import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.common.utils.JwtUtil;
 import jakarta.mail.MessagingException;
 import java.time.OffsetDateTime;
@@ -50,6 +51,9 @@ public class UserService {
   @Autowired private JwtUtil jwtUtil;
 
   @Autowired private WebhookService webhookService;
+
+  @Autowired
+  private PhysicalIdService physicalIdService;
 
   @Transactional
   public User createUser(CreateUserDTO userDTO, UserRoleEnum role) {
@@ -347,6 +351,46 @@ public class UserService {
         .birthdate(userProfile.getBirthdate())
         .profilePictureUrl(userProfile.getProfilePictureUrl())
         .role(user.getUserRole())
+        .school(userProfile.getSchool())
+        .course(userProfile.getCourse())
+        .yearLevel(userProfile.getYearLevel())
+        .department(userProfile.getDepartment())
+        .positionTitle(userProfile.getPositionTitle())
+        .build();
+  }
+
+  public UserResponseDTO getStudentUserProfile() {
+    String physicalId = physicalIdService.getCurrentUserPhysicalId();
+    UserProfile userProfile = findUserProfileByPhysicalId(physicalId);
+
+    return UserResponseDTO.builder()
+        .physicalId(physicalId)
+        .email(userProfile.getUser().getEmail())
+        .firstName(userProfile.getFirstName())
+        .lastName(userProfile.getLastName())
+        .birthdate(userProfile.getBirthdate())
+        .profilePictureUrl(userProfile.getProfilePictureUrl())
+        .role(userProfile.getUser().getUserRole())
+        .school(userProfile.getSchool())
+        .course(userProfile.getCourse())
+        .yearLevel(userProfile.getYearLevel())
+        .department(userProfile.getDepartment())
+        .positionTitle(userProfile.getPositionTitle())
+        .build();
+  }
+
+  public UserResponseDTO getTeacherUserProfile() {
+    String physicalId = physicalIdService.getCurrentUserPhysicalId();
+    UserProfile userProfile = findUserProfileByPhysicalId(physicalId);
+
+    return UserResponseDTO.builder()
+        .physicalId(physicalId)
+        .email(userProfile.getUser().getEmail())
+        .firstName(userProfile.getFirstName())
+        .lastName(userProfile.getLastName())
+        .birthdate(userProfile.getBirthdate())
+        .profilePictureUrl(userProfile.getProfilePictureUrl())
+        .role(userProfile.getUser().getUserRole())
         .school(userProfile.getSchool())
         .course(userProfile.getCourse())
         .yearLevel(userProfile.getYearLevel())
