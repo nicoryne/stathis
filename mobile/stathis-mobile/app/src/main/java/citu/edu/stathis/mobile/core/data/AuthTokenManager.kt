@@ -25,8 +25,6 @@ class AuthTokenManager @Inject constructor(
     // Keys
     private val ACCESS_TOKEN = stringPreferencesKey("access_token")
     private val REFRESH_TOKEN = stringPreferencesKey("refresh_token")
-    private val USER_ID = stringPreferencesKey("user_id")
-    private val USER_EMAIL = stringPreferencesKey("user_email")
     private val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
 
     // Token flows
@@ -36,14 +34,6 @@ class AuthTokenManager @Inject constructor(
 
     val refreshTokenFlow: Flow<String?> = dataStore.data.map { preferences ->
         preferences[REFRESH_TOKEN]
-    }
-
-    val userIdFlow: Flow<String?> = dataStore.data.map { preferences ->
-        preferences[USER_ID]
-    }
-
-    val userEmailFlow: Flow<String?> = dataStore.data.map { preferences ->
-        preferences[USER_EMAIL]
     }
 
     val isLoggedInFlow: Flow<Boolean> = dataStore.data.map { preferences ->
@@ -59,21 +49,11 @@ class AuthTokenManager @Inject constructor(
         }
     }
 
-    suspend fun saveUserInfo(userId: String, email: String) {
-        dataStore.edit { preferences ->
-            preferences[USER_ID] = userId
-            preferences[USER_EMAIL] = email
-        }
-    }
-
     suspend fun clearTokens() {
         dataStore.edit { preferences ->
             preferences.remove(ACCESS_TOKEN)
             preferences.remove(REFRESH_TOKEN)
-            preferences.remove(USER_ID)
-            preferences.remove(USER_EMAIL)
             preferences[IS_LOGGED_IN] = false
         }
-
     }
 }

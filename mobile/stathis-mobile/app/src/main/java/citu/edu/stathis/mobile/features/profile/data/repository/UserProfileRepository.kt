@@ -3,7 +3,6 @@ package citu.edu.stathis.mobile.features.profile.data.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import citu.edu.stathis.mobile.features.profile.domain.model.UserProfile
 import citu.edu.stathis.mobile.features.profile.domain.repository.IUserProfileRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
