@@ -39,6 +39,7 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(
                         "/api/auth/**",
+                        "/api/posture/**",
                         "/ws/**",
                         "/swagger-ui.html",
                         "/swagger-ui/**",
