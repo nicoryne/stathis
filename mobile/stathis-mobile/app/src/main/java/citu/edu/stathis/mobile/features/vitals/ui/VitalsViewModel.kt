@@ -1,248 +1,196 @@
 package citu.edu.stathis.mobile.features.vitals.ui
 
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
-import android.content.Context
-import android.util.Log
+import android.bluetooth.BluetoothDevice // Keep if you retain direct BLE device interaction (e.g. for names)
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import citu.edu.stathis.mobile.features.vitals.data.ble.BleManager
-import citu.edu.stathis.mobile.features.vitals.domain.model.VitalSigns
-import citu.edu.stathis.mobile.features.vitals.domain.repository.IVitalsRepository
+import citu.edu.stathis.mobile.core.data.models.ClientResponse
+import citu.edu.stathis.mobile.features.vitals.data.healthconnect.HealthConnectManager // For ConnectionState enum
+import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
+import citu.edu.stathis.mobile.features.vitals.data.model.HealthRiskAlert
+import citu.edu.stathis.mobile.features.vitals.domain.usecase.*
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.auth
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// New UI State representations
+sealed class VitalsRealTimeUiState {
+    data object Initial : VitalsRealTimeUiState()
+    data object Loading : VitalsRealTimeUiState() // When actively fetching/connecting
+    data class Data(val vitalSigns: VitalSigns, val alert: HealthRiskAlert? = null) : VitalsRealTimeUiState()
+    data class Error(val message: String) : VitalsRealTimeUiState()
+}
+
+sealed class VitalsHistoryUiState {
+    data object Loading : VitalsHistoryUiState()
+    data class Data(val vitalsList: List<VitalSigns>) : VitalsHistoryUiState()
+    data object Empty : VitalsHistoryUiState()
+    data class Error(val message: String) : VitalsHistoryUiState()
+}
+
+sealed class HealthConnectUiState {
+    data object NotAvailable : HealthConnectUiState() // Health Connect app not installed
+    data object PermissionsNotGranted : HealthConnectUiState()
+    data object AvailableAndConnected : HealthConnectUiState()
+    data object AvailableButDisconnected : HealthConnectUiState() // Available, permissions granted, but not "connected"
+    data object Connecting : HealthConnectUiState()
+    data class Error(val message: String) : HealthConnectUiState()
+}
+
 @HiltViewModel
 class VitalsViewModel @Inject constructor(
-    private val vitalsRepository: IVitalsRepository,
-    private val bleManager: BleManager,
-    private val supabaseClient: SupabaseClient,
-    @ApplicationContext private val context: Context
+    private val getCurrentUserIdUseCase: GetCurrentUserIdUseCase, // Assuming you create this
+    private val checkHealthConnectAvailabilityUseCase: CheckHealthConnectAvailabilityUseCase,
+    private val requestHealthConnectPermissionsUseCase: RequestHealthConnectPermissionsUseCase,
+    private val connectToHealthConnectUseCase: ConnectToHealthConnectUseCase,
+    private val monitorRealTimeVitalsUseCase: MonitorRealTimeVitalsUseCase,
+    private val detectHealthRiskUseCase: DetectHealthRiskUseCase,
+    private val saveVitalsUseCase: SaveVitalsUseCase,
+    private val getVitalsHistoryUseCase: GetVitalsHistoryUseCase,
+    private val deleteVitalRecordUseCase: DeleteVitalRecordUseCase
+    // Add other use cases as needed
 ) : ViewModel() {
-    private val TAG = "VitalsViewModel"
 
-    private val _uiState = MutableStateFlow<VitalsUiState>(VitalsUiState.Initial)
-    val uiState: StateFlow<VitalsUiState> = _uiState.asStateFlow()
+    private val _realTimeState = MutableStateFlow<VitalsRealTimeUiState>(VitalsRealTimeUiState.Initial)
+    val realTimeState: StateFlow<VitalsRealTimeUiState> = _realTimeState.asStateFlow()
 
-    private val _historyState = MutableStateFlow<VitalsHistoryState>(VitalsHistoryState.Loading)
-    val historyState: StateFlow<VitalsHistoryState> = _historyState.asStateFlow()
+    private val _historyState = MutableStateFlow<VitalsHistoryUiState>(VitalsHistoryUiState.Loading)
+    val historyState: StateFlow<VitalsHistoryUiState> = _historyState.asStateFlow()
 
-    private val _deviceState = MutableStateFlow<DeviceState>(DeviceState.Initial)
-    val deviceState: StateFlow<DeviceState> = _deviceState.asStateFlow()
-
-    private val _bluetoothState = MutableStateFlow(BluetoothState.UNKNOWN)
-    val bluetoothState: StateFlow<BluetoothState> = _bluetoothState.asStateFlow()
+    private val _healthConnectState = MutableStateFlow<HealthConnectUiState>(HealthConnectUiState.NotAvailable)
+    val healthConnectState: StateFlow<HealthConnectUiState> = _healthConnectState.asStateFlow()
 
     private var currentUserId: String? = null
 
     init {
         viewModelScope.launch {
-            checkBluetoothState()
+            // currentUserId = getCurrentUserIdUseCase() // Fetch and set user ID
+            // For now, using a placeholder or assuming it's passed if needed
+            // currentUserId = "test-user" // Replace with actual user ID logic
 
-            val userId = supabaseClient.auth.currentUserOrNull()?.id
-            if (userId != null) {
-                currentUserId = userId
-                bleManager.setUserId(userId)
-                loadVitalsHistory()
-
-                // Collect real-time vitals from BLE manager
-                bleManager.vitalSigns.collectLatest { vitalSigns ->
-                    if (vitalSigns != null) {
-                        _uiState.value = VitalsUiState.Data(vitalSigns)
-                    }
-                }
-            } else {
-                _uiState.value = VitalsUiState.Error("User not authenticated")
-            }
+            // The init block of your old VM had supabaseClient.auth.currentUserOrNull()?.id
+            // This logic needs to be replaced by an auth-aware component.
+            // For now, let's assume userId will be set before other operations.
         }
+        checkHealthConnectStatus()
+    }
 
-        // Collect connection state changes
+    fun initializeForUser(userId: String) {
+        currentUserId = userId
+        loadVitalsHistory()
+        startMonitoringVitals()
+    }
+
+    fun checkHealthConnectStatus() {
         viewModelScope.launch {
-            bleManager.connectionState.collectLatest { state ->
-                Log.d(TAG, "Connection state changed: $state")
-                when (state) {
-                    BleManager.ConnectionState.CONNECTED -> {
-                        _deviceState.value = DeviceState.Connected(true)
-                    }
-                    BleManager.ConnectionState.CONNECTING -> {
-                        _deviceState.value = DeviceState.Connecting
-                    }
-                    BleManager.ConnectionState.DISCONNECTED -> {
-                        _deviceState.value = DeviceState.Disconnected
-                    }
-                }
-            }
+            val availability = checkHealthConnectAvailabilityUseCase() // This use case would return a specific state.
+            // Based on availability (e.g. using HealthConnectManager.isHealthConnectAvailable()
+            // and HealthConnectManager.hasAllPermissions() through the use case)
+            // Update _healthConnectState accordingly.
+            // Example:
+            // if (!availability.isAvailable) {
+            // _healthConnectState.value = HealthConnectUiState.NotAvailable
+            // return@launch
+            // }
+            // if (!availability.hasPermissions) {
+            // _healthConnectState.value = HealthConnectUiState.PermissionsNotGranted
+            // return@launch
+            // }
+            // _healthConnectState.value = HealthConnectUiState.AvailableButDisconnected // Or trigger connect
         }
+    }
 
-        // Collect scanned devices
+    fun requestPermissions(permissionResultLauncher: (Set<String>) -> Unit) {
+        // val contract = requestHealthConnectPermissionsUseCase.createContract()
+        // val permissions = requestHealthConnectPermissionsUseCase.getPermissionsSet()
+        // permissionResultLauncher.launch(permissions) // Screen would handle this.
+        // ViewModel would then react to permission grant/denial.
+    }
+
+    fun connectToHealthService() {
         viewModelScope.launch {
-            bleManager.scannedDevices.collectLatest { devices ->
-                if (_deviceState.value is DeviceState.Scanning) {
-                    if (devices.isEmpty()) {
-                        // Still scanning - keep the scanning state
-                        _deviceState.value = DeviceState.Scanning
-                    } else {
-                        _deviceState.value = DeviceState.ScannedDevices(devices.map { it.device })
+            _healthConnectState.value = HealthConnectUiState.Connecting
+            // val result = connectToHealthConnectUseCase()
+            // Update _healthConnectState based on result.
+            // If successful, start monitoring.
+        }
+    }
+
+
+    private fun startMonitoringVitals() {
+        val userId = currentUserId ?: return
+        _realTimeState.value = VitalsRealTimeUiState.Loading
+        viewModelScope.launch {
+            monitorRealTimeVitalsUseCase.invoke(userId).collectLatest { vitalSigns ->
+                if (vitalSigns != null) {
+                    val alert = detectHealthRiskUseCase(vitalSigns, VitalsThresholds()) // Pass relevant thresholds
+                    _realTimeState.value = VitalsRealTimeUiState.Data(vitalSigns, alert)
+                } else {
+                    // Could be initial state or if flow emits null after disconnection
+                    if (_healthConnectState.value is HealthConnectUiState.AvailableAndConnected) {
+                        // If we are supposed to be connected but get null, maybe it's an intermittent issue
+                        // Or simply means no new data yet.
                     }
                 }
             }
         }
     }
-
-    private fun checkBluetoothState() {
-        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-        val bluetoothAdapter = bluetoothManager?.adapter
-
-        _bluetoothState.value = when {
-            bluetoothAdapter == null -> BluetoothState.NOT_SUPPORTED
-            !bluetoothAdapter.isEnabled -> BluetoothState.DISABLED
-            else -> BluetoothState.ENABLED
-        }
-    }
-
-    fun startScan() {
-        Log.d(TAG, "Starting BLE scan")
-        checkBluetoothState()
-
-        if (_bluetoothState.value != BluetoothState.ENABLED) {
-            Log.e(TAG, "Bluetooth not enabled")
-            return
-        }
-
-        _deviceState.value = DeviceState.Scanning
-        bleManager.startScan()
-
-        // Add a safety timeout in case scanning gets stuck
+    // Add a function to be called by UI to manually refresh vitals if needed by the use case
+    fun triggerVitalsRefresh() {
         viewModelScope.launch {
-            delay(20000) // 20 seconds max scan time
-            if (_deviceState.value is DeviceState.Scanning) {
-                Log.d(TAG, "Scan timeout - stopping scan")
-                stopScan()
-
-                // If no devices found, update state accordingly
-                if (bleManager.scannedDevices.value.isEmpty()) {
-                    _deviceState.value = DeviceState.NoDevicesFound
-                }
-            }
+            // monitorRealTimeVitalsUseCase.refreshVitals() // If this method exists
         }
-    }
-
-    fun stopScan() {
-        Log.d(TAG, "Stopping BLE scan")
-        bleManager.stopScan()
-    }
-
-    fun connectToDevice(device: BluetoothDevice) {
-        Log.d(TAG, "Connecting to device: ${device.address}")
-        bleManager.connectToDevice(device)
-    }
-
-    fun disconnectDevice() {
-        Log.d(TAG, "Disconnecting device")
-        bleManager.disconnect()
     }
 
     fun saveCurrentVitals() {
-        viewModelScope.launch {
-            val vitalSigns = bleManager.vitalSigns.value ?: return@launch
-            val userId = currentUserId ?: return@launch
-
-            Log.d(TAG, "Saving vital signs: $vitalSigns")
-
-            vitalsRepository.saveVitalSigns(vitalSigns.copy(userId = userId)).fold(
-                onSuccess = {
-                    Log.d(TAG, "Vital signs saved successfully")
-                    loadVitalsHistory()
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "Error saving vital signs", error)
-                    // Handle error
+        val currentVitalsState = _realTimeState.value
+        if (currentVitalsState is VitalsRealTimeUiState.Data) {
+            val vitalsToSave = currentVitalsState.vitalSigns
+            // Add classroomId, taskId from current app context if available
+            // val enrichedVitals = vitalsToSave.copy(classroomId = "currentClass", taskId = "currentTask")
+            viewModelScope.launch {
+                val result = saveVitalsUseCase(vitalsToSave /* or enrichedVitals */)
+                if (result.success) {
+                    loadVitalsHistory() // Refresh history
+                } else {
+                    // Handle save error, e.g., emit an event
                 }
-            )
-        }
-    }
-
-    private fun loadVitalsHistory() {
-        viewModelScope.launch {
-            val userId = currentUserId ?: return@launch
-            _historyState.value = VitalsHistoryState.Loading
-
-            Log.d(TAG, "Loading vitals history for user: $userId")
-
-            try {
-                vitalsRepository.getVitalSignsHistory(userId).collectLatest { vitalsList ->
-                    _historyState.value = if (vitalsList.isNotEmpty()) {
-                        Log.d(TAG, "Loaded ${vitalsList.size} vital records")
-                        VitalsHistoryState.Data(vitalsList)
-                    } else {
-                        Log.d(TAG, "No vital records found")
-                        VitalsHistoryState.Empty
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading vitals history", e)
-                _historyState.value = VitalsHistoryState.Empty
             }
         }
     }
 
-    fun deleteVitalRecord(id: String) {
+    fun loadVitalsHistory() {
+        val userId = currentUserId ?: return
         viewModelScope.launch {
-            Log.d(TAG, "Deleting vital record: $id")
-            vitalsRepository.deleteVitalSigns(id).fold(
-                onSuccess = {
-                    Log.d(TAG, "Vital record deleted successfully")
-                    loadVitalsHistory()
-                },
-                onFailure = { error ->
-                    Log.e(TAG, "Error deleting vital record", error)
-                    // Handle error
+            _historyState.value = VitalsHistoryUiState.Loading
+            getVitalsHistoryUseCase(userId).collectLatest { result ->
+                if (result.success && result.data != null) {
+                    _historyState.value = if (result.data.isNotEmpty()) {
+                        VitalsHistoryUiState.Data(result.data)
+                    } else {
+                        VitalsHistoryUiState.Empty
+                    }
+                } else {
+                    _historyState.value = VitalsHistoryUiState.Error(result.message)
                 }
-            )
+            }
+        }
+    }
+
+    fun deleteVitalRecord(recordId: String) {
+        viewModelScope.launch {
+            val result = deleteVitalRecordUseCase(recordId)
+            if (result.success) {
+                loadVitalsHistory() // Refresh history
+            } else {
+                // Handle delete error
+            }
         }
     }
 
     override fun onCleared() {
         super.onCleared()
-        bleManager.disconnect()
-        bleManager.close()
+        // Disconnect from Health Connect if use case requires explicit disconnection
+        // disconnectFromHealthConnectUseCase()
     }
-}
-
-sealed class VitalsUiState {
-    data object Initial : VitalsUiState()
-    data class Data(val vitalSigns: VitalSigns) : VitalsUiState()
-    data class Error(val message: String) : VitalsUiState()
-}
-
-sealed class VitalsHistoryState {
-    data object Loading : VitalsHistoryState()
-    data class Data(val vitalsList: List<VitalSigns>) : VitalsHistoryState()
-    data object Empty : VitalsHistoryState()
-}
-
-sealed class DeviceState {
-    data object Initial : DeviceState()
-    data object Scanning : DeviceState()
-    data class ScannedDevices(val devices: List<BluetoothDevice>) : DeviceState()
-    data object Connecting : DeviceState()
-    data class Connected(val isConnected: Boolean) : DeviceState()
-    data object Disconnected : DeviceState()
-    data object NoDevicesFound : DeviceState()
-}
-
-enum class BluetoothState {
-    UNKNOWN,
-    ENABLED,
-    DISABLED,
-    NOT_SUPPORTED
 }

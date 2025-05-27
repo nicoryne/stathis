@@ -1,5 +1,8 @@
 package citu.edu.stathis.mobile.features.auth.domain
 
+import citu.edu.stathis.mobile.features.auth.data.models.LoginRequest
+import citu.edu.stathis.mobile.features.auth.data.models.LoginResponse
+import citu.edu.stathis.mobile.features.auth.data.models.RegisterRequest
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -15,7 +18,7 @@ interface AuthApiService {
     @POST("api/auth/register")
     suspend fun register(
         @Body registerRequest: RegisterRequest
-    ): RegisterRequest
+    ): Unit
 
     @POST("api/auth/logout")
     suspend fun logout(@Query("refreshToken") refreshToken: String): Unit
