@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { signOut } from '@/services/api-auth';
 
 // StatCard Component for reuse
 interface StatCardProps {
@@ -29,6 +30,10 @@ interface StatCardProps {
   description: string;
   icon: React.ElementType;
   className?: string;
+}
+
+const handlesignOut = async () => {
+    await signOut();
 }
 
 const StatCard = ({ title, value, description, icon: Icon, className = '' }: StatCardProps) => (
@@ -84,12 +89,25 @@ export default function ClassroomPage() {
     mutationFn: (physicalId: string) => deleteClassroom(physicalId),
     onSuccess: () => {
       toast.success('Classroom deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['teacher-classrooms'] });
+      // Close the dialog first
       setDeleteDialogOpen(false);
       setSelectedClassroom(null);
+      
+      // Guaranteed full page refresh to reset all state
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 500);
     },
     onError: (error) => {
       toast.error(`Failed to delete classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Close the dialog first
+      setDeleteDialogOpen(false);
+      setSelectedClassroom(null);
+      
+      // Guaranteed full page refresh to reset all state
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 500);
     }
   });
   
@@ -178,9 +196,8 @@ export default function ClassroomPage() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handlesignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeSwitcher />
@@ -419,7 +436,23 @@ export default function ClassroomPage() {
             </Button>
             <Button 
               variant="destructive" 
-              onClick={() => selectedClassroom && deleteClassroomMutation.mutate(selectedClassroom.physicalId)}
+              onClick={() => {
+                if (selectedClassroom) {
+                  try {
+                    deleteClassroomMutation.mutate(selectedClassroom.physicalId);
+                  } catch (error) {
+                    // Ensure dialog closes even if there's an unexpected error
+                    setDeleteDialogOpen(false);
+                    setSelectedClassroom(null);
+                    toast.error('An unexpected error occurred');
+                    
+                    // Guaranteed full page refresh to reset all state
+                    setTimeout(() => {
+                      window.location.href = window.location.pathname;
+                    }, 500);
+                  }
+                }
+              }}
               disabled={deleteClassroomMutation.isPending}
             >
               {deleteClassroomMutation.isPending ? (

@@ -17,17 +17,18 @@ public class EmailService {
   private String mailFrom;
 
   public void sendVerificationEmail(String to, String token) throws MessagingException {
-    MimeMessage message = mailSender.createMimeMessage();
-    MimeMessageHelper helper = new MimeMessageHelper(message, true);
-    helper.setFrom(mailFrom);
-    helper.setTo(to);
-    helper.setSubject("Verify Your Email");
+      MimeMessage message = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(message, true);
+      helper.setFrom(mailFrom);
+      helper.setTo(to);
+      helper.setSubject("Verify Your Email");
+    // Use localhost for local development
     helper.setText(
         "Please verify your email by clicking the link: "
-            + "http://localhost:8080/api/auth/verify-email?token="
+            + "http://188.166.246.153:8080/api/auth/verify-email?token="
             + token,
         true);
-    mailSender.send(message);
+      mailSender.send(message);
   }
 
   public void sendPasswordResetEmail(String to, String token) throws MessagingException {
@@ -36,9 +37,10 @@ public class EmailService {
     helper.setFrom(mailFrom);
     helper.setTo(to);
     helper.setSubject("Reset Your Password");
+    // Use localhost for local development
     helper.setText(
         "Please reset your password by clicking the link: "
-            + "http://localhost:8080/api/auth/reset-password?token="
+            + "http://188.166.246.153:8080/api/auth/reset-password?token="
             + token,
         true);
     mailSender.send(message);

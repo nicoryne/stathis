@@ -10,6 +10,8 @@ export interface CalendarProps extends React.HTMLAttributes<HTMLDivElement> {
   date?: Date;
   onDateChange?: (date: Date) => void;
   disabled?: boolean;
+  min?: Date;
+  max?: Date;
 }
 
 function formatDate(date: Date): string {
@@ -24,6 +26,8 @@ function Calendar({
   date = new Date(),
   onDateChange,
   disabled = false,
+  min,
+  max,
   ...props
 }: CalendarProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +48,8 @@ function Calendar({
           value={formatDate(date)}
           onChange={handleChange}
           disabled={disabled}
+          min={min ? formatDate(min) : undefined}
+          max={max ? formatDate(max) : undefined}
         />
         <CalendarIcon className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
       </div>

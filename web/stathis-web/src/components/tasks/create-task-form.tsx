@@ -48,7 +48,17 @@ const taskFormSchema = z.object({
   description: z.string().min(3, 'Description must be at least 3 characters').max(500, 'Description cannot exceed 500 characters'),
   dueDate: z.date({
     required_error: "Please select a due date",
-  }),
+  }).refine(
+    (date) => {
+      // Get current date with time set to start of day for fair comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return date >= today;
+    },
+    {
+      message: "Due date cannot be in the past"
+    }
+  ),
   templateType: z.enum(['LESSON', 'QUIZ', 'EXERCISE'], {
     required_error: "Please select a template type",
   }),
@@ -234,7 +244,8 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full max-h-[70vh] min-h-[500px] overflow-hidden bg-background rounded-lg shadow-sm border border-border">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 space-y-5">
         <FormField
           control={form.control}
           name="title"
@@ -297,6 +308,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                     <Calendar
                       date={field.value}
                       onDateChange={field.onChange}
+                      min={new Date()} // Prevent selecting dates in the past
                     />
                   </PopoverContent>
                 </Popover>
@@ -344,7 +356,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                 defaultValue={field.value}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full bg-background">
                     <SelectValue placeholder="Select template type" />
                   </SelectTrigger>
                 </FormControl>
@@ -373,6 +385,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                   <TemplateCreationModal 
                     templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
                     onTemplateCreated={handleTemplateCreated}
+                    continueToTask={true} /* Set to true to keep the dialog open for task creation */
                     trigger={
                       <Button variant="ghost" size="sm" className="h-8 px-2">
                         <Plus className="h-4 w-4 mr-1" />
@@ -393,7 +406,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                   disabled={isLoadingTemplates()}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full bg-background">
                       {isLoadingTemplates() ? (
                         <div className="flex items-center">
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -424,24 +437,31 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                     <SelectSeparator />
                   </SelectContent>
                 </Select>
-                <FormDescription>
-                  {selectedTemplateType === 'LESSON' && 'Select a lesson to assign'}
-                  {selectedTemplateType === 'QUIZ' && 'Select a quiz to assign'}
-                  {selectedTemplateType === 'EXERCISE' && 'Select an exercise to assign'}
+                <FormDescription className="mt-1 text-muted-foreground">
+                  {selectedTemplateType === 'LESSON' && 'Select a lesson to assign to students'}
+                  {selectedTemplateType === 'QUIZ' && 'Select a quiz to assign to students'}
+                  {selectedTemplateType === 'EXERCISE' && 'Select an exercise to assign to students'}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         )}
+        </div>
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <div className="flex justify-end gap-3 p-5 pt-4 mt-5 border-t border-border">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onCancel}
+            className="px-5"
+          >
             Cancel
           </Button>
           <Button 
             type="submit" 
-            disabled={createTaskMutation.isPending || isLoadingTemplates()}
+            disabled={createTaskMutation.isPending}
+            className="px-5"
           >
             {createTaskMutation.isPending ? (
               <>

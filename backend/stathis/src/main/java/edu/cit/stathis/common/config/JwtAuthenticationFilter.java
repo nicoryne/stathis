@@ -37,14 +37,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
         try {
+    // Check if this is a public endpoint that should skip authentication
+    String requestPath = request.getRequestURI();
+    logger.debug("Processing request for path: {}", requestPath);
+    
+    // Skip JWT authentication for registration and login endpoints
+    if (requestPath.contains("/api/auth/register") || 
+        requestPath.contains("/api/auth/login") ||
+        requestPath.contains("/api/auth/verify-email") ||
+        requestPath.contains("/api/auth/forgot-password") ||
+        requestPath.contains("/api/auth/reset-password")) {
+        logger.debug("Skipping authentication for public auth endpoint: {}", requestPath);
+        filterChain.doFilter(request, response);
+        return;
+    }
+    
     String authHeader = request.getHeader("Authorization");
-            logger.debug("Authorization header: {}", authHeader);
+    logger.debug("Authorization header: {}", authHeader);
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                logger.debug("No valid Authorization header found");
-                filterChain.doFilter(request, response);
-                return;
-            }
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        logger.debug("No valid Authorization header found");
+        filterChain.doFilter(request, response);
+        return;
+    }
 
             String token = authHeader.substring(7).trim();
             logger.debug("Extracted token: {}", token);

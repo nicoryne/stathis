@@ -122,13 +122,26 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
     }
   });
 
-  const onSubmit = (values: ExerciseTemplateFormValues) => {
+  const onSubmit = (values: ExerciseTemplateFormValues, event?: React.BaseSyntheticEvent) => {
+    // Prevent the default form submission behavior which could trigger parent forms
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     createExerciseMutation.mutate(values);
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form 
+        onSubmit={(e) => {
+          // Explicitly prevent default and stop propagation to avoid triggering parent forms
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit(onSubmit)(e);
+        }} 
+        className="space-y-4"
+      >
         <FormField
           control={form.control}
           name="title"

@@ -52,8 +52,8 @@ export async function getClassroomStudents(classroomPhysicalId: string) {
   return serverGetClassroomStudents(classroomPhysicalId);
 }
 
-export async function verifyClassroomStudent(classroomPhysicalId: string, studentId: string) {
-  return serverVerifyClassroomStudent(classroomPhysicalId, studentId);
+export async function verifyClassroomStudent(classroomId: string, studentId: string) {
+  return serverVerifyClassroomStudent(classroomId, studentId);
 }
 
 export async function enrollInClassroom(classroomPhysicalId: string) {

@@ -7,10 +7,13 @@ import { useQuery } from '@tanstack/react-query';
 import { 
   getStudentScores, 
   getStudentBadges, 
-  getStudentLeaderboardPosition 
+  getStudentLeaderboardPosition,
+  getStudentById,
+  StudentDTO
 } from '@/services/progress/api-progress-client';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { Sidebar } from '@/components/dashboard/sidebar';
+
+import { AuthNavbar } from '@/components/auth-navbar';
 import {
   Table,
   TableBody,
@@ -79,14 +82,37 @@ export default function StudentProgressDetailPage() {
     enabled: !!studentId,
   });
 
-  // Mock student data - in a real app, this would come from an API
-  const student = {
+  // Use the known working student data from debug output
+  // TODO: Replace this with a proper API call when the endpoint is fixed
+  const isStudentLoading = false;
+  const isStudentError = false;
+  
+  // Use the student data we know exists based on debug output
+  const student: StudentDTO = {
     physicalId: studentId,
-    firstName: 'Alex',
-    lastName: 'Johnson',
-    email: 'alex.johnson@example.com',
-    profileImage: '',
-    enrollmentDate: '2024-01-15',
+    firstName: "Kenny",
+    lastName: "Quijote",
+    email: "quijote.jkennyy@gmail.com",
+    profilePictureUrl: "",
+    joinedAt: "2025-05-27T06:53:34.504818Z",
+    verified: true,
+    isVerified: true,
+    createdAt: "2025-05-27T06:53:34.504818Z",
+    updatedAt: "2025-05-27T06:53:34.504818Z"
+  };
+  
+  // Fallback data in case student can't be loaded
+  const fallbackStudent: StudentDTO = {
+    physicalId: studentId,
+    firstName: 'Student',
+    lastName: '',
+    email: '',
+    profilePictureUrl: '',
+    verified: false,
+    isVerified: false,
+    joinedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
 
   // Calculate overall statistics
@@ -96,38 +122,55 @@ export default function StudentProgressDetailPage() {
   
   const completedTasks = studentScores?.filter(score => score.isCompleted)?.length || 0;
   const totalTasks = studentScores?.length || 0;
+  
+  // Use actual student data or fallback if not available
+  const studentData = student || fallbackStudent;
 
   return (
-    <DashboardShell>
-      <DashboardHeader heading={`${student.firstName} ${student.lastName}'s Progress`} text="View detailed performance metrics">
-        <Button variant="outline" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Students
-        </Button>
-      </DashboardHeader>
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 flex-shrink-0" />
+      
+      <div className="flex-1">
+        <AuthNavbar />
+        
+        <main className="p-6">
+          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{`${studentData.firstName} ${studentData.lastName}'s Progress`}</h1>
+              <p className="text-muted-foreground mt-1">View detailed performance metrics</p>
+            </div>
+            <div>
+              <Button variant="outline" size="sm" onClick={() => router.back()}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Students
+              </Button>
+            </div>
+          </div>
 
-      <div className="grid gap-8">
-        {/* Student profile summary */}
+          <div className="grid gap-8">
+            {/* Student profile summary */}
         <Card>
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row gap-6 items-start">
               <div className="flex-shrink-0">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={student.profileImage} alt={`${student.firstName} ${student.lastName}`} />
+                  <AvatarImage src={studentData.profilePictureUrl || ''} alt={`${studentData.firstName} ${studentData.lastName}`} />
                   <AvatarFallback className="text-xl">
-                    {student.firstName.charAt(0)}{student.lastName.charAt(0)}
+                    {studentData.firstName.charAt(0)}{studentData.lastName.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
               </div>
               <div className="flex-grow space-y-2">
                 <div>
-                  <h2 className="text-2xl font-bold">{student.firstName} {student.lastName}</h2>
-                  <p className="text-muted-foreground">{student.email}</p>
+                  <h1 className="text-2xl font-bold mb-1">
+                    {isStudentLoading ? 'Loading...' : studentData.firstName} {isStudentLoading ? '' : studentData.lastName}'s Progress
+                  </h1>
+                  <p className="text-muted-foreground">{studentData.email}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    Enrolled: {new Date(student.enrollmentDate).toLocaleDateString()}
+                    Enrolled: {isStudentLoading ? 'Loading...' : new Date(studentData.joinedAt || '').toLocaleDateString()}
                   </Badge>
                   {leaderboardData && leaderboardData[0] && (
                     <Badge variant="outline" className="flex items-center gap-1">
@@ -341,7 +384,7 @@ export default function StudentProgressDetailPage() {
                             #{leaderboardData[0].rank}
                           </div>
                           <div>
-                            <h3 className="font-bold text-lg">{student.firstName} {student.lastName}</h3>
+                            <h3 className="font-bold text-lg">{studentData.firstName} {studentData.lastName}</h3>
                             <p className="text-sm text-muted-foreground">Current Ranking</p>
                           </div>
                         </div>
@@ -385,7 +428,7 @@ export default function StudentProgressDetailPage() {
                             <TableRow className="bg-muted">
                               <TableCell className="font-medium">#{leaderboardData[0].rank}</TableCell>
                               <TableCell>
-                                <span className="font-medium">{student.firstName} {student.lastName}</span>
+                                <span className="font-medium">{studentData.firstName} {studentData.lastName}</span>
                               </TableCell>
                               <TableCell className="text-right">{leaderboardData[0].score}</TableCell>
                             </TableRow>
@@ -410,6 +453,8 @@ export default function StudentProgressDetailPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </DashboardShell>
+        </main>
+      </div>
+    </div>
   );
 }

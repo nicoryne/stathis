@@ -50,16 +50,53 @@ export default function SignUpPage() {
 
   const signUpMutation = useMutation({
     mutationFn: signUp,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('[Sign Up] Success response:', data);
       toast.success('Sign Up successful', {
         description: 'Please verify your email to continue'
       });
       setSignedUpEmail(form.getValues().email);
       setShowVerificationModal(true);
     },
-    onError: (error) => {
-      toast.error('Sign Up failed', {
-        description: error.message || 'Please check your information and try again'
+    onError: (error: any) => {
+      console.error('[Sign Up] Error details:', error);
+      
+      // Check if this is our custom EmailAlreadyInUseError or has an email-related error message
+      if ((error.name === 'EmailAlreadyInUseError') || 
+          (error.message && (error.message.includes('Email is already in use') || 
+                             error.message.includes('already exists') || 
+                             error.message.includes('already registered')))) {
+        
+        // Show a helpful message asking the user to verify their email
+        toast.info('Account already exists', {
+          description: 'Please verify your account from the email you provided or try logging in.',
+          duration: 5000
+        });
+        
+        // Show the verification modal with the email they tried to register
+        setSignedUpEmail(form.getValues().email);
+        setShowVerificationModal(true);
+        return;
+      }
+      
+      // Special case for 401 errors which might be due to duplicate email
+      if (error.status === 401 || 
+          (typeof error === 'object' && error.message === '')) {
+        console.log('[Sign Up] Handling possible duplicate email 401 error');
+        toast.info('Account may already exist', {
+          description: 'If you already have an account, please verify your email or try logging in.',
+          duration: 5000
+        });
+        return;
+      }
+      
+      // For other errors, show the standard error message
+      const errorMessage = error.message && error.message !== '""' 
+        ? error.message 
+        : 'Existing email, please try logging in or verifying.';
+        
+      toast.error('Error Signing Up', {
+        description: errorMessage
       });
     }
   });

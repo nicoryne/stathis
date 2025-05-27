@@ -518,6 +518,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                   <TemplateCreationModal 
                     templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
                     onTemplateCreated={handleTemplateCreated}
+                    continueToTask={true} /* Keep dialog open to continue with task creation */
                     trigger={
                       <Button variant="ghost" size="sm" className="h-8 px-2">
                         <Plus className="h-4 w-4 mr-1" />

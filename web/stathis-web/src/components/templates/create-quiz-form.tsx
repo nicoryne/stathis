@@ -17,12 +17,14 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
+  FormDescription
 } from '@/components/ui/form';
 import { toast } from 'sonner';
 import {
   Slider
 } from '@/components/ui/slider';
+import { QuizContentBuilder } from './quiz-content-builder';
 
 // Quiz template form schema
 const quizTemplateSchema = z.object({
@@ -47,9 +49,14 @@ export function CreateQuizForm({ onSuccess, onCancel }: CreateQuizFormProps) {
       title: '',
       instruction: '',
       maxScore: 10,
-      content: '{}'
+      content: '{"questions":[]}'
     }
   });
+  
+  // Function to update content from the QuizContentBuilder
+  const updateContent = (contentJson: string) => {
+    form.setValue('content', contentJson, { shouldValidate: true });
+  };
 
   const createQuizMutation = useMutation({
     mutationFn: (data: QuizTemplateFormValues) => {
@@ -82,13 +89,26 @@ export function CreateQuizForm({ onSuccess, onCancel }: CreateQuizFormProps) {
     }
   });
 
-  const onSubmit = (values: QuizTemplateFormValues) => {
+  const onSubmit = (values: QuizTemplateFormValues, event?: React.BaseSyntheticEvent) => {
+    // Prevent the default form submission behavior which could trigger parent forms
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     createQuizMutation.mutate(values);
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form 
+        onSubmit={(e) => {
+          // Explicitly prevent default and stop propagation to avoid triggering parent forms
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit(onSubmit)(e);
+        }} 
+        className="space-y-4"
+      >
         <FormField
           control={form.control}
           name="title"
@@ -147,14 +167,18 @@ export function CreateQuizForm({ onSuccess, onCancel }: CreateQuizFormProps) {
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Content (JSON format)</FormLabel>
+              <FormLabel>Quiz Questions</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder='{"questions": [{"question": "What is the primary benefit of regular exercise?", "options": ["Improved mood", "Better sleep", "Increased energy", "All of the above"], "answer": 3}]}' 
-                  className="min-h-[200px] font-mono text-sm"
-                  {...field} 
-                />
+                <div className="border rounded-md p-4 bg-background">
+                  <QuizContentBuilder 
+                    initialValue={field.value}
+                    onChange={updateContent}
+                  />
+                </div>
               </FormControl>
+              <FormDescription>
+                Add multiple-choice questions with options. Select the radio button next to the correct answer for each question.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

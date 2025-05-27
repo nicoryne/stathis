@@ -6,7 +6,7 @@ interface Activity {
   id: string;
   name: string;
   time: string;
-  status: 'completed' | 'scheduled' | 'in-progress';
+  status: 'completed' | 'not-started' | 'ongoing';
   score?: number;
 }
 
@@ -37,16 +37,16 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
                   variant={
                     activity.status === 'completed'
                       ? 'default'
-                      : activity.status === 'in-progress'
+                      : activity.status === 'ongoing'
                         ? 'secondary'
                         : 'outline'
                   }
                 >
                   {activity.status === 'completed'
                     ? 'Completed'
-                    : activity.status === 'in-progress'
-                      ? 'In Progress'
-                      : 'Scheduled'}
+                    : activity.status === 'ongoing'
+                      ? 'Ongoing'
+                      : 'Not Started'}
                 </Badge>
               </div>
             </div>
