@@ -20,27 +20,27 @@ public class ExerciseTemplateBodyDTO {
     private String description;
 
     @NotBlank(message = "Exercise type is required")
-    @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", 
-             message = "Invalid exercise type format")
+    @Pattern(regexp = "^(PUSH_UP|SIT_UP|JUMPING_JACK|TYPE1|TYPE2)$", 
+             message = "Invalid exercise type. Must be one of: PUSH_UP, SIT_UP, JUMPING_JACK, TYPE1, TYPE2")
     private String exerciseType;
 
     @NotBlank(message = "Exercise difficulty is required")
-    @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", 
-             message = "Invalid exercise difficulty format")
+    @Pattern(regexp = "^(BEGINNER|INTERMEDIATE|ADVANCED)$", 
+             message = "Invalid exercise difficulty. Must be one of: BEGINNER, INTERMEDIATE, ADVANCED")
     private String exerciseDifficulty;
 
     @NotBlank(message = "Goal reps is required")
-    @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", 
-             message = "Invalid goal reps format")
+    @Pattern(regexp = "^[0-9]+$", 
+             message = "Goal reps must be a number")
     private String goalReps;
 
     @NotBlank(message = "Goal accuracy is required")
-    @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", 
-             message = "Invalid goal accuracy format")
+    @Pattern(regexp = "^[0-9]+$", 
+             message = "Goal accuracy must be a number")
     private String goalAccuracy;
 
     @NotBlank(message = "Goal time is required")
-    @Pattern(regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", 
-             message = "Invalid goal time format")
+    @Pattern(regexp = "^[0-9]+$", 
+             message = "Goal time must be a number")
     private String goalTime;
 }

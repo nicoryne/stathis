@@ -51,26 +51,38 @@ public class UserService {
 
   @Autowired private WebhookService webhookService;
 
+  @Autowired
+  private PhysicalIdService physicalIdService;
+
   @Transactional
   public User createUser(CreateUserDTO userDTO, UserRoleEnum role) {
     if (existByEmail(userDTO.getEmail())) {
       throw new IllegalArgumentException("Email is already in use.");
     }
 
-    User user = new User();
-    user.setEmail(userDTO.getEmail());
-    user.setPasswordHash(passwordEncoder.encode(userDTO.getPassword()));
-    user.setUserRole(role);
-    user.setPhysicalId(provideUniquePhysicalId());
-    user.setEmailVerified(false);
+    // Create User with all required fields
+    User user = User.builder()
+        .email(userDTO.getEmail())
+        .passwordHash(passwordEncoder.encode(userDTO.getPassword()))
+        .userRole(role)
+        .physicalId(provideUniquePhysicalId())
+        .emailVerified(false)
+        .version(0L)
+        .build();
 
-    UserProfile userProfile = new UserProfile();
-    userProfile.setUser(user);
-    userProfile.setFirstName(userDTO.getFirstName());
-    userProfile.setLastName(userDTO.getLastName());
+    // Create UserProfile with all required fields
+    UserProfile userProfile = UserProfile.builder()
+        .user(user)
+        .firstName(userDTO.getFirstName())
+        .lastName(userDTO.getLastName())
+        .version(0L)
+        .build();
 
+    // Set the bidirectional relationship
+    user.setUserProfile(userProfile);
+
+    // Save the User (which will cascade to UserProfile)
     user = uRepo.save(user);
-    upRepo.save(userProfile);
 
     CreatedToken created =
         tokenService.createToken(
@@ -338,6 +350,46 @@ public class UserService {
         .birthdate(userProfile.getBirthdate())
         .profilePictureUrl(userProfile.getProfilePictureUrl())
         .role(user.getUserRole())
+        .school(userProfile.getSchool())
+        .course(userProfile.getCourse())
+        .yearLevel(userProfile.getYearLevel())
+        .department(userProfile.getDepartment())
+        .positionTitle(userProfile.getPositionTitle())
+        .build();
+  }
+
+  public UserResponseDTO getStudentUserProfile() {
+    String physicalId = physicalIdService.getCurrentUserPhysicalId();
+    UserProfile userProfile = findUserProfileByPhysicalId(physicalId);
+
+    return UserResponseDTO.builder()
+        .physicalId(physicalId)
+        .email(userProfile.getUser().getEmail())
+        .firstName(userProfile.getFirstName())
+        .lastName(userProfile.getLastName())
+        .birthdate(userProfile.getBirthdate())
+        .profilePictureUrl(userProfile.getProfilePictureUrl())
+        .role(userProfile.getUser().getUserRole())
+        .school(userProfile.getSchool())
+        .course(userProfile.getCourse())
+        .yearLevel(userProfile.getYearLevel())
+        .department(userProfile.getDepartment())
+        .positionTitle(userProfile.getPositionTitle())
+        .build();
+  }
+
+  public UserResponseDTO getTeacherUserProfile() {
+    String physicalId = physicalIdService.getCurrentUserPhysicalId();
+    UserProfile userProfile = findUserProfileByPhysicalId(physicalId);
+
+    return UserResponseDTO.builder()
+        .physicalId(physicalId)
+        .email(userProfile.getUser().getEmail())
+        .firstName(userProfile.getFirstName())
+        .lastName(userProfile.getLastName())
+        .birthdate(userProfile.getBirthdate())
+        .profilePictureUrl(userProfile.getProfilePictureUrl())
+        .role(userProfile.getUser().getUserRole())
         .school(userProfile.getSchool())
         .course(userProfile.getCourse())
         .yearLevel(userProfile.getYearLevel())

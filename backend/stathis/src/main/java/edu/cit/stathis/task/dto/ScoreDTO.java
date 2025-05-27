@@ -11,4 +11,6 @@ public class ScoreDTO {
     private int maxScore;
     private int attempts;
     private boolean isCompleted;
+    private String teacherFeedback;
+    private Integer manualScore;
 } 

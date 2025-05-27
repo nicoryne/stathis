@@ -16,6 +16,7 @@ import edu.cit.stathis.task.enums.ExerciseDifficulty;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Random;
+import java.util.Optional;
 
 @Service
 public class AchievementService {
@@ -33,7 +34,8 @@ public class AchievementService {
 
     @Transactional
     public void startTask(String studentId, String taskId) {
-        TaskCompletion taskCompletion = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
+        Optional<TaskCompletion> taskCompletionOptional = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
+        TaskCompletion taskCompletion = taskCompletionOptional.orElse(null);
         if (taskCompletion == null) {
             taskCompletion = TaskCompletion.builder()
                 .physicalId(generatePhysicalId())
@@ -47,7 +49,8 @@ public class AchievementService {
 
     @Transactional
     public void updateTaskProgress(String studentId, String taskId, String componentType, boolean completed) {
-        TaskCompletion taskCompletion = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
+        Optional<TaskCompletion> taskCompletionOptional = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
+        TaskCompletion taskCompletion = taskCompletionOptional.orElse(null);
         if (taskCompletion == null) {
             taskCompletion = TaskCompletion.builder()
                 .physicalId(generatePhysicalId())
@@ -74,7 +77,8 @@ public class AchievementService {
 
     @Transactional
     public void completeTask(String studentId, String taskId) {
-        TaskCompletion taskCompletion = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
+        Optional<TaskCompletion> taskCompletionOptional = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
+        TaskCompletion taskCompletion = taskCompletionOptional.orElse(null);
         if (taskCompletion == null || !taskCompletion.isLessonCompleted() || 
             !taskCompletion.isQuizCompleted() || !taskCompletion.isExerciseCompleted()) {
             throw new IllegalStateException("Cannot complete task: not all components are completed");

@@ -21,8 +21,12 @@ public class UserProfile {
   @Column(name = "user_id")
   private UUID userId;
 
+  @Version
+  @Column(name = "version")
+  private Long version;
+
+  @OneToOne
   @MapsId
-  @OneToOne(cascade = CascadeType.ALL)
   @JoinColumn(name = "user_id")
   private User user;
 

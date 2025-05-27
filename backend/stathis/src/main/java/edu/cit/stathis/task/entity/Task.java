@@ -22,6 +22,10 @@ public class Task {
     @Column(name = "task_id", updatable = false, nullable = false)
     private UUID id;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "physical_id")
     private String physicalId;
 
@@ -65,4 +69,7 @@ public class Task {
 
     @Column(name = "quiz_template_id", nullable = true)
     private String quizTemplateId;
+
+    @Column(name = "max_attempts", nullable = false)
+    private int maxAttempts;
 }

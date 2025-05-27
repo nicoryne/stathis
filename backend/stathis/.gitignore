@@ -37,3 +37,8 @@ build/
 .env.locale
 .env.production 
 .env.development
+
+# Logs
+logs/
+*.log
+spring.log

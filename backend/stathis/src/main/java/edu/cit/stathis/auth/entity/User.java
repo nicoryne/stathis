@@ -26,6 +26,9 @@ public class User {
   @Column(name = "version")
   private Long version;
 
+  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+  private UserProfile userProfile;
+
   @Column(length = 11, name = "physical_id", nullable = false, unique = true)
   private String physicalId;
 
