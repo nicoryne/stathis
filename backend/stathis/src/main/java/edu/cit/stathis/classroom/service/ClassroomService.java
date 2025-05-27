@@ -87,9 +87,9 @@ public class ClassroomService {
     }
 
     @PreAuthorize("hasRole('STUDENT')")
-    public void enrollStudentInClassroom(String classroomPhysicalId, String classroomCode) {
+    public void enrollStudentInClassroom(String classroomCode) {
         String studentPhysicalId = physicalIdService.getCurrentUserPhysicalId();
-        System.out.println("[DEBUG] Attempting to enroll student with physicalId: " + studentPhysicalId + " using classroomCode: " + classroomCode);
+
         Classroom classroom = classroomRepository.findByClassroomCode(classroomCode)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
         
@@ -103,21 +103,18 @@ public class ClassroomService {
             throw new RuntimeException("Student is already enrolled");
         }
         
-        // Debug: Try to find the user profile
         try {
             var studentProfile = userService.findUserProfileByPhysicalId(studentPhysicalId);
-            System.out.println("[DEBUG] Found user profile: " + studentProfile.getFirstName() + " " + studentProfile.getLastName());
-        ClassroomStudents classroomStudents = new ClassroomStudents();
+            ClassroomStudents classroomStudents = new ClassroomStudents();
             classroomStudents.setPhysicalId(provideUniqueClassroomStudentId());
-        classroomStudents.setClassroom(classroom);
+            classroomStudents.setClassroom(classroom);
             classroomStudents.setStudent(studentProfile);
-        classroomStudents.setCreatedAt(OffsetDateTime.now());
-        classroomStudents.setUpdatedAt(OffsetDateTime.now());
-        classroomStudents.setVerified(false);
-        classroom.getClassroomStudents().add(classroomStudents);
-        classroomRepository.save(classroom);
+            classroomStudents.setCreatedAt(OffsetDateTime.now());
+            classroomStudents.setUpdatedAt(OffsetDateTime.now());
+            classroomStudents.setVerified(false);
+            classroom.getClassroomStudents().add(classroomStudents);
+            classroomRepository.save(classroom);
         } catch (Exception e) {
-            System.out.println("[DEBUG] User profile not found for physicalId: " + studentPhysicalId);
             throw e;
         }
     }
