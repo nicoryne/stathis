@@ -1,7 +1,6 @@
 package citu.edu.stathis.mobile.features.vitals.data.healthconnect
 
 import android.content.Context
-import android.os.Build
 import android.util.Log
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.health.connect.client.HealthConnectClient
@@ -14,14 +13,13 @@ import androidx.health.connect.client.records.OxygenSaturationRecord
 import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-import citu.edu.stathis.mobile.features.vitals.domain.model.VitalSigns
+import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton

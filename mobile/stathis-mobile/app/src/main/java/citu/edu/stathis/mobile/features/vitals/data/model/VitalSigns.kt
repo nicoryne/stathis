@@ -1,4 +1,4 @@
-package citu.edu.stathis.mobile.features.vitals.domain.model
+package citu.edu.stathis.mobile.features.vitals.data.model
 
 import java.time.LocalDateTime
 
@@ -12,5 +12,9 @@ data class VitalSigns(
     val temperature: Float,
     val oxygenSaturation: Float,
     val timestamp: LocalDateTime = LocalDateTime.now(),
-    val deviceName: String? = null
+    val deviceName: String? = "Health Connect",
+    val classroomId: String? = null,
+    val taskId: String? = null,
+    val isPreActivity: Boolean? = null,
+    val isPostActivity: Boolean? = null
 )

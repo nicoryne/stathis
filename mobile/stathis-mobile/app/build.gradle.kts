@@ -1,7 +1,3 @@
-import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
-
-val supabaseUrl: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.url")
-val supabaseAnonKey: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.anon.key")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -25,9 +21,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("String", "SUPABASE_URL", supabaseUrl)
-        buildConfigField("String", "SUPABASE_ANON_KEY", supabaseAnonKey)
     }
 
     buildTypes {
@@ -35,7 +28,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -96,19 +89,8 @@ dependencies {
     implementation(libs.lottie.compose)
 
     // Jetpack Compose
-    val composeBom = platform("androidx.compose:compose-bom:2025.02.00")
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
-
-    // Supabase
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.1.4"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:auth-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:storage-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:functions-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:supabase-kt:3.1.4")
-
+    implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
 
     // Ktor Client Engine
     implementation(libs.ktor.client.core)
@@ -150,6 +132,3 @@ dependencies {
 kapt {
     correctErrorTypes = true
 }
-
-
-

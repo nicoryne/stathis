@@ -3,8 +3,7 @@ package citu.edu.stathis.mobile.core.navigation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.core.auth.BiometricHelper
-import citu.edu.stathis.mobile.features.auth.domain.repository.IAuthRepository
-import citu.edu.stathis.mobile.features.auth.ui.register.RegisterState
+import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,14 +14,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CoreNavigationViewModel @Inject constructor(
-    private val authRepository: IAuthRepository,
-    private val biometricHelper: BiometricHelper
+    private val authRepository: AuthRepository,
+    biometricHelper: BiometricHelper
 ) : ViewModel() {
 
-    private val _biometricHelper = MutableStateFlow(biometricHelper)
-    val biometricHelperState: StateFlow<BiometricHelper> = _biometricHelper.asStateFlow()
+    private val _biometricHelperState = MutableStateFlow(biometricHelper)
+    val biometricHelperState: StateFlow<BiometricHelper> = _biometricHelperState.asStateFlow()
 
-    val isLoggedIn = authRepository.isLoggedIn()
+    val isLoggedIn: StateFlow<Boolean> = authRepository.isLoggedIn()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
