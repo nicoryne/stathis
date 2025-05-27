@@ -133,7 +133,7 @@ public class ClassroomService {
         Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
         ClassroomStudents classroomStudents = classroom.getClassroomStudents().stream()
-            .filter(cs -> cs.getStudent().getUser().getUserId().toString().equals(studentId))
+            .filter(cs -> cs.getStudent().getUser().getPhysicalId().equals(studentId))
             .findFirst()
             .orElseThrow(() -> new RuntimeException("Student not found in classroom"));
         classroomStudents.setVerified(true);
