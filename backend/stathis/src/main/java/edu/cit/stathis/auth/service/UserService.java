@@ -238,6 +238,12 @@ public class UserService {
         .orElseThrow(() -> new IllegalArgumentException("User profile not found."));
   }
 
+  public UserProfile findUserProfileByPhysicalId(String physicalId) {
+    return upRepo
+        .findByUser_PhysicalId(physicalId)
+        .orElseThrow(() -> new IllegalArgumentException("User profile not found."));
+  }
+
   @Transactional
   public UserResponseDTO updateUserProfile(UUID userId, UpdateUserProfileDTO profileDTO) {
     User user = findById(userId);
