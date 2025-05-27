@@ -88,7 +88,7 @@ public class ClassroomController {
     @Operation(summary = "Enroll a student in a classroom", description = "Enroll a student in a classroom")
     public ResponseEntity<Void> enrollStudentInClassroom(@RequestBody Map<String, String> body) {
         String classroomCode = body.get("classroomCode");
-        classroomService.enrollStudentInClassroom(null, classroomCode);
+        classroomService.enrollStudentInClassroom(classroomCode);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
