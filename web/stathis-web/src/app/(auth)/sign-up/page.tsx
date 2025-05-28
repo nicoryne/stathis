@@ -17,7 +17,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { isUserVerified, signUp } from '@/services/auth';
+import { isUserVerified, signUp } from '@/services/api-auth-client';
 import { signUpSchema, type SignUpFormValues } from '@/lib/validations/auth';
 import { useFormValidation } from '@/hooks/use-form-validation';
 import {

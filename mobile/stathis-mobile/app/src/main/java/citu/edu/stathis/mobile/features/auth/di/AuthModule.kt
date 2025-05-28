@@ -1,21 +1,32 @@
 package citu.edu.stathis.mobile.features.auth.di
 
-
+import citu.edu.stathis.mobile.core.data.AuthTokenManager
+import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepositoryImpl
+import citu.edu.stathis.mobile.features.auth.domain.AuthApiService
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
-import citu.edu.stathis.mobile.features.auth.domain.repository.IAuthRepository
-import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import retrofit2.Retrofit
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AuthModule {
+object AuthModule {
 
-    @Binds
+    @Provides
     @Singleton
-    abstract fun bindAuthRepository(
-        authRepository: AuthRepository
-    ): IAuthRepository
+    fun provideAuthApiService(retrofit: Retrofit): AuthApiService {
+        return retrofit.create(AuthApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(
+        authApiService: AuthApiService,
+        authTokenManager: AuthTokenManager
+    ): AuthRepository {
+        return AuthRepositoryImpl(authApiService, authTokenManager)
+    }
 }

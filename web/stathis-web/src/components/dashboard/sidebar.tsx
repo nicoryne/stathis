@@ -9,13 +9,18 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   Activity,
   BarChart3,
+  BookOpen,
+  GraduationCap,
   Heart,
   Home,
   Menu,
+  School,
   Settings,
   Shield,
   Users,
-  Video
+  Video,
+  Award,
+  UserCircle
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -30,53 +35,35 @@ export function Sidebar({ className }: SidebarProps) {
 
   const routes = [
     {
-      label: 'Dashboard',
+      label: 'Dashboard and Analytics',
       icon: Home,
       href: '/dashboard',
       active: pathname === '/dashboard'
     },
     {
-      label: 'Posture Analysis',
+      label: 'Classrooms',
+      icon: School,
+      href: '/classroom',
+      active: pathname.startsWith('/classroom')
+    },
+    {
+      label: 'Student Progress',
+      icon: Award,
+      href: '/student-progress',
+      active: pathname.startsWith('/student-progress')
+    },
+    {
+      label: 'Monitoring',
       icon: Activity,
-      href: '/dashboard/posture',
-      active: pathname === '/dashboard/posture'
+      href: '/monitoring',
+      active: pathname === '/monitoring'
     },
     {
-      label: 'Health Vitals',
-      icon: Heart,
-      href: '/dashboard/vitals',
-      active: pathname === '/dashboard/vitals'
+      label: 'Profile',
+      icon: UserCircle,
+      href: '/profile',
+      active: pathname === '/profile'
     },
-    {
-      label: 'Exercise Activities',
-      icon: Video,
-      href: '/dashboard/exercises',
-      active: pathname === '/dashboard/exercises'
-    },
-    {
-      label: 'Safety Alerts',
-      icon: Shield,
-      href: '/dashboard/alerts',
-      active: pathname === '/dashboard/alerts'
-    },
-    {
-      label: 'Analytics',
-      icon: BarChart3,
-      href: '/dashboard/analytics',
-      active: pathname === '/dashboard/analytics'
-    },
-    {
-      label: 'Students',
-      icon: Users,
-      href: '/dashboard/students',
-      active: pathname === '/dashboard/students'
-    },
-    {
-      label: 'Settings',
-      icon: Settings,
-      href: '/dashboard/settings',
-      active: pathname === '/dashboard/settings'
-    }
   ];
 
   return (

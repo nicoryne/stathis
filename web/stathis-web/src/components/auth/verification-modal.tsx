@@ -15,7 +15,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { resendEmailVerification } from '@/services/auth';
+import { resendEmailVerification } from '@/services/api-auth-client';
 
 interface VerificationModalProps {
   isOpen: boolean;

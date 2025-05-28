@@ -12,7 +12,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
-@RequestMapping("/student/tasks")
+@RequestMapping("/api/student/tasks")
 public class StudentTaskController {
     @Autowired
     private StudentTaskService studentTaskService;

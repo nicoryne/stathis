@@ -13,7 +13,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
-@RequestMapping("/api/v1/tasks")
+@RequestMapping("/api/tasks")
 @RequiredArgsConstructor
 public class TaskController {
 

@@ -1,13 +1,12 @@
 package citu.edu.stathis.mobile.features.auth.ui.login
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import citu.edu.stathis.mobile.features.auth.domain.model.AuthResult
-import citu.edu.stathis.mobile.features.auth.domain.model.BiometricState
+import citu.edu.stathis.mobile.core.data.models.ClientResponse
+import citu.edu.stathis.mobile.features.auth.data.models.BiometricState
+import citu.edu.stathis.mobile.features.auth.data.models.LoginResponse
 import citu.edu.stathis.mobile.features.auth.domain.usecase.BiometricAuthUseCase
-import citu.edu.stathis.mobile.features.auth.domain.usecase.SignInUseCase
-import citu.edu.stathis.mobile.features.auth.domain.usecase.SocialSignInUseCase
+import citu.edu.stathis.mobile.features.auth.domain.usecase.LoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,8 +20,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val signInUseCase: SignInUseCase,
-    private val socialSignInUseCase: SocialSignInUseCase,
+    private val loginUseCase: LoginUseCase,
     private val biometricAuthUseCase: BiometricAuthUseCase
 ) : ViewModel() {
 
@@ -59,24 +57,13 @@ class LoginViewModel @Inject constructor(
             is LoginUiEvent.Login -> {
                 login()
             }
-            is LoginUiEvent.GoogleSignIn -> {
-                googleSignIn()
-            }
-            is LoginUiEvent.MicrosoftSignIn -> {
-                microsoftSignIn()
+            is LoginUiEvent.BiometricLogin -> {
+                loginWithBiometrics()
             }
             is LoginUiEvent.NavigateToRegister -> {
                 viewModelScope.launch {
                     _events.emit(LoginEvent.NavigateToRegister)
                 }
-            }
-            is LoginUiEvent.NavigateToForgotPassword -> {
-                viewModelScope.launch {
-                    _events.emit(LoginEvent.NavigateToForgotPassword)
-                }
-            }
-            is LoginUiEvent.BiometricLogin -> {
-                loginWithBiometrics()
             }
         }
     }
@@ -84,21 +71,15 @@ class LoginViewModel @Inject constructor(
     private fun login() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-
-            val result = signInUseCase(
+            val result: ClientResponse<LoginResponse> = loginUseCase(
                 email = state.value.email,
                 password = state.value.password
             )
-
             _state.update { it.copy(isLoading = false) }
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _events.emit(LoginEvent.NavigateToHome)
-                }
-                is AuthResult.Error -> {
-                    _events.emit(LoginEvent.ShowError(result.message))
-                }
+            if (result.success) {
+                _events.emit(LoginEvent.NavigateToHome)
+            } else {
+                _events.emit(LoginEvent.ShowError(result.message))
             }
         }
     }
@@ -106,61 +87,14 @@ class LoginViewModel @Inject constructor(
     private fun loginWithBiometrics() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-
-            val result = biometricAuthUseCase.authenticateWithBiometrics()
-
+            val result: ClientResponse<Unit> = biometricAuthUseCase.authenticateWithBiometrics()
             _state.update { it.copy(isLoading = false) }
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _events.emit(LoginEvent.NavigateToHome)
-                    _biometricState.value = BiometricState.NotChecked
-
-                }
-                is AuthResult.Error -> {
-                    _events.emit(LoginEvent.ShowError(result.message))
-                    checkBiometricAvailability()
-                }
-            }
-        }
-    }
-
-    private fun googleSignIn() {
-        viewModelScope.launch {
-            _state.update { it.copy(isGoogleLoading = true) }
-
-            val result = socialSignInUseCase.signInWithGoogle()
-
-            _state.update { it.copy(isGoogleLoading = false) }
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _events.emit(LoginEvent.NavigateToHome)
-                    _biometricState.value = BiometricState.NotChecked
-
-                }
-                is AuthResult.Error -> {
-                    _events.emit(LoginEvent.ShowError(result.message))
-                }
-            }
-        }
-    }
-
-    private fun microsoftSignIn() {
-        viewModelScope.launch {
-            _state.update { it.copy(isMicrosoftLoading = true) }
-
-            val result = socialSignInUseCase.signInWithMicrosoft()
-
-            _state.update { it.copy(isMicrosoftLoading = false) }
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _events.emit(LoginEvent.NavigateToHome)
-                }
-                is AuthResult.Error -> {
-                    _events.emit(LoginEvent.ShowError(result.message))
-                }
+            if (result.success) {
+                _events.emit(LoginEvent.NavigateToHome)
+                _biometricState.value = BiometricState.NotChecked
+            } else {
+                _events.emit(LoginEvent.ShowError(result.message))
+                checkBiometricAvailability()
             }
         }
     }
@@ -174,9 +108,7 @@ data class LoginState(
     val email: String = "",
     val password: String = "",
     val isPasswordVisible: Boolean = false,
-    val isLoading: Boolean = false,
-    val isGoogleLoading: Boolean = false,
-    val isMicrosoftLoading: Boolean = false
+    val isLoading: Boolean = false
 )
 
 sealed class LoginUiEvent {
@@ -185,15 +117,13 @@ sealed class LoginUiEvent {
     data object TogglePasswordVisibility : LoginUiEvent()
     data object Login : LoginUiEvent()
     data object BiometricLogin : LoginUiEvent()
-    data object GoogleSignIn : LoginUiEvent()
-    data object MicrosoftSignIn : LoginUiEvent()
     data object NavigateToRegister : LoginUiEvent()
-    data object NavigateToForgotPassword : LoginUiEvent()
+    // Removed: data object NavigateToForgotPassword : LoginUiEvent()
 }
 
 sealed class LoginEvent {
     data object NavigateToHome : LoginEvent()
     data object NavigateToRegister : LoginEvent()
-    data object NavigateToForgotPassword : LoginEvent()
+    // Removed: data object NavigateToForgotPassword : LoginEvent()
     data class ShowError(val message: String) : LoginEvent()
 }
