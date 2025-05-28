@@ -144,8 +144,9 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
-    implementation("androidx.health:health-services-client:1.1.0-alpha05")
+    implementation("androidx.health.connect:connect-client:1.1.0-beta01")
+    implementation("androidx.health:health-services-client-proto:1.1.0-alpha05")
+
 
 }
 

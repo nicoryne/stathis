@@ -31,16 +31,8 @@ class HealthConnectManager @Inject constructor(
 ) {
     private val TAG = "HealthConnectManager"
 
-    private val healthConnectClient by lazy {
-        try {
-            HealthConnectClient.getOrCreate(context).also {
-                Log.d(TAG, "Health Connect client initialized successfully.")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize Health Connect client", e)
-            null
-        }
-    }
+    private lateinit var healthConnectClient: HealthConnectClient
+    private var isClientInitialized = false
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -65,6 +57,22 @@ class HealthConnectManager @Inject constructor(
         HealthPermission.getReadPermission(RespiratoryRateRecord::class)
     )
 
+    init {
+        initializeHealthConnectClient()
+    }
+
+    private fun initializeHealthConnectClient() {
+        try {
+            healthConnectClient = HealthConnectClient.getOrCreate(context)
+            isClientInitialized = true
+            Log.d(TAG, "Health Connect client initialized successfully.")
+        } catch (e: Exception) {
+            isClientInitialized = false
+            _connectionState.value = ConnectionState.UNAVAILABLE
+            Log.e(TAG, "Failed to initialize Health Connect client", e)
+        }
+    }
+
     fun getSdkStatus(): Int {
         val status = HealthConnectClient.getSdkStatus(context)
         Log.d(TAG, "Health Connect SDK Status: $status")
@@ -76,27 +84,30 @@ class HealthConnectManager @Inject constructor(
         val available = sdkStatus == HealthConnectClient.SDK_AVAILABLE
         if (!available) {
             Log.w(TAG, "Health Connect SDK not available. Status: $sdkStatus")
+            _connectionState.value = ConnectionState.UNAVAILABLE
         }
         return available
     }
 
     suspend fun hasAllPermissions(): Boolean {
-        if (healthConnectClient == null) {
+        Log.d(TAG, "Checking if all permissions are granted")
+        if (!isClientInitialized) {
             Log.w(TAG, "Health Connect client not initialized.")
             return false
         }
-        val grantedPermissions = healthConnectClient!!.permissionController.getGrantedPermissions()
+        val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
         val missingPermissions = permissions - grantedPermissions
-        return if (missingPermissions.isEmpty()) {
+        if (missingPermissions.isEmpty()) {
             Log.d(TAG, "All Health Connect permissions granted: $permissions")
-            true
+            return true
         } else {
             Log.w(TAG, "Missing Health Connect permissions: $missingPermissions")
-            false
+            return false
         }
     }
 
     fun createPermissionRequestContract(): ActivityResultContract<Set<String>, Set<String>> {
+        Log.d(TAG, "Creating Health Connect permission request contract")
         return PermissionController.createRequestPermissionResultContract()
     }
 
@@ -108,24 +119,25 @@ class HealthConnectManager @Inject constructor(
     suspend fun connect() {
         Log.v(TAG, "Attempting to connect to Health Connect")
         _connectionState.value = ConnectionState.CONNECTING
-        if (healthConnectClient == null) {
-            _connectionState.value = ConnectionState.UNAVAILABLE
+        if (!isClientInitialized) {
             Log.e(TAG, "Health Connect client not available.")
+            _connectionState.value = ConnectionState.UNAVAILABLE
             return
         }
         if (!isHealthConnectAvailable()) {
-            _connectionState.value = ConnectionState.UNAVAILABLE
             Log.w(TAG, "Health Connect SDK not available.")
+            _connectionState.value = ConnectionState.UNAVAILABLE
             return
         }
-        val grantedPermissions = healthConnectClient!!.permissionController.getGrantedPermissions()
+        val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
+        Log.d(TAG, "Permissions check during connect: granted=$grantedPermissions")
         if (grantedPermissions.containsAll(permissions)) {
+            Log.d(TAG, "All permissions granted, setting state to CONNECTED")
             _connectionState.value = ConnectionState.CONNECTED
-            Log.d(TAG, "All permissions granted: $grantedPermissions")
             fetchLatestVitals()
         } else {
-            _connectionState.value = ConnectionState.DISCONNECTED
             Log.w(TAG, "Permissions not granted: Missing ${permissions - grantedPermissions}")
+            _connectionState.value = ConnectionState.DISCONNECTED
         }
     }
 
@@ -142,7 +154,7 @@ class HealthConnectManager @Inject constructor(
             _vitalSigns.value = null
             return
         }
-        if (healthConnectClient == null) {
+        if (!isClientInitialized) {
             Log.w(TAG, "Health Connect client not initialized.")
             _vitalSigns.value = null
             return
@@ -154,7 +166,8 @@ class HealthConnectManager @Inject constructor(
 
         try {
             // Verify permissions before reading
-            var grantedPermissions = healthConnectClient!!.permissionController.getGrantedPermissions()
+            val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
+            Log.d(TAG, "Permissions check before fetching vitals: granted=$grantedPermissions")
             if (!grantedPermissions.containsAll(permissions)) {
                 Log.e(TAG, "Required permissions missing: ${permissions - grantedPermissions}")
                 _connectionState.value = ConnectionState.DISCONNECTED
@@ -168,30 +181,31 @@ class HealthConnectManager @Inject constructor(
             Log.d(TAG, "Fetching vital signs for time range: $startTime to $endTime")
 
             val heartRateRecordsResult = try {
-                healthConnectClient!!.readRecords(ReadRecordsRequest(HeartRateRecord::class, timeRangeFilter))
+                healthConnectClient.readRecords(ReadRecordsRequest(HeartRateRecord::class, timeRangeFilter))
             } catch (e: SecurityException) {
                 Log.w(TAG, "SecurityException on heart rate read. Retrying permission check.", e)
                 // Retry permission check
-                grantedPermissions = healthConnectClient!!.permissionController.getGrantedPermissions()
-                if (!grantedPermissions.containsAll(permissions)) {
-                    Log.e(TAG, "Permissions still missing after retry: ${permissions - grantedPermissions}")
+                val updatedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
+                Log.d(TAG, "Retry permissions check: granted=$updatedPermissions")
+                if (!updatedPermissions.containsAll(permissions)) {
+                    Log.e(TAG, "Permissions still missing after retry: ${permissions - updatedPermissions}")
                     _connectionState.value = ConnectionState.DISCONNECTED
                     return
                 }
                 // Retry read
-                healthConnectClient!!.readRecords(ReadRecordsRequest(HeartRateRecord::class, timeRangeFilter))
+                healthConnectClient.readRecords(ReadRecordsRequest(HeartRateRecord::class, timeRangeFilter))
             }
 
-            val bloodPressureRecordsResult = healthConnectClient!!.readRecords(
+            val bloodPressureRecordsResult = healthConnectClient.readRecords(
                 ReadRecordsRequest(BloodPressureRecord::class, timeRangeFilter)
             )
-            val temperatureRecordsResult = healthConnectClient!!.readRecords(
+            val temperatureRecordsResult = healthConnectClient.readRecords(
                 ReadRecordsRequest(BodyTemperatureRecord::class, timeRangeFilter)
             )
-            val oxygenSaturationRecordsResult = healthConnectClient!!.readRecords(
+            val oxygenSaturationRecordsResult = healthConnectClient.readRecords(
                 ReadRecordsRequest(OxygenSaturationRecord::class, timeRangeFilter)
             )
-            val respiratoryRateRecordsResult = healthConnectClient!!.readRecords(
+            val respiratoryRateRecordsResult = healthConnectClient.readRecords(
                 ReadRecordsRequest(RespiratoryRateRecord::class, timeRangeFilter)
             )
 

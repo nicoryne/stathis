@@ -12,6 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import android.util.Log
 import javax.inject.Inject
 
 sealed class VitalsRealTimeUiState {
@@ -79,12 +80,15 @@ class VitalsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            Log.d("VitalsViewModel", "Initializing VitalsViewModel")
             currentUserId = getCurrentUserIdUseCase()
             if (currentUserId == null) {
+                Log.e("VitalsViewModel", "User ID is null")
                 _healthConnectState.value = HealthConnectUiState.Error("User not identified. Cannot proceed.")
                 _events.emit(VitalsViewEvent.ShowSnackbar("User not identified. Please log in again."))
                 return@launch
             }
+            Log.d("VitalsViewModel", "User ID set: $currentUserId")
             monitorRealTimeVitalsUseCase.setUserIdForMonitoring(currentUserId!!)
             monitorHealthConnectManagerConnectionState()
             checkHealthConnectStatus()
@@ -94,6 +98,7 @@ class VitalsViewModel @Inject constructor(
     private fun monitorHealthConnectManagerConnectionState() {
         viewModelScope.launch {
             healthConnectManager.connectionState.collect { state ->
+                Log.d("VitalsViewModel", "HealthConnectManager connection state changed: $state")
                 when (state) {
                     HealthConnectManager.ConnectionState.CONNECTED -> {
                         _healthConnectState.value = HealthConnectUiState.AvailableAndConnected
@@ -113,7 +118,6 @@ class VitalsViewModel @Inject constructor(
                     HealthConnectManager.ConnectionState.CONNECTING -> {
                         _healthConnectState.value = HealthConnectUiState.Connecting
                     }
-
                     HealthConnectManager.ConnectionState.UNAVAILABLE -> {
                         _healthConnectState.value = HealthConnectUiState.AvailableButDisconnected
                     }
@@ -124,6 +128,7 @@ class VitalsViewModel @Inject constructor(
 
     internal fun initializeUserSpecificFeatures() {
         currentUserId?.let {
+            Log.d("VitalsViewModel", "Initializing user-specific features for user: $it")
             loadVitalsHistory()
             startMonitoringVitals()
             startPeriodicVitalsRefresh()
@@ -132,11 +137,14 @@ class VitalsViewModel @Inject constructor(
 
     fun checkHealthConnectStatus() {
         viewModelScope.launch {
+            Log.d("VitalsViewModel", "Checking Health Connect status")
             val availability = checkHealthConnectAvailabilityUseCase()
+            Log.d("VitalsViewModel", "Health Connect availability: isClientAvailable=${availability.isClientAvailable}, hasAllPermissions=${availability.hasAllPermissions}")
             if (!availability.isClientAvailable) {
                 _healthConnectState.value = HealthConnectUiState.ClientNotAvailable
             } else if (!availability.hasAllPermissions) {
                 _healthConnectState.value = HealthConnectUiState.PermissionsNotGranted
+                Log.d("VitalsViewModel", "Emitting RequestHealthConnectPermissions event")
                 _events.emit(VitalsViewEvent.RequestHealthConnectPermissions)
             } else {
                 if (healthConnectManager.connectionState.value != HealthConnectManager.ConnectionState.CONNECTED &&
@@ -149,10 +157,14 @@ class VitalsViewModel @Inject constructor(
 
     fun onPermissionsResult(grantedPermissions: Set<String>) {
         viewModelScope.launch {
+            Log.d("VitalsViewModel", "Handling permissions result: $grantedPermissions")
             val requestedPermissions = requestHealthConnectPermissionsUseCase.getPermissionsSet()
+            Log.d("VitalsViewModel", "Requested permissions: $requestedPermissions")
             if (grantedPermissions.containsAll(requestedPermissions)) {
+                Log.d("VitalsViewModel", "All permissions granted, connecting to Health Connect")
                 connectToHealthService()
             } else {
+                Log.w("VitalsViewModel", "Not all permissions granted. Missing: ${requestedPermissions - grantedPermissions}")
                 _healthConnectState.value = HealthConnectUiState.PermissionsNotGranted
                 _events.emit(VitalsViewEvent.ShowSnackbar("Required Health Connect permissions were not granted."))
             }
@@ -161,17 +173,22 @@ class VitalsViewModel @Inject constructor(
 
     fun connectToHealthService() {
         viewModelScope.launch {
+            Log.d("VitalsViewModel", "Attempting to connect to Health Connect service")
             val availability = checkHealthConnectAvailabilityUseCase()
+            Log.d("VitalsViewModel", "Connect attempt - availability: isClientAvailable=${availability.isClientAvailable}, hasAllPermissions=${availability.hasAllPermissions}")
             if (!availability.isClientAvailable) {
+                Log.e("VitalsViewModel", "Health Connect app not available")
                 _healthConnectState.value = HealthConnectUiState.ClientNotAvailable
                 _events.emit(VitalsViewEvent.ShowSnackbar("Health Connect app is not available on this device."))
                 return@launch
             }
             if (!availability.hasAllPermissions) {
+                Log.w("VitalsViewModel", "Permissions not granted, requesting again")
                 _healthConnectState.value = HealthConnectUiState.PermissionsNotGranted
                 _events.emit(VitalsViewEvent.RequestHealthConnectPermissions)
                 return@launch
             }
+            Log.d("VitalsViewModel", "Calling connectToHealthConnectUseCase")
             connectToHealthConnectUseCase()
         }
     }

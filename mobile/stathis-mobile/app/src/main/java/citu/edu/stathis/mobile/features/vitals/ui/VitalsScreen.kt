@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.vitals.ui
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,25 +49,54 @@ fun VitalsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var showActionableAlertDialog by remember { mutableStateOf<HealthRiskAlert?>(null) }
-
+    var hasRequestedPermissions by remember { mutableStateOf(false) }
 
     val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
         contract = viewModel.requestHealthConnectPermissionsUseCase.createPermissionRequestContract(),
         onResult = { grantedPermissions ->
+            Log.d("VitalsScreen", "Permissions result received: $grantedPermissions")
+            hasRequestedPermissions = true
             viewModel.onPermissionsResult(grantedPermissions)
         }
     )
+
+    // Log launcher setup
+    LaunchedEffect(Unit) {
+        Log.d("VitalsScreen", "HealthConnectPermissionLauncher initialized")
+    }
+
+//    LaunchedEffect(healthConnectState, hasRequestedPermissions) {
+//        if (healthConnectState is HealthConnectUiState.PermissionsNotGranted && !hasRequestedPermissions) {
+//            Log.d("VitalsScreen", "Auto-requesting Health Connect permissions")
+//            try {
+//                healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet())
+//            } catch (e: Exception) {
+//                Log.e("VitalsScreen", "Error launching auto permissions request", e)
+//            }
+//        }
+//    }
 
     LaunchedEffect(viewEvents) {
         viewEvents?.let { event ->
             when (event) {
                 is VitalsViewEvent.ShowSnackbar -> {
+                    Log.d("VitalsScreen", "Showing snackbar: ${event.message}")
                     snackbarHostState.showSnackbar(event.message)
                 }
                 is VitalsViewEvent.RequestHealthConnectPermissions -> {
-                    healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet())
+                    if (!hasRequestedPermissions) {
+                        Log.d("VitalsScreen", "Event-triggered permission request")
+                        try {
+                            healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet())
+                        } catch (e: Exception) {
+                            Log.e("VitalsScreen", "Error launching event-triggered permissions request", e)
+                        }
+                    } else {
+                        Log.d("VitalsScreen", "Skipping event-triggered permission request; already requested")
+                    }
                 }
                 is VitalsViewEvent.HandleAlertAction -> {
+                    Log.d("VitalsScreen", "Handling alert action: ${event.alert.riskType}")
                     showActionableAlertDialog = event.alert
                 }
             }
@@ -105,7 +135,13 @@ fun VitalsScreen(
             HealthConnectStatusCard(
                 healthConnectState = healthConnectState,
                 onGrantPermissionsClick = {
-                    healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet())
+                    Log.d("VitalsScreen", "Manual Grant Permissions clicked in HealthConnectStatusCard")
+                    hasRequestedPermissions = false
+                    try {
+                        healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet())
+                    } catch (e: Exception) {
+                        Log.e("VitalsScreen", "Error launching manual permissions request from HealthConnectStatusCard", e)
+                    }
                 },
                 onConnectClick = { viewModel.connectToHealthService() },
                 onRefreshClick = { viewModel.triggerVitalsRefresh() }
@@ -131,12 +167,20 @@ fun VitalsScreen(
                     realTimeState = realTimeState,
                     healthConnectState = healthConnectState,
                     onConnectClick = { viewModel.connectToHealthService() },
-                    onGrantPermissionsClick = { healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet()) }
+                    onGrantPermissionsClick = {
+                        Log.d("VitalsScreen", "Manual Grant Permissions clicked in RealTimeVitalsTabContent")
+                        hasRequestedPermissions = false // Reset to allow manual trigger
+                        try {
+                            healthConnectPermissionLauncher.launch(viewModel.requestHealthConnectPermissionsUseCase.getPermissionsSet())
+                        } catch (e: Exception) {
+                            Log.e("VitalsScreen", "Error launching manual permissions request from RealTimeVitalsTabContent", e)
+                        }
+                    }
                 )
                 1 -> VitalsHistoryTabContent(
                     historyState = historyState,
                     onDeleteClick = { recordId -> viewModel.deleteVitalRecord(recordId) },
-                    onRefreshClick = { viewModel.loadVitalsHistory()}
+                    onRefreshClick = { viewModel.loadVitalsHistory() }
                 )
             }
         }
@@ -275,7 +319,6 @@ fun InfoMessageScreen(message: String, buttonText: String? = null, onButtonClick
     }
 }
 
-
 @Composable
 fun VitalsHistoryTabContent(
     historyState: VitalsHistoryUiState,
@@ -296,7 +339,7 @@ fun VitalsHistoryTabContent(
                 VitalsHistoryUiState.Loading -> CircularProgressIndicator()
                 VitalsHistoryUiState.Empty -> Text("No vitals history available. Saved vitals will appear here.")
                 is VitalsHistoryUiState.Data -> {
-                    if (historyState.vitalsList.isEmpty()){
+                    if (historyState.vitalsList.isEmpty()) {
                         Text("No vitals history available. Saved vitals will appear here.")
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -365,7 +408,6 @@ fun VitalDataCard(label: String, value: String, icon: androidx.compose.ui.graphi
         }
     }
 }
-
 
 @Composable
 fun HealthRiskAlertCard(alert: HealthRiskAlert, onActionClick: (() -> Unit)? = null) {
@@ -441,7 +483,6 @@ fun ActionableHealthAlertDialog(
         }
     )
 }
-
 
 @Composable
 fun VitalHistoryItemCard(vitalSign: VitalSigns, onDeleteClick: () -> Unit) {
