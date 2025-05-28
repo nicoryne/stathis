@@ -11,12 +11,12 @@ plugins {
 
 android {
     namespace = "cit.edu.stathis.mobile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "cit.edu.stathis.mobile"
         minSdk = 30
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -144,9 +144,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    implementation("androidx.health.connect:connect-client:1.1.0-beta01")
-    implementation("androidx.health:health-services-client-proto:1.1.0-alpha05")
-
+    implementation("androidx.health.connect:connect-client:1.1.0-rc01")
 
 }
 

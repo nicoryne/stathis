@@ -1,6 +1,6 @@
 [versions]
 accompanistPermissions = "0.34.0"
-agp = "8.9.0"
+agp = "8.10.0"
 androidxJunit = "1.1.5"
 bluetooth = "1.0.0-alpha02"
 bom = "3.1.4"
