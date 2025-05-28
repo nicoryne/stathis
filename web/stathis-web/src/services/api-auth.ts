@@ -45,7 +45,7 @@ export async function signUp(form: SignUpFormValues) {
     // This bypasses any potential issues with our custom client
     try {
       console.log('[Auth] Trying direct fetch approach');
-      const response = await fetch('http://localhost:8080/api/auth/register', {
+      const response = await fetch('https://stathis.onrender.com/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -70,6 +70,10 @@ export async function signUp(form: SignUpFormValues) {
       }
       
       console.log('[Auth] Registration response data:', data);
+      
+      // Extra logging to diagnose response handling
+      console.log('[Auth] Response OK:', response.ok);
+      console.log('[Auth] Response type:', typeof data);
       
       if (!response.ok) {
         const status = response.status;

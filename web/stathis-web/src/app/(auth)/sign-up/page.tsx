@@ -52,11 +52,22 @@ export default function SignUpPage() {
     mutationFn: signUp,
     onSuccess: (data) => {
       console.log('[Sign Up] Success response:', data);
+      
+      // Ensure we have the user's email, either from the response or from the form
+      const userEmail = 
+        (data && typeof data === 'object' && 'email' in data) ? 
+        (data.email as string) : form.getValues().email;
+      
       toast.success('Sign Up successful', {
         description: 'Please verify your email to continue'
       });
-      setSignedUpEmail(form.getValues().email);
+      
+      // Always set the email and show verification modal
+      setSignedUpEmail(userEmail);
       setShowVerificationModal(true);
+      
+      // Extra logging to confirm verification modal should be shown
+      console.log('[Sign Up] Showing verification modal for:', userEmail);
     },
     onError: (error: any) => {
       console.error('[Sign Up] Error details:', error);

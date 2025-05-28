@@ -146,15 +146,23 @@ export function CreateQuizForm({ onSuccess, onCancel }: CreateQuizFormProps) {
           name="maxScore"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Maximum Score: {field.value}</FormLabel>
+              <FormLabel>Maximum Score</FormLabel>
               <FormControl>
-                <Slider
-                  min={1}
-                  max={100}
-                  step={1}
-                  defaultValue={[10]}
-                  onValueChange={(values) => field.onChange(values[0])}
-                  value={[field.value]}
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Enter max score (min: 1)"
+                  {...field}
+                  onChange={(e) => {
+                    // Ensure the value is a positive number
+                    const value = parseInt(e.target.value);
+                    if (isNaN(value) || value < 1) {
+                      field.onChange(1);
+                    } else {
+                      field.onChange(value);
+                    }
+                  }}
                 />
               </FormControl>
               <FormMessage />
