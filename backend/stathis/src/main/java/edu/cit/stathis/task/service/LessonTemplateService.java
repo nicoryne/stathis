@@ -3,6 +3,7 @@ package edu.cit.stathis.task.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.task.repository.LessonTemplateRepository;
 import edu.cit.stathis.task.entity.LessonTemplate;
 import edu.cit.stathis.task.dto.LessonTemplateBodyDTO;
@@ -16,9 +17,13 @@ public class LessonTemplateService {
     @Autowired
     private LessonTemplateRepository lessonTemplateRepository;
 
+    @Autowired
+    private PhysicalIdService physicalIdService;
+
     public LessonTemplate createLessonTemplate(LessonTemplateBodyDTO lessonTemplateBodyDTO) {
         LessonTemplate lessonTemplate = new LessonTemplate();
         lessonTemplate.setPhysicalId(generatePhysicalId());
+        lessonTemplate.setTeacherPhysicalId(physicalIdService.getCurrentUserPhysicalId());
         lessonTemplate.setTitle(lessonTemplateBodyDTO.getTitle());
         lessonTemplate.setDescription(lessonTemplateBodyDTO.getDescription());
         lessonTemplate.setContent(lessonTemplateBodyDTO.getContent());
@@ -39,6 +44,37 @@ public class LessonTemplateService {
 
     public List<LessonTemplate> getAllLessonTemplates() {
         return lessonTemplateRepository.findAll();
+    }
+
+    public List<LessonTemplate> getAllLessonTemplatesByTeacherPhysicalId(String teacherPhysicalId) {
+        return lessonTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
+    }
+
+    public LessonTemplate updateLessonTemplate(String physicalId, LessonTemplateBodyDTO lessonTemplateBodyDTO) {
+        LessonTemplate lessonTemplate = getLessonTemplate(physicalId);
+        if (lessonTemplate == null) {
+            throw new RuntimeException("Lesson template not found");
+        }
+
+        if (!lessonTemplate.getTeacherPhysicalId().equals(physicalIdService.getCurrentUserPhysicalId())) {
+            throw new RuntimeException("You are not the teacher of this lesson template");
+        }
+        lessonTemplate.setTitle(lessonTemplateBodyDTO.getTitle());
+        lessonTemplate.setDescription(lessonTemplateBodyDTO.getDescription());
+        lessonTemplate.setContent(lessonTemplateBodyDTO.getContent());
+        return lessonTemplateRepository.save(lessonTemplate);
+    }
+
+    public void deleteLessonTemplate(String physicalId) {
+        LessonTemplate lessonTemplate = getLessonTemplate(physicalId);
+        if (lessonTemplate == null) {
+            throw new RuntimeException("Lesson template not found");
+        }
+
+        if (!lessonTemplate.getTeacherPhysicalId().equals(physicalIdService.getCurrentUserPhysicalId())) {
+            throw new RuntimeException("You are not the teacher of this lesson template");
+        }
+        lessonTemplateRepository.deleteByPhysicalId(physicalId);
     }
 
     public LessonTemplateResponseDTO getLessonTemplateResponseDTO(String physicalId) {

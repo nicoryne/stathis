@@ -2,6 +2,7 @@ package edu.cit.stathis.task.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.task.repository.ExerciseTemplateRepository;
 import edu.cit.stathis.task.entity.ExerciseTemplate;
 import edu.cit.stathis.task.dto.ExerciseTemplateBodyDTO;
@@ -17,9 +18,13 @@ public class ExerciseTemplateService {
     @Autowired
     private ExerciseTemplateRepository exerciseTemplateRepository;
 
+    @Autowired
+    private PhysicalIdService physicalIdService;
+
     public ExerciseTemplate createExerciseTemplate(ExerciseTemplateBodyDTO exerciseTemplateBodyDTO) {
         ExerciseTemplate exerciseTemplate = new ExerciseTemplate();
         exerciseTemplate.setPhysicalId(generatePhysicalId());
+        exerciseTemplate.setTeacherPhysicalId(physicalIdService.getCurrentUserPhysicalId());
         exerciseTemplate.setTitle(exerciseTemplateBodyDTO.getTitle());
         exerciseTemplate.setDescription(exerciseTemplateBodyDTO.getDescription());
         exerciseTemplate.setExerciseType(ExerciseType.valueOf(exerciseTemplateBodyDTO.getExerciseType()));
@@ -45,6 +50,41 @@ public class ExerciseTemplateService {
 
     public List<ExerciseTemplate> getAllExerciseTemplates() {
         return exerciseTemplateRepository.findAll();
+    }
+
+    public List<ExerciseTemplate> getAllExerciseTemplatesByTeacherPhysicalId(String teacherPhysicalId) {
+        return exerciseTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
+    }
+
+    public ExerciseTemplate updateExerciseTemplate(String physicalId, ExerciseTemplateBodyDTO exerciseTemplateBodyDTO) {
+        ExerciseTemplate exerciseTemplate = getExerciseTemplate(physicalId);
+        if (exerciseTemplate == null) {
+            throw new RuntimeException("Exercise template not found");
+        }
+
+        if (!exerciseTemplate.getTeacherPhysicalId().equals(physicalIdService.getCurrentUserPhysicalId())) {
+            throw new RuntimeException("You are not the teacher of this exercise template");
+        }
+        exerciseTemplate.setTitle(exerciseTemplateBodyDTO.getTitle());
+        exerciseTemplate.setDescription(exerciseTemplateBodyDTO.getDescription());
+        exerciseTemplate.setExerciseType(ExerciseType.valueOf(exerciseTemplateBodyDTO.getExerciseType()));
+        exerciseTemplate.setExerciseDifficulty(ExerciseDifficulty.valueOf(exerciseTemplateBodyDTO.getExerciseDifficulty()));
+        exerciseTemplate.setGoalReps(Integer.parseInt(exerciseTemplateBodyDTO.getGoalReps()));
+        exerciseTemplate.setGoalAccuracy(Integer.parseInt(exerciseTemplateBodyDTO.getGoalAccuracy()));
+        exerciseTemplate.setGoalTime(Integer.parseInt(exerciseTemplateBodyDTO.getGoalTime()));
+        return exerciseTemplateRepository.save(exerciseTemplate);
+    }
+
+    public void deleteExerciseTemplate(String physicalId) {
+        ExerciseTemplate exerciseTemplate = getExerciseTemplate(physicalId);
+        if (exerciseTemplate == null) {
+            throw new RuntimeException("Exercise template not found");
+        }
+
+        if (!exerciseTemplate.getTeacherPhysicalId().equals(physicalIdService.getCurrentUserPhysicalId())) {
+            throw new RuntimeException("You are not the teacher of this exercise template");
+        }
+        exerciseTemplateRepository.deleteByPhysicalId(physicalId);
     }
 
     public ExerciseTemplateResponseDTO getExerciseTemplateResponseDTO(String physicalId) {

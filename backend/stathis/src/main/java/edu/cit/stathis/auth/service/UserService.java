@@ -257,7 +257,8 @@ public class UserService {
   }
 
   @Transactional
-  public UserResponseDTO updateUserProfile(UUID userId, UpdateUserProfileDTO profileDTO) {
+  public UserResponseDTO updateUserProfile(UpdateUserProfileDTO profileDTO) {
+    UUID userId = physicalIdService.getCurrentUserUUID();
     User user = findById(userId);
     UserProfile userProfile = findUserProfileByUserId(userId);
 
@@ -287,7 +288,8 @@ public class UserService {
   }
 
   @Transactional
-  public UserResponseDTO updateStudentProfile(UUID userId, UpdateStudentProfileDTO studentDTO) {
+  public UserResponseDTO updateStudentProfile(UpdateStudentProfileDTO studentDTO) {
+    UUID userId = physicalIdService.getCurrentUserUUID();
     UserRoleEnum userRole =
         uRepo
             .findUserRoleByUserId(userId)
@@ -323,7 +325,8 @@ public class UserService {
   }
 
   @Transactional
-  public UserResponseDTO updateTeacherProfile(UUID userId, UpdateTeacherProfileDTO teacherDTO) {
+  public UserResponseDTO updateTeacherProfile(UpdateTeacherProfileDTO teacherDTO) {
+    UUID userId = physicalIdService.getCurrentUserUUID();
     UserRoleEnum userRole =
         uRepo
             .findUserRoleByUserId(userId)
