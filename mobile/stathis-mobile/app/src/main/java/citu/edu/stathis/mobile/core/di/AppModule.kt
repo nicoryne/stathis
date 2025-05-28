@@ -2,7 +2,6 @@ package citu.edu.stathis.mobile.core.di
 
 import android.content.Context
 import citu.edu.stathis.mobile.core.auth.BiometricHelper
-import citu.edu.stathis.mobile.core.data.PreferencesManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -13,11 +12,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    @Provides
-    @Singleton
-    fun providePreferencesManager(
-        @ApplicationContext context: Context,
-    ): PreferencesManager = PreferencesManager(context)
 
     @Provides
     fun provideContext(

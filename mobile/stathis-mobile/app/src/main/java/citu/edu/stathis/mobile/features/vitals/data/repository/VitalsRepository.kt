@@ -8,5 +8,4 @@ interface VitalsRepository {
     suspend fun saveVitals(vitalSigns: VitalSigns): ClientResponse<Unit>
     fun getVitalsHistory(userId: String): Flow<ClientResponse<List<VitalSigns>>>
     suspend fun deleteVitalRecord(recordId: String): ClientResponse<Unit>
-    // `getLatestVitalSigns` will now primarily come from Health Connect via a use case.
 }

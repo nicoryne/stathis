@@ -45,9 +45,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,9 +82,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import citu.edu.stathis.mobile.core.theme.BrandColors
 import coil3.request.crossfade
+import citu.edu.stathis.mobile.core.theme.BrandColors
+import citu.edu.stathis.mobile.features.auth.data.models.UserResponseDTO
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
+
+object R { object drawable { const val ic_profile_placeholder = 0 } }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,91 +104,77 @@ fun EditProfileScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // State for form fields
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
-    var schoolAttending by remember { mutableStateOf("") }
-    var yearLevel by remember { mutableStateOf<Short>(1) }
-    var courseEnrolled by remember { mutableStateOf("") }
-
-    // State for profile picture
+    var birthdate by remember { mutableStateOf<String?>(null) }
     var currentPictureUrl by remember { mutableStateOf<String?>(null) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+    var uploadedImageUrl by remember { mutableStateOf<String?>(null) }
+
+    var schoolAttending by remember { mutableStateOf("") }
+    var yearLevelInput by remember { mutableStateOf("") }
+    var courseEnrolled by remember { mutableStateOf("") }
+
     var showImageConfirmDialog by remember { mutableStateOf(false) }
-    var hasUnsavedChanges by remember { mutableStateOf(false) }
     var showDiscardChangesDialog by remember { mutableStateOf(false) }
+    var isFormDirty by remember { mutableStateOf(false) }
 
-    // Animation for the save button
-    val saveButtonElevation by animateDpAsState(
-        targetValue = if (hasUnsavedChanges) 8.dp else 2.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "saveButtonElevation"
-    )
-
-    // Image picker
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             tempImageUri = it
-            hasUnsavedChanges = true
             showImageConfirmDialog = true
+            isFormDirty = true
         }
     }
 
-    // Initialize form fields when profile is loaded
     LaunchedEffect(uiState) {
         if (uiState is ProfileUiState.Success) {
             val profile = (uiState as ProfileUiState.Success).profile
             firstName = profile.firstName
             lastName = profile.lastName
-            schoolAttending = profile.schoolAttending ?: ""
-            yearLevel = profile.yearLevel ?: 1
-            courseEnrolled = profile.courseEnrolled ?: ""
-            currentPictureUrl = profile.pictureUrl
-            hasUnsavedChanges = false
+            birthdate = profile.birthdate
+            currentPictureUrl = profile.profilePictureUrl
+            uploadedImageUrl = profile.profilePictureUrl
+            schoolAttending = profile.school ?: ""
+            yearLevelInput = profile.yearLevel?.toString() ?: ""
+            courseEnrolled = profile.course ?: ""
+            tempImageUri = null
+            isFormDirty = false
         }
     }
 
-    // Check for form changes
-    val formChanged by remember(firstName, lastName, schoolAttending, yearLevel, courseEnrolled, tempImageUri) {
-        derivedStateOf {
-            if (uiState is ProfileUiState.Success) {
-                val profile = (uiState as ProfileUiState.Success).profile
-                firstName != profile.firstName ||
-                        lastName != profile.lastName ||
-                        schoolAttending != (profile.schoolAttending ?: "") ||
-                        yearLevel != (profile.yearLevel ?: 1) ||
-                        courseEnrolled != (profile.courseEnrolled ?: "") ||
-                        tempImageUri != null
-            } else {
-                false
-            }
+    fun checkForChanges(currentProfile: UserResponseDTO?): Boolean {
+        if (currentProfile == null) return tempImageUri != null
+        return firstName != currentProfile.firstName ||
+                lastName != currentProfile.lastName ||
+                birthdate != currentProfile.birthdate ||
+                (tempImageUri != null) ||
+                schoolAttending != (currentProfile.school ?: "") ||
+                yearLevelInput != (currentProfile.yearLevel?.toString() ?: "") ||
+                courseEnrolled != (currentProfile.course ?: "")
+    }
+
+    LaunchedEffect(firstName, lastName, birthdate, tempImageUri, schoolAttending, yearLevelInput, courseEnrolled) {
+        if (uiState is ProfileUiState.Success) {
+            isFormDirty = checkForChanges((uiState as ProfileUiState.Success).profile)
+        } else {
+            isFormDirty = tempImageUri != null || firstName.isNotEmpty()
         }
     }
 
-    // Update hasUnsavedChanges based on form changes
-    LaunchedEffect(formChanged) {
-        hasUnsavedChanges = formChanged
-    }
-
-    // Handle edit state changes
     LaunchedEffect(editState) {
-        when (editState) {
+        when (val state = editState) {
             is EditProfileUiState.Success -> {
                 coroutineScope.launch {
                     snackbarHostState.showSnackbar("Profile updated successfully!")
                     viewModel.resetEditState()
-                    tempImageUri = null
-                    hasUnsavedChanges = false
                 }
             }
             is EditProfileUiState.Error -> {
                 coroutineScope.launch {
-                    snackbarHostState.showSnackbar("Oh no! Something went wrong.")
+                    snackbarHostState.showSnackbar(state.message)
                     viewModel.resetEditState()
                 }
             }
@@ -192,9 +182,8 @@ fun EditProfileScreen(
         }
     }
 
-    // Back press handling
     val handleBackPress = {
-        if (hasUnsavedChanges) {
+        if (isFormDirty) {
             showDiscardChangesDialog = true
         } else {
             navController.popBackStack()
@@ -204,42 +193,17 @@ fun EditProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "Edit Profile",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                },
+                title = { Text("Edit Profile", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) },
                 navigationIcon = {
                     IconButton(onClick = { handleBackPress() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.Default.ArrowBack, "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                ),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
                 actions = {
-                    if (hasUnsavedChanges) {
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn() + slideInVertically(),
-                            exit = fadeOut() + slideOutVertically()
-                        ) {
-                            IconButton(
-                                onClick = { showDiscardChangesDialog = true }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Discard Changes",
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
+                    if (isFormDirty) {
+                        IconButton(onClick = { showDiscardChangesDialog = true }) {
+                            Icon(Icons.Default.Close, "Discard Changes", tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -247,52 +211,30 @@ fun EditProfileScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        when (uiState) {
+        when (val state = uiState) {
             is ProfileUiState.Loading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = BrandColors.Purple)
                 }
             }
-
             is ProfileUiState.Error -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = (uiState as ProfileUiState.Error).message,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
-                        )
-
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Text(state.message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = { viewModel.loadUserProfile() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BrandColors.Purple
-                            )
-                        ) {
+                        Button(onClick = { viewModel.loadUserProfile() }, colors = ButtonDefaults.buttonColors(containerColor = BrandColors.Purple)) {
                             Text("Retry")
                         }
                     }
                 }
             }
-
             is ProfileUiState.Success -> {
-                val profile = (uiState as ProfileUiState.Success).profile
-
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -301,360 +243,155 @@ fun EditProfileScreen(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Profile picture
-                    Box(
-                        modifier = Modifier.size(120.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Profile picture or placeholder
-                        if (tempImageUri != null) {
-                            // Show temporary selected image
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(tempImageUri)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Profile Picture Preview",
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .clip(CircleShape)
-                                    .border(2.dp, BrandColors.Purple, CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else if (currentPictureUrl != null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(currentPictureUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .clip(CircleShape)
-                                    .border(2.dp, BrandColors.Purple, CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            // Default profile picture
-                            Box(
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                BrandColors.Purple,
-                                                BrandColors.Teal
-                                            )
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = firstName.firstOrNull()?.toString() + lastName.firstOrNull()?.toString(),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    color = Color.White
-                                )
-                            }
-                        }
-
-                        // Camera icon for changing picture
+                    Box(modifier = Modifier.size(120.dp), contentAlignment = Alignment.Center) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(tempImageUri ?: uploadedImageUrl ?: "")
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.size(120.dp).clip(CircleShape).border(2.dp, BrandColors.Purple, CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
                         Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(BrandColors.Purple)
-                                .clickable { imagePickerLauncher.launch("image/*") }
+                            modifier = Modifier.align(Alignment.BottomEnd).size(40.dp).clip(CircleShape)
+                                .background(BrandColors.Purple).clickable { imagePickerLauncher.launch("image/*") }
                                 .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Change Picture",
-                                tint = Color.White
-                            )
+                            Icon(Icons.Default.CameraAlt, "Change Picture", tint = Color.White)
                         }
                     }
 
-                    // Remove picture button
-                    AnimatedVisibility(
-                        visible = currentPictureUrl != null || tempImageUri != null,
-                        enter = fadeIn() + slideInVertically(),
-                        exit = fadeOut() + slideOutVertically()
-                    ) {
+                    if (tempImageUri != null || !uploadedImageUrl.isNullOrEmpty()) {
                         TextButton(
                             onClick = {
-                                if (tempImageUri != null) {
-                                    tempImageUri = null
-                                    hasUnsavedChanges = formChanged
-                                } else if (currentPictureUrl != null) {
-                                    viewModel.deleteProfilePicture()
-                                }
+                                tempImageUri = null
+                                uploadedImageUrl = null
+                                isFormDirty = true
                             },
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            ),
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.padding(top = 8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Remove Picture",
-                                modifier = Modifier.size(16.dp)
-                            )
-
+                            Icon(Icons.Default.Delete, "Remove Picture", modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.size(4.dp))
-
                             Text("Remove Picture")
                         }
                     }
-
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Personal Information Card
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateCardElevation(hasUnsavedChanges),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 2.dp
-                        ),
+                        modifier = Modifier.fillMaxWidth().animateCardElevation(isFormDirty),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Personal Info",
-                                    tint = BrandColors.Purple
-                                )
-
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Person, "Personal Info", tint = BrandColors.Purple)
                                 Spacer(modifier = Modifier.size(8.dp))
-
-                                Text(
-                                    text = "Personal Information",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
+                                Text("Personal Information", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                             }
-
                             Spacer(modifier = Modifier.height(16.dp))
-
-                            OutlinedTextField(
-                                value = firstName,
-                                onValueChange = {
-                                    firstName = it
-                                    hasUnsavedChanges = true
-                                },
-                                label = { Text("First Name") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
+                            OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("First Name") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                             Spacer(modifier = Modifier.height(12.dp))
-
+                            OutlinedTextField(value = lastName, onValueChange = { lastName = it }, label = { Text("Last Name") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                             OutlinedTextField(
-                                value = lastName,
-                                onValueChange = {
-                                    lastName = it
-                                    hasUnsavedChanges = true
-                                },
-                                label = { Text("Last Name") },
+                                value = birthdate ?: "",
+                                onValueChange = { birthdate = it.ifBlank { null } },
+                                label = { Text("Birthdate (YYYY-MM-DD)") },
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                placeholder = { Text("YYYY-MM-DD")}
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Academic Information Card
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateCardElevation(hasUnsavedChanges),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 2.dp
-                        ),
+                        modifier = Modifier.fillMaxWidth().animateCardElevation(isFormDirty),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.School,
-                                    contentDescription = "Academic Info",
-                                    tint = BrandColors.Purple
-                                )
-
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.School, "Academic Info", tint = BrandColors.Purple)
                                 Spacer(modifier = Modifier.size(8.dp))
-
-                                Text(
-                                    text = "Academic Information",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
+                                Text("Academic Information", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                             }
-
                             Spacer(modifier = Modifier.height(16.dp))
-
-                            OutlinedTextField(
-                                value = schoolAttending,
-                                onValueChange = {
-                                    schoolAttending = it
-                                    hasUnsavedChanges = true
-                                },
-                                label = { Text("School") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
+                            OutlinedTextField(value = schoolAttending, onValueChange = { schoolAttending = it }, label = { Text("School") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            OutlinedTextField(
-                                value = courseEnrolled,
-                                onValueChange = {
-                                    courseEnrolled = it
-                                    hasUnsavedChanges = true
-                                },
-                                label = { Text("Course") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
+                            OutlinedTextField(value = courseEnrolled, onValueChange = { courseEnrolled = it }, label = { Text("Course") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                             Spacer(modifier = Modifier.height(12.dp))
-
                             OutlinedTextField(
-                                value = yearLevel.toString(),
-                                onValueChange = {
-                                    val parsed = it.toShortOrNull()
-                                    if (parsed != null) {
-                                        yearLevel = parsed
-                                        hasUnsavedChanges = true
-                                    }
-                                },
+                                value = yearLevelInput,
+                                onValueChange = { yearLevelInput = it },
                                 label = { Text("Year Level") },
-                                modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = RoundedCornerShape(12.dp)
+                                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Cancel button
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { handleBackPress() },
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
-                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Cancel,
-                                contentDescription = "Cancel",
-                                modifier = Modifier.size(20.dp)
-                            )
-
+                            Icon(Icons.Default.Cancel, "Cancel", modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.size(8.dp))
-
                             Text("Cancel")
                         }
-
-                        // Save button
                         Button(
                             onClick = {
-                                viewModel.updateUserProfile(
+                                val yearLevelInt = yearLevelInput.toIntOrNull()
+                                viewModel.updateFullProfile(
                                     firstName = firstName,
                                     lastName = lastName,
-                                    schoolAttending = schoolAttending.ifEmpty { null },
-                                    yearLevel = yearLevel,
-                                    courseEnrolled = courseEnrolled.ifEmpty { null }
+                                    birthdate = birthdate,
+                                    profilePictureUrl = uploadedImageUrl,
+                                    school = schoolAttending.ifEmpty { null },
+                                    yearLevel = yearLevelInt,
+                                    course = courseEnrolled.ifEmpty { null }
                                 )
                             },
+                            enabled = isFormDirty && editState !is EditProfileUiState.Loading,
                             modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = BrandColors.Purple
-                            ),
-                            enabled = hasUnsavedChanges && editState !is EditProfileUiState.Loading,
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandColors.Purple),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             if (editState is EditProfileUiState.Loading) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
-                                )
+                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                             } else {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Save",
-                                    modifier = Modifier.size(20.dp)
-                                )
-
+                                Icon(Icons.Default.Check, "Save", modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.size(8.dp))
-
                                 Text("Save")
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(80.dp)) // Extra space for FAB
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
 
-        // Image confirmation dialog
         if (showImageConfirmDialog && tempImageUri != null) {
             AlertDialog(
-                onDismissRequest = {
-                    showImageConfirmDialog = false
-                },
+                onDismissRequest = { showImageConfirmDialog = false },
                 title = { Text("Update Profile Picture") },
                 text = {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Do you want to update your profile picture?")
-
                         Spacer(modifier = Modifier.height(16.dp))
-
                         AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(tempImageUri)
-                                .crossfade(true)
-                                .build(),
+                            model = ImageRequest.Builder(context).data(tempImageUri).crossfade(true).build(),
                             contentDescription = "Profile Picture Preview",
-                            modifier = Modifier
-                                .size(150.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, BrandColors.Purple, CircleShape),
+                            modifier = Modifier.size(150.dp).clip(CircleShape).border(2.dp, BrandColors.Purple, CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     }
@@ -662,33 +399,24 @@ fun EditProfileScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                            tempImageUri?.let {
-                                viewModel.uploadProfilePicture(it)
-                                showImageConfirmDialog = false
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandColors.Purple
-                        )
-                    ) {
-                        Text("Confirm")
-                    }
+                            uploadedImageUrl = tempImageUri.toString()
+                            currentPictureUrl = tempImageUri.toString()
+                            showImageConfirmDialog = false
+                        }
+                    ) { Text("Use this image") }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = {
-                            tempImageUri = null
-                            showImageConfirmDialog = false
-                            hasUnsavedChanges = formChanged
+                    TextButton(onClick = {
+                        tempImageUri = null
+                        showImageConfirmDialog = false
+                        if (uiState is ProfileUiState.Success) {
+                            isFormDirty = checkForChanges((uiState as ProfileUiState.Success).profile)
                         }
-                    ) {
-                        Text("Cancel")
-                    }
+                    }) { Text("Cancel") }
                 }
             )
         }
 
-        // Discard changes dialog
         if (showDiscardChangesDialog) {
             AlertDialog(
                 onDismissRequest = { showDiscardChangesDialog = false },
@@ -700,19 +428,11 @@ fun EditProfileScreen(
                             showDiscardChangesDialog = false
                             navController.popBackStack()
                         },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Discard")
-                    }
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) { Text("Discard") }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = { showDiscardChangesDialog = false }
-                    ) {
-                        Text("Cancel")
-                    }
+                    TextButton(onClick = { showDiscardChangesDialog = false }) { Text("Cancel") }
                 }
             )
         }
@@ -726,9 +446,5 @@ private fun Modifier.animateCardElevation(hasChanges: Boolean): Modifier {
         animationSpec = tween(durationMillis = 300),
         label = "cardElevation"
     )
-
-    return this.shadow(
-        elevation = elevation,
-        shape = RoundedCornerShape(16.dp)
-    )
+    return this.shadow(elevation = elevation, shape = RoundedCornerShape(16.dp))
 }
