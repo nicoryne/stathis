@@ -24,7 +24,7 @@ public class EmailService {
     helper.setSubject("Verify Your Email");
     helper.setText(
         "Please verify your email by clicking the link: "
-            + "http://localhost:8080/api/auth/verify-email?token="
+            + "http://stathis.onrender.com/api/auth/verify-email?token="
             + token,
         true);
     mailSender.send(message);
@@ -38,7 +38,7 @@ public class EmailService {
     helper.setSubject("Reset Your Password");
     helper.setText(
         "Please reset your password by clicking the link: "
-            + "http://localhost:8080/api/auth/reset-password?token="
+            + "http://stathis.onrender.com/api/auth/reset-password?token="
             + token,
         true);
     mailSender.send(message);
