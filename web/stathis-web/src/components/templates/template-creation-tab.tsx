@@ -26,9 +26,12 @@ import {
   getLessonTemplate, 
   getQuizTemplate, 
   getExerciseTemplate,
-  getAllLessonTemplates,
-  getAllQuizTemplates,
-  getAllExerciseTemplates
+  getTeacherLessonTemplates,
+  getTeacherQuizTemplates,
+  getTeacherExerciseTemplates,
+  deleteLessonTemplate,
+  deleteQuizTemplate,
+  deleteExerciseTemplate
 } from '@/services/templates/api-template-client';
 import { CreateLessonForm } from './create-lesson-form';
 import { CreateQuizForm } from './create-quiz-form';
@@ -72,31 +75,34 @@ export function TemplateCreationTab({ classroomId }: TemplateCreationTabProps) {
   };
   
   // Query to fetch template details when reviewing
-  // Get all lesson templates
+  // Get lesson templates created by the current teacher
   const {
     data: lessonTemplates,
-    isLoading: isLoadingLessonTemplates
+    isLoading: isLoadingLessonTemplates,
+    refetch: refetchLessonTemplates
   } = useQuery({
-    queryKey: ['lesson-templates'],
-    queryFn: getAllLessonTemplates,
+    queryKey: ['teacher-lesson-templates'],
+    queryFn: getTeacherLessonTemplates,
   });
 
-  // Get all quiz templates
+  // Get quiz templates created by the current teacher
   const {
     data: quizTemplates,
-    isLoading: isLoadingQuizTemplates
+    isLoading: isLoadingQuizTemplates,
+    refetch: refetchQuizTemplates
   } = useQuery({
-    queryKey: ['quiz-templates'],
-    queryFn: getAllQuizTemplates,
+    queryKey: ['teacher-quiz-templates'],
+    queryFn: getTeacherQuizTemplates,
   });
 
-  // Get all exercise templates
+  // Get exercise templates created by the current teacher
   const {
     data: exerciseTemplates,
-    isLoading: isLoadingExerciseTemplates
+    isLoading: isLoadingExerciseTemplates,
+    refetch: refetchExerciseTemplates
   } = useQuery({
-    queryKey: ['exercise-templates'],
-    queryFn: getAllExerciseTemplates,
+    queryKey: ['teacher-exercise-templates'],
+    queryFn: getTeacherExerciseTemplates,
   });
   
   // Query for the selected template details

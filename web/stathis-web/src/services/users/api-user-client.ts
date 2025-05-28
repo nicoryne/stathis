@@ -93,6 +93,12 @@ export interface UpdateTeacherProfileDTO {
   positionTitle?: string;
 }
 
+export interface UpdateStudentProfileDTO {
+  school?: string;
+  course?: string;
+  yearLevel?: number;
+}
+
 /**
  * Get the current user's profile (teacher)
  */
@@ -125,20 +131,13 @@ function isValidUUID(id: string): boolean {
  * Update user's general profile information
  */
 export async function updateUserProfile(
-  userId: string, 
   profileData: UpdateUserProfileDTO
 ): Promise<UserProfileDTO> {
-  console.log('Updating profile with userId:', userId);
+  console.log('Updating user profile');
   
-  // Validate UUID format required by backend
-  if (!userId || !isValidUUID(userId)) {
-    console.error('Invalid UUID format for userId:', userId);
-    throw new Error('Invalid user ID format. Expected UUID format.');
-  }
-  
-  // Exactly matching what the backend controller expects: PUT with userId as query param
+  // Updated to match new backend implementation that doesn't require user ID
   const { data, error, status } = await serverApiClient.put(
-    `/users/profile?userId=${encodeURIComponent(userId)}`,
+    `/users/profile`,
     profileData
   );
   
@@ -157,20 +156,13 @@ export async function updateUserProfile(
  * Update teacher-specific profile information
  */
 export async function updateTeacherProfile(
-  userId: string,
   profileData: UpdateTeacherProfileDTO
 ): Promise<UserProfileDTO> {
-  console.log('Updating teacher profile with userId:', userId);
+  console.log('Updating teacher profile');
   
-  // Validate UUID format required by backend
-  if (!userId || !isValidUUID(userId)) {
-    console.error('Invalid UUID format for userId:', userId);
-    throw new Error('Invalid user ID format. Expected UUID format.');
-  }
-  
-  // Exactly matching what the backend controller expects: PUT with userId as query param
+  // Updated to match new backend implementation that doesn't require user ID
   const { data, error, status } = await serverApiClient.put(
-    `/users/profile/teacher?userId=${encodeURIComponent(userId)}`,
+    `/users/profile/teacher`,
     profileData
   );
   
@@ -178,6 +170,31 @@ export async function updateTeacherProfile(
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
       ? (error as { message: string }).message
       : `Failed to update teacher profile: ${status}`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+  
+  return data as UserProfileDTO;
+}
+
+/**
+ * Update student-specific profile information
+ */
+export async function updateStudentProfile(
+  profileData: UpdateStudentProfileDTO
+): Promise<UserProfileDTO> {
+  console.log('Updating student profile');
+  
+  // Matching new backend implementation
+  const { data, error, status } = await serverApiClient.put(
+    `/users/profile/student`,
+    profileData
+  );
+  
+  if (error || status >= 400) {
+    const errorMessage = typeof error === 'object' && error !== null && 'message' in error
+      ? (error as { message: string }).message
+      : `Failed to update student profile: ${status}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }

@@ -3,7 +3,7 @@
 /**
  * API client for backend requests
  */
-export const API_BASE_URL = 'http://188.166.246.153:8080/api';
+export const API_BASE_URL = 'https://stathis.onrender.com/api';
 
 export interface ApiResponse<T = any> {
   data?: T;

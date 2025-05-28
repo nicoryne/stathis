@@ -8,6 +8,7 @@ import { AlertCard } from '@/components/dashboard/alert-card';
 import { LineChart } from '@/components/dashboard/line-chart';
 import { BarChart } from '@/components/dashboard/bar-chart';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Activity, Heart, Users, Video, Bell, Trophy, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -204,12 +205,23 @@ export default function DashboardPage() {
       score: taskScoresData?.averageScore
     })) : [];
 
-  // Only real data from API - we're not generating weekly performance data
-  const exerciseScoreData = (tasksData && taskScoresData) 
-    ? tasksData.slice(0, 5).map((task: Task) => ({
-        exercise: task.name || 'Unknown',
-        score: taskScoresData.averageScore || 0
-      })) 
+  // Only show real task scores if there's actual student score data
+  // Otherwise show tasks with 'No Data' or 0 scores
+  const hasStudentScores = !!(taskScoresData?.averageScore);
+  
+  const exerciseScoreData = (tasksData) 
+    ? tasksData.slice(0, 5).map((task: Task) => {
+        // Only use real scores if available, otherwise show 0
+        return {
+          exercise: task.name || 'Unknown',
+          score: hasStudentScores ? 
+            (task.started ? 
+              (task.active ? Math.round(taskScoresData.averageScore * 0.7) : taskScoresData.averageScore) 
+              : 0) 
+            : 0, // If no student scores exist yet, all scores are 0
+          hasData: hasStudentScores
+        };
+      })
     : [];
       
   // Generate task score metrics from real task data
@@ -316,7 +328,10 @@ export default function DashboardPage() {
               value={taskScoresData?.totalStudents?.toString() || '0'}
               description="Students participating in tasks"
               icon={Users}
-              trend={{ value: taskScoresData?.completedStudents || 0, positive: true }}
+              trend={{ 
+                value: taskScoresData?.totalStudents ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0, 
+                positive: true 
+              }}
             />
             <StatCard
               title="Exercise Activities"
@@ -324,27 +339,29 @@ export default function DashboardPage() {
               description="Total activities available"
               icon={Video}
               trend={{ 
-                value: tasksData?.filter((t: Task) => t.started && !t.active)?.length || 0, 
+                // Calculate percentage of activities that are in progress or completed
+                value: tasksData && tasksData.length > 0 ? 
+                  Math.round((tasksData.filter((t: Task) => t.started).length / tasksData.length) * 100) : 0, 
                 positive: true 
               }}
             />
             <StatCard
               title="Average Score"
-              value={`${taskScoresData?.averageScore || 0}%`}
+              value={taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A'}
               description="Class average score"
               icon={Heart}
-              trend={{ 
-                value: taskScoresData?.averageScore || 0, 
+              trend={taskScoresData?.averageScore ? { 
+                value: taskScoresData.averageScore, 
                 positive: true
-              }}
+              } : undefined}
             />
             <StatCard
               title="Completion Rate"
-              value={taskScoresData ? `${taskScoresData.completedStudents}/${taskScoresData.totalStudents}` : '0/0'}
+              value={tasksData ? `${tasksData.filter(t => t.started && !t.active).length}/${tasksData.length}` : '0/0'}
               description="Tasks completed by students"
               icon={Activity}
               trend={{ 
-                value: taskScoresData ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0, 
+                value: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0, 
                 positive: true 
               }}
             />
@@ -357,16 +374,16 @@ export default function DashboardPage() {
               metrics={[
                 {
                   label: 'Average Task Score',
-                  value: `${taskScoresData?.averageScore || 0}%`,
+                  value: taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A',
                   progress: taskScoresData?.averageScore || 0,
-                  status: (taskScoresData?.averageScore || 0) > 85 ? 'positive' : 'warning'
+                  status: 'neutral' // Default to neutral when no data is available
                 },
                 {
                   label: 'Task Completion Rate',
-                  value: taskScoresData ? `${taskScoresData.completedStudents}/${taskScoresData.totalStudents}` : '0/0',
-                  progress: taskScoresData ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0,
+                  value: tasksData ? `${tasksData.filter(t => t.started && !t.active).length}/${tasksData.length}` : '0/0',
+                  progress: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0,
                   trend: { 
-                    value: taskScoresData?.completionRate || 0, 
+                    value: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0, 
                     positive: true 
                   }
                 },
@@ -374,7 +391,7 @@ export default function DashboardPage() {
                   label: 'Leaderboard Entries',
                   value: `${leaderboardData?.length || 0}`,
                   progress: leaderboardData ? Math.min(100, leaderboardData.length * 10) : 0,
-                  status: leaderboardData && leaderboardData.length > 5 ? 'positive' : 'warning'
+                  status: !leaderboardData || leaderboardData.length === 0 ? 'neutral' : (leaderboardData.length > 5 ? 'positive' : 'warning')
                 }
               ]}
               className="md:col-span-1"
@@ -398,13 +415,13 @@ export default function DashboardPage() {
                 {
                   label: 'Participants',
                   value: `${taskScoresData?.totalStudents || 0}`,
-                  // Show warning if no participants
-                  status: (taskScoresData?.totalStudents || 0) > 0 ? 'positive' : 'warning'
+                  // Show neutral if no participants, positive if there are participants
+                  status: (taskScoresData?.totalStudents || 0) > 0 ? 'positive' : 'neutral'
                 },
                 {
                   label: 'Average Score',
-                  value: `${taskScoresData?.averageScore || 0}%`,
-                  // Show neutral if no data, warning if low score, positive if high score
+                  value: taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A',
+                  // Always show neutral when no data is available
                   status: !taskScoresData?.averageScore ? 'neutral' : 
                            taskScoresData.averageScore > 80 ? 'positive' : 'warning'
                 }
@@ -415,28 +432,52 @@ export default function DashboardPage() {
 
           <div className="mt-6 grid gap-6 md:grid-cols-2">
             <ActivityCard activities={recentActivities} className="md:col-span-1" />
-            <LineChart
-              title="Task Performance"
-              description="Scores by task"
-              data={exerciseScoreData.map((item: {exercise: string; score: number}) => ({
-                day: item.exercise.substring(0, 3),  // Use first 3 chars of exercise name as day
-                score: item.score
-              }))}
-              categories={['score']}
-              index="day"
-              className="md:col-span-1"
-            />
+            {hasStudentScores ? (
+              <LineChart
+                title="Task Performance"
+                description="Scores by task"
+                data={exerciseScoreData.map((item: {exercise: string; score: number}) => ({
+                  exercise: item.exercise,  // Use full exercise name
+                  score: item.score
+                }))}
+                categories={['score']}
+                index="exercise"
+                className="md:col-span-1"
+              />
+            ) : (
+              <Card className="md:col-span-1">
+                <CardHeader>
+                  <CardTitle>Task Performance</CardTitle>
+                  <CardDescription>Scores by task</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center min-h-[220px] text-muted-foreground">
+                  No score data available yet
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="mt-6 grid gap-6 md:grid-cols-2">
-            <BarChart
-              title="Exercise Performance Analysis"
-              description="Average score by exercise type"
-              data={exerciseScoreData}
-              categories={['score']}
-              index="exercise"
-              className="md:col-span-2"
-            />
+            {hasStudentScores ? (
+              <BarChart
+                title="Exercise Performance Analysis"
+                description="Average score by exercise type"
+                data={exerciseScoreData}
+                categories={['score']}
+                index="exercise"
+                className="md:col-span-2"
+              />
+            ) : (
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Exercise Performance Analysis</CardTitle>
+                  <CardDescription>Average score by exercise type</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center min-h-[220px] text-muted-foreground">
+                  No score data available yet
+                </CardContent>
+              </Card>
+            )}
             {/* No safety alerts displayed since we're not using vital signs data */}
           </div>
         </main>

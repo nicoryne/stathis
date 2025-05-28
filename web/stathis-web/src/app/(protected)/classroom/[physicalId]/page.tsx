@@ -21,6 +21,7 @@ import { TaskCreationTab } from '@/components/tasks/task-creation-tab';
 import { TaskScoresTab } from '@/components/scores/task-scores-tab';
 import { ApiDebugger } from '@/components/debug/api-test';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import { AuthNavbar } from '@/components/auth-navbar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -222,7 +223,7 @@ export default function ClassroomDetailPage() {
       console.log('DIRECT API CALL: Fetching students for classroom:', physicalId);
       try {
         // Make a direct fetch to the API for debugging
-        const apiUrl = `http://188.166.246.153:8080/api/classrooms/${physicalId}/students`;
+        const apiUrl = `https://stathis.onrender.com/api/classrooms/${physicalId}/students`;
         console.log('DIRECT API CALL: URL:', apiUrl);
         
         // Get the auth token
@@ -320,9 +321,8 @@ export default function ClassroomDetailPage() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeSwitcher />
@@ -444,11 +444,6 @@ export default function ClassroomDetailPage() {
                 {classroom.active ? 'Active' : 'Inactive'}
               </Badge>
             </div>
-            
-            <Button onClick={() => router.push(`/classroom/${physicalId}/edit`)} variant="outline" size="sm">
-              <Settings2 className="mr-2 h-4 w-4" />
-              Manage Classroom
-            </Button>
           </div>
           
           {/* Classroom header */}

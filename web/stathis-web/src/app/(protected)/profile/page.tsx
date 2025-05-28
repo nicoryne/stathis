@@ -136,9 +136,8 @@ export default function ProfilePage() {
   
   // Mutation for updating personal info
   const updatePersonalInfoMutation = useMutation({
-    mutationFn: async (data: UpdateUserProfileDTO & { userId: string }) => {
-      const { userId, ...profileData } = data;
-      return updateUserProfile(userId, profileData);
+    mutationFn: (data: UpdateUserProfileDTO) => {
+      return updateUserProfile(data);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['teacher-profile'], data);
@@ -158,9 +157,8 @@ export default function ProfilePage() {
   
   // Mutation for updating teacher profile
   const updateTeacherProfileMutation = useMutation({
-    mutationFn: async (data: UpdateTeacherProfileDTO & { userId: string }) => {
-      const { userId, ...profileData } = data;
-      return updateTeacherProfile(userId, profileData);
+    mutationFn: (data: UpdateTeacherProfileDTO) => {
+      return updateTeacherProfile(data);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(['teacher-profile'], data);
@@ -178,72 +176,23 @@ export default function ProfilePage() {
     },
   });
   
-  // Helper function to check if the ID is a valid UUID format
-  const isValidUUID = (id: string): boolean => {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  };
+  // No longer need to validate UUID format as the backend will handle user identification
 
   // Handle form submissions
   const onPersonalInfoSubmit = (values: z.infer<typeof personalInfoSchema>) => {
-    if (!profileData?.physicalId) {
-      toast({
-        title: 'Update Failed',
-        description: 'User ID not found',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Validate UUID format
-    if (!isValidUUID(profileData.physicalId)) {
-      toast({
-        title: 'Update Failed',
-        description: 'Invalid user ID format. Backend requires UUID format.',
-        variant: 'destructive',
-      });
-      console.error('Invalid UUID format for userId:', profileData.physicalId);
-      return;
-    }
-    
-    console.log('Updating personal profile with valid UUID physicalId:', profileData.physicalId);
+    console.log('Updating personal profile');
     console.log('Form values being submitted:', values);
     
-    // Need to include the userId (physicalId) which is in UUID format
-    updatePersonalInfoMutation.mutate({
-      userId: profileData.physicalId,
-      ...values
-    });
+    // Backend will get the current user from authentication context
+    updatePersonalInfoMutation.mutate(values);
   };
   
   const onTeacherProfileSubmit = (values: z.infer<typeof teacherProfileSchema>) => {
-    if (!profileData?.physicalId) {
-      toast({
-        title: 'Update Failed',
-        description: 'User ID not found',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Validate UUID format
-    if (!isValidUUID(profileData.physicalId)) {
-      toast({
-        title: 'Update Failed',
-        description: 'Invalid user ID format. Backend requires UUID format.',
-        variant: 'destructive',
-      });
-      console.error('Invalid UUID format for userId:', profileData.physicalId);
-      return;
-    }
-    
-    console.log('Updating teacher profile with valid UUID physicalId:', profileData.physicalId);
+    console.log('Updating teacher profile');
     console.log('Form values being submitted:', values);
     
-    // Need to include the userId (physicalId) which is in UUID format
-    updateTeacherProfileMutation.mutate({
-      userId: profileData.physicalId,
-      ...values
-    });
+    // Backend will get the current user from authentication context
+    updateTeacherProfileMutation.mutate(values);
   };
   
   // Handle loading and error states

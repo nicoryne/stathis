@@ -66,7 +66,7 @@ export default function Home() {
                 <div className="from-primary/20 to-secondary/20 absolute inset-0 rounded-full bg-gradient-to-br blur-3xl" />
                 <div className="bg-card/50 border-border relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-sm">
                   <Image
-                    src="/placeholder.svg?height=600&width=600"
+                    src="/images/stathis_hero.png"
                     alt="Stathis App Interface"
                     width={600}
                     height={600}
@@ -75,10 +75,7 @@ export default function Home() {
                   <div className="from-background/80 absolute right-0 bottom-0 left-0 bg-gradient-to-t to-transparent p-6">
                     <div className="flex items-center gap-3">
                       <div className="rounded-full bg-green-500/20 px-3 py-1 text-xs font-medium text-green-500">
-                        Posture: Excellent
-                      </div>
-                      <div className="rounded-full bg-blue-500/20 px-3 py-1 text-xs font-medium text-blue-500">
-                        Heart Rate: Normal
+                        AI-Powered Safety
                       </div>
                     </div>
                   </div>

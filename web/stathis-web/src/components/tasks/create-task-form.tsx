@@ -5,17 +5,30 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, Plus, Search, Eye } from 'lucide-react';
+import { CalendarIcon, Loader2, Plus, Search, Eye, Trash } from 'lucide-react';
 import { 
   getLessonTemplate,
   getQuizTemplate,
-  getExerciseTemplate
+  getExerciseTemplate,
+  deleteLessonTemplate,
+  deleteQuizTemplate,
+  deleteExerciseTemplate
 } from '@/services/templates/api-template-client';
 import { createTask } from '@/services/tasks/api-task-client';
 import { TaskBodyDTO } from '@/services/tasks/api-task-client';
@@ -48,9 +61,9 @@ import {
 } from "@/components/ui/select";
 import { toast } from 'sonner';
 import { 
-  getAllLessonTemplates, 
-  getAllQuizTemplates, 
-  getAllExerciseTemplates 
+  getTeacherLessonTemplates, 
+  getTeacherQuizTemplates, 
+  getTeacherExerciseTemplates 
 } from '@/services/templates/api-template-client';
 import { TemplateCreationModal } from '@/components/templates/template-creation-modal';
 
@@ -95,6 +108,10 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewTemplateData, setReviewTemplateData] = useState<any>(null);
   
+  // For delete template dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [templateToDelete, setTemplateToDelete] = useState<{id: string, type: string} | null>(null);
+  
   // State for lesson page navigation
   const [activePageIndex, setActivePageIndex] = useState(0);
   
@@ -108,7 +125,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     isLoading: isLoadingLessons 
   } = useQuery({
     queryKey: ['lesson-templates'],
-    queryFn: () => getAllLessonTemplates(),
+    queryFn: () => getTeacherLessonTemplates(),
     enabled: selectedTemplateType === 'LESSON',
   });
 
@@ -117,7 +134,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     isLoading: isLoadingQuizzes 
   } = useQuery({
     queryKey: ['quiz-templates'],
-    queryFn: () => getAllQuizTemplates(),
+    queryFn: () => getTeacherQuizTemplates(),
     enabled: selectedTemplateType === 'QUIZ',
   });
 
@@ -126,7 +143,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     isLoading: isLoadingExercises 
   } = useQuery({
     queryKey: ['exercise-templates'],
-    queryFn: () => getAllExerciseTemplates(),
+    queryFn: () => getTeacherExerciseTemplates(),
     enabled: selectedTemplateType === 'EXERCISE',
   });
 
@@ -163,6 +180,67 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     toast.success('Template created successfully');
   };
 
+  // Mutation for deleting templates
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async ({ templateId, templateType }: { templateId: string, templateType: string }) => {
+      if (!templateId || !templateType) {
+        throw new Error('Template ID and type are required');
+      }
+      
+      try {
+        // Call appropriate API based on template type
+        let result;
+        switch (templateType.toLowerCase()) {
+          case 'lesson':
+            result = await deleteLessonTemplate(templateId);
+            break;
+          case 'quiz':
+            result = await deleteQuizTemplate(templateId);
+            break;
+          case 'exercise':
+            result = await deleteExerciseTemplate(templateId);
+            break;
+          default:
+            throw new Error('Invalid template type');
+        }
+        return result;
+      } catch (error: any) {
+        // Check if this is a permission error (403 Forbidden)
+        if (error.status === 403) {
+          throw new Error('You do not have permission to delete this template. Only the template creator can delete it.');
+        }
+        // Re-throw the original error
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      // Reset the template selection
+      form.setValue('templatePhysicalId', '');
+      setSelectedTemplateId(undefined);
+      
+      // Refresh the template lists
+      if (selectedTemplateType === 'LESSON') {
+        queryClient.invalidateQueries({ queryKey: ['lesson-templates'] });
+      } else if (selectedTemplateType === 'QUIZ') {
+        queryClient.invalidateQueries({ queryKey: ['quiz-templates'] });
+      } else if (selectedTemplateType === 'EXERCISE') {
+        queryClient.invalidateQueries({ queryKey: ['exercise-templates'] });
+      }
+      
+      toast.success('Template deleted successfully');
+    },
+    onError: (error: any) => {
+      // Provide a more user-friendly error message
+      if (error.message?.includes('permission')) {
+        toast.error(error.message);
+      } else if (error.status === 403) {
+        toast.error('You do not have permission to delete this template. Only the template creator can delete it.');
+      } else {
+        toast.error(`Error deleting template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+  });
+  
   const createTaskMutation = useMutation({
     mutationFn: (data: TaskFormValues) => {
       // Ensure classroom ID follows the required pattern: [A-Z0-9-]+
@@ -1033,6 +1111,17 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                 <div className="flex justify-between items-center">
                   <FormLabel>Template</FormLabel>
                   <div className="flex space-x-2">
+                    <TemplateCreationModal 
+                      templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
+                      onTemplateCreated={handleTemplateCreated}
+                      continueToTask={true} /* Set to true to keep the dialog open for task creation */
+                      trigger={
+                        <Button variant="ghost" size="sm" className="h-8 px-2">
+                          <Plus className="h-4 w-4 mr-1" />
+                          New Template
+                        </Button>
+                      }
+                    />
                     <Button 
                       type="button" /* Explicitly set button type to prevent form submission */
                       variant="ghost" 
@@ -1076,17 +1165,27 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                       <Eye className="h-4 w-4 mr-1" />
                       Review Template
                     </Button>
-                    <TemplateCreationModal 
-                      templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
-                      onTemplateCreated={handleTemplateCreated}
-                      continueToTask={true} /* Set to true to keep the dialog open for task creation */
-                      trigger={
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          <Plus className="h-4 w-4 mr-1" />
-                          New Template
-                        </Button>
-                      }
-                    />
+                    <Button 
+                      type="button"
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 px-2 text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        if (selectedTemplateId && selectedTemplateType) {
+                          setTemplateToDelete({
+                            id: selectedTemplateId,
+                            type: selectedTemplateType
+                          });
+                          setDeleteDialogOpen(true);
+                        } else {
+                          toast.error('Please select a template first');
+                        }
+                      }}
+                      disabled={!selectedTemplateId || !selectedTemplateType}
+                    >
+                      <Trash className="h-4 w-4 mr-1" />
+                      Delete Template
+                    </Button>
                   </div>
                 </div>
                 <Select 
@@ -1172,6 +1271,44 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
         </div>
       </form>
     </Form>
+
+    {/* Delete Template Confirmation Dialog */}
+    <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the {templateToDelete?.type?.toLowerCase()} template.
+            <br />
+            <br />
+            <strong>Note:</strong> You can only delete templates that you created yourself.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={() => {
+              if (templateToDelete) {
+                deleteTemplateMutation.mutate({ 
+                  templateId: templateToDelete.id, 
+                  templateType: templateToDelete.type 
+                });
+                // Close the dialog after successful deletion
+                setDeleteDialogOpen(false);
+              }
+            }}
+            className="bg-red-500 hover:bg-red-600"
+          >
+            {deleteTemplateMutation.isPending ? (
+              <span className="flex items-center">
+                <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
+                Deleting...
+              </span>
+            ) : 'Delete'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </>
   );
 }

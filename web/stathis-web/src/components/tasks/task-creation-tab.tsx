@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClipboardList } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getClassroomTasks, startTask, deactivateTask, deleteTask, updateTask } from '@/services/tasks/api-task-client';
-import { getAllLessonTemplates, getAllQuizTemplates, getAllExerciseTemplates } from '@/services/templates/api-template-client';
+import { getTeacherLessonTemplates, getTeacherQuizTemplates, getTeacherExerciseTemplates } from '@/services/templates/api-template-client';
 import { TaskResponseDTO } from '@/services/tasks/api-task-client';
 import { CreateTaskForm } from './create-task-form';
 import { Separator } from '@/components/ui/separator';
@@ -79,7 +79,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     isLoading: isLoadingLessons 
   } = useQuery({
     queryKey: ['lesson-templates'],
-    queryFn: () => getAllLessonTemplates(),
+    queryFn: () => getTeacherLessonTemplates(),
     enabled: selectedTemplateType === 'LESSON',
   });
 
@@ -88,7 +88,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     isLoading: isLoadingQuizzes 
   } = useQuery({
     queryKey: ['quiz-templates'],
-    queryFn: () => getAllQuizTemplates(),
+    queryFn: () => getTeacherQuizTemplates(),
     enabled: selectedTemplateType === 'QUIZ',
   });
 
@@ -97,7 +97,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     isLoading: isLoadingExercises 
   } = useQuery({
     queryKey: ['exercise-templates'],
-    queryFn: () => getAllExerciseTemplates(),
+    queryFn: () => getTeacherExerciseTemplates(),
     enabled: selectedTemplateType === 'EXERCISE',
   });
 
