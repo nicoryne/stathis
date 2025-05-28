@@ -50,7 +50,17 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(navController: NavHostController) {
+fun DashboardScreen(
+    navController: NavHostController,
+    onClassroomSelected: (String) -> Unit
+) {
+    // Mock classroom data - Replace with actual data from your ViewModel
+    val classrooms = listOf(
+        "classroom1" to "Math Class",
+        "classroom2" to "Science Class",
+        "classroom3" to "History Class"
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,6 +112,22 @@ fun DashboardScreen(navController: NavHostController) {
             TasksSummaryCard(
                 onClick = { navController.navigate(HomeNavigationItem.Tasks.route) }
             )
+
+            // Classrooms section
+            Text(
+                text = "Your Classrooms",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            classrooms.forEach { (id, name) ->
+                ClassroomCard(
+                    name = name,
+                    onClick = { onClassroomSelected(id) }
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -642,5 +668,50 @@ fun AchievementItem(
             style = MaterialTheme.typography.bodySmall,
             color = BrandColors.Teal
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ClassroomCard(
+    name: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "View tasks",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.Assignment,
+                contentDescription = "View Tasks",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 }

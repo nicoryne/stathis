@@ -14,7 +14,7 @@ interface VitalsApiService {
     suspend fun saveVitals(@Body vitalsRequest: VitalsRequestDto): Response<Unit>
 
     @GET("api/vitals/history/{userId}")
-    suspend fun getVitalsHistory(@Path("userId") userId: String): List<VitalsResponseDto>
+    suspend fun getVitalsHistory(@Path("userId") userId: String): Response<List<VitalsResponseDto>>
 
     @DELETE("api/vitals/{recordId}")
     suspend fun deleteVitalRecord(@Path("recordId") recordId: String): Response<Unit>

@@ -43,7 +43,8 @@ import citu.edu.stathis.mobile.features.vitals.ui.VitalsScreen
 
 @Composable
 fun HomeScreen(
-    onNavigateToAuth: () -> Unit
+    onNavigateToAuth: () -> Unit,
+    onClassroomSelected: (String) -> Unit
 ) {
     val navController = rememberNavController()
     var bottomBarVisible by remember { mutableStateOf(true) }
@@ -71,16 +72,21 @@ fun HomeScreen(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(HomeNavigationItem.Dashboard.route) {
-                DashboardScreen(navController = navController)
+                DashboardScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
+                )
             }
-
 
             composable(HomeNavigationItem.Exercise.route) {
                 ExerciseScreen(navController = navController)
             }
 
             composable(HomeNavigationItem.Tasks.route) {
-                TasksScreen(navController = navController)
+                TasksScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
+                )
             }
 
             composable(HomeNavigationItem.Vitals.route) {

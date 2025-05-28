@@ -56,9 +56,19 @@ import citu.edu.stathis.mobile.core.theme.BrandColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TasksScreen(navController: NavHostController) {
+fun TasksScreen(
+    navController: NavHostController,
+    onClassroomSelected: (String) -> Unit
+) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("All", "Today", "Upcoming", "Completed")
+
+    // Mock classroom data - Replace with actual data from your ViewModel
+    val classrooms = listOf(
+        "classroom1" to "Math Class",
+        "classroom2" to "Science Class",
+        "classroom3" to "History Class"
+    )
 
     Scaffold(
         topBar = {
@@ -112,6 +122,40 @@ fun TasksScreen(navController: NavHostController) {
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            // Classroom selection
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                items(classrooms) { (id, name) ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        onClick = { onClassroomSelected(id) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = name,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Assignment,
+                                contentDescription = "View Tasks",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
             // Task progress summary
             TaskProgressSummary()
 

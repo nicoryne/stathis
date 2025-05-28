@@ -14,10 +14,19 @@ import retrofit2.http.Query
 
 interface ExerciseApiService {
     @GET("api/exercises")
-    suspend fun getAvailableExercises(): Response<List<ExerciseDto>>
+    suspend fun getAvailableExercises(@Query("userId") userId: String): Response<List<ExerciseDto>>
+
+    @GET("api/exercises/templates")
+    suspend fun getAvailableExercisesNoEnrollment(): Response<List<ExerciseDto>>
 
     @GET("api/exercises/{id}")
-    suspend fun getExerciseDetails(@Path("id") exerciseId: String): Response<ExerciseDto>
+    suspend fun getExerciseDetails(
+        @Path("id") exerciseId: String,
+        @Query("userId") userId: String
+    ): Response<ExerciseDto>
+
+    @GET("api/templates/exercises/{id}")
+    suspend fun getExerciseTemplateDetails(@Path("id") exerciseId: String): Response<ExerciseDto>
 
     @POST("api/posture/analyze")
     suspend fun analyzePosture(@Body request: AnalyzePostureRequestDto): Response<PostureResponseDto>

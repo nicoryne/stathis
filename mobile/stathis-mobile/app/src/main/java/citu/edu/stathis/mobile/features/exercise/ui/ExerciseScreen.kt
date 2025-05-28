@@ -1,8 +1,13 @@
 package citu.edu.stathis.mobile.features.exercise.ui
 
 import android.Manifest
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.util.Log
+import android.util.Size
+import android.view.Surface
 import android.view.ViewGroup
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -47,9 +52,18 @@ import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalys
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.material.chip.Chip
 import com.google.mlkit.vision.pose.PoseLandmark
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.pose.PoseDetection
+import com.google.mlkit.vision.pose.PoseDetector
+import com.google.mlkit.vision.pose.accurate.AccuratePoseDetectorOptions
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -115,7 +129,7 @@ fun ExerciseScreen(
                 is ExerciseScreenUiState.ExerciseActive -> {
                     ExerciseActiveContent(
                         activeState = currentUiState,
-                        onImageProxy = { imageProxy -> viewModel.processImageProxy(imageProxy, currentUiState.selectedExercise) },
+                        onPoseDetected = { pose, exercise -> viewModel.onPoseDetected(pose, exercise) },
                         onStopSession = { viewModel.stopExerciseSession() },
                         onToggleCamera = { viewModel.toggleCamera(currentUiState.currentCameraSelector) }
                     )
@@ -156,16 +170,82 @@ fun CameraPermissionRequestHandler(onGrantPermission: () -> Unit) {
 }
 
 @Composable
-fun ExerciseSelectionContent(exercises: List<Exercise>, onExerciseSelected: (Exercise) -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Select an Exercise", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(bottom = 16.dp))
-        if (exercises.isEmpty()) {
-            Text("No exercises available at the moment.")
-        } else {
-            LazyColumn {
-                items(exercises) { exercise ->
-                    ExerciseListItem(exercise = exercise, onClick = { onExerciseSelected(exercise) })
-                    Divider()
+fun ExerciseSelectionContent(
+    exercises: List<Exercise>,
+    onExerciseSelected: (Exercise) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        item {
+            Text(
+                text = "Available Exercises",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        items(exercises) { exercise ->
+            ExerciseCard(exercise = exercise, onClick = { onExerciseSelected(exercise) })
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun ExerciseCard(exercise: Exercise, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = exercise.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = exercise.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                exercise.difficulty?.let {
+                    FilterChip(
+                        selected = false,
+                        onClick = { },
+                        label = { Text(it) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = when (it) {
+                                "BEGINNER" -> Color(0xFF4CAF50)
+                                "INTERMEDIATE" -> Color(0xFFFFA000)
+                                "ADVANCED" -> Color(0xFFF44336)
+                                else -> MaterialTheme.colorScheme.primary
+                            }.copy(alpha = 0.1f),
+                            labelColor = when (it) {
+                                "BEGINNER" -> Color(0xFF4CAF50)
+                                "INTERMEDIATE" -> Color(0xFFFFA000)
+                                "ADVANCED" -> Color(0xFFF44336)
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                        )
+                    )
+                }
+                exercise.targetMuscles?.let { muscles ->
+                    Text(
+                        text = muscles.joinToString(", "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -173,40 +253,60 @@ fun ExerciseSelectionContent(exercises: List<Exercise>, onExerciseSelected: (Exe
 }
 
 @Composable
-fun ExerciseListItem(exercise: Exercise, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Filled.FitnessCenter, contentDescription = exercise.name, modifier = Modifier.size(40.dp))
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(exercise.name, style = MaterialTheme.typography.titleMedium)
-            Text(exercise.description, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-        }
-    }
-}
-
-@Composable
-fun ExerciseIntroductionContent(exercise: Exercise, onStartSession: () -> Unit, onBackToSelection: () -> Unit) {
+fun ExerciseIntroductionContent(
+    exercise: Exercise,
+    onStartSession: () -> Unit,
+    onBackToSelection: () -> Unit
+) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        Text(exercise.name, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Instructions:", style = MaterialTheme.typography.titleMedium)
-        exercise.instructions.forEach { instruction ->
-            Text("• $instruction", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 4.dp))
+        IconButton(onClick = onBackToSelection) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
         }
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onStartSession, modifier = Modifier.fillMaxWidth(0.8f)) {
-            Text("Start Session")
+        Text(
+            text = exercise.name,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 16.dp)
+        )
+        Text(
+            text = exercise.description,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+        Text(
+            text = "Instructions",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        exercise.instructions.forEachIndexed { index, instruction ->
+            Row(
+                modifier = Modifier.padding(vertical = 4.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = "${index + 1}.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = 8.dp, top = 2.dp)
+                )
+                Text(
+                    text = instruction,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(onClick = onBackToSelection, modifier = Modifier.fillMaxWidth(0.8f)) {
-            Text("Choose Different Exercise")
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = onStartSession,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            Text("Start Exercise")
         }
     }
 }
@@ -214,58 +314,100 @@ fun ExerciseIntroductionContent(exercise: Exercise, onStartSession: () -> Unit, 
 @Composable
 fun ExerciseActiveContent(
     activeState: ExerciseScreenUiState.ExerciseActive,
-    onImageProxy: (ImageProxy) -> Unit,
+    onPoseDetected: (com.google.mlkit.vision.pose.Pose, Exercise) -> Unit,
     onStopSession: () -> Unit,
     onToggleCamera: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Create pose detector with optimized settings
+    val options = remember {
+        AccuratePoseDetectorOptions.Builder()
+            .setDetectorMode(AccuratePoseDetectorOptions.STREAM_MODE)
+            .build()
+    }
+    val poseDetector = remember { PoseDetection.getClient(options) }
+
     Box(modifier = Modifier.fillMaxSize()) {
+        // Camera Preview in background
         AndroidView(
+            modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 PreviewView(ctx).apply {
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
-                    scaleType = PreviewView.ScaleType.FILL_CENTER
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 }
-            },
-            modifier = Modifier.fillMaxSize(),
-            update = { previewView ->
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-                cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    val preview = CameraXPreview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-                    val imageAnalysis = ImageAnalysis.Builder()
-                        .setTargetRotation(previewView.display.rotation)
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            }
+        ) { previewView ->
+            // Camera setup code remains the same
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                
+                try {
+                    val preview = CameraXPreview.Builder()
                         .build()
                         .also {
-                            it.setAnalyzer(ContextCompat.getMainExecutor(context)) { imageProxy ->
-                                onImageProxy(imageProxy)
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+
+                    val imageAnalysis = ImageAnalysis.Builder()
+                        .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                        .setTargetRotation(Surface.ROTATION_0)
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                        .build()
+                        .also { analysis ->
+                            analysis.setAnalyzer(
+                                ContextCompat.getMainExecutor(context)
+                            ) { imageProxy ->
+                                val mediaImage = imageProxy.image
+                                if (mediaImage != null) {
+                                    val image = InputImage.fromMediaImage(
+                                        mediaImage,
+                                        imageProxy.imageInfo.rotationDegrees
+                                    )
+                                    
+                                    poseDetector.process(image)
+                                        .addOnSuccessListener { pose ->
+                                            onPoseDetected(pose, activeState.selectedExercise)
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Log.e("ExerciseScreen", "Pose detection failed", e)
+                                        }
+                                        .addOnCompleteListener {
+                                            imageProxy.close()
+                                        }
+                                } else {
+                                    imageProxy.close()
+                                }
                             }
                         }
-                    try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            activeState.currentCameraSelector,
-                            preview,
-                            imageAnalysis
-                        )
-                    } catch (e: Exception) {
-                        Log.e("ExerciseActiveContent", "Use case binding failed", e)
-                    }
-                }, ContextCompat.getMainExecutor(context))
-            }
-        )
 
-        PoseSkeletonOverlay(landmarksData = activeState.currentPoseLandmarks)
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        activeState.currentCameraSelector,
+                        preview,
+                        imageAnalysis
+                    )
+                } catch (e: Exception) {
+                    Log.e("ExerciseActiveContent", "Use case binding failed", e)
+                }
+            }, ContextCompat.getMainExecutor(context))
+        }
 
+        // Skeleton overlay on top with proper z-index
+        Box(modifier = Modifier.fillMaxSize()) {
+            val currentLandmarks = remember(activeState.currentPoseLandmarks) { activeState.currentPoseLandmarks }
+            PoseSkeletonOverlay(landmarksData = currentLandmarks)
+        }
+
+        // UI controls on top
         Column(modifier = Modifier.fillMaxSize()) {
             ExerciseHeader(
                 exerciseName = activeState.selectedExercise.name,
@@ -275,11 +417,16 @@ fun ExerciseActiveContent(
             )
             Spacer(modifier = Modifier.weight(1f))
             ExerciseFeedbackAndStatsFooter(
-                onDeviceFeedback = activeState.onDeviceFeedback,
                 backendAnalysis = activeState.backendAnalysis,
                 repCount = activeState.repCount,
                 onStopSession = onStopSession
             )
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            poseDetector.close()
         }
     }
 }
@@ -308,123 +455,127 @@ fun ExerciseHeader(exerciseName: String, timerMs: Long, onToggleCamera: () -> Un
 
 @Composable
 fun PoseSkeletonOverlay(landmarksData: PoseLandmarksData?) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        landmarksData?.landmarkPoints?.let { points ->
-            val validPoints = points.filter { (it.inFrameLikelihood ?: 0f) > 0.5f }
+    if (landmarksData == null) return
 
-            validPoints.forEach { point ->
-                drawCircle(
-                    color = Color.Yellow,
-                    radius = 8f,
-                    center = Offset(point.x * size.width, point.y * size.height)
+    // Cache colors and stroke widths
+    val colors = remember {
+        object {
+            val skeletonLine = Color.Green.copy(alpha = 0.8f)
+            val jointPoint = Color.Red.copy(alpha = 0.9f)
+            val confidenceThreshold = 0.5f
+            val strokeWidth = 8f  // Increased for better visibility
+            val jointRadius = 8.dp // Increased for better visibility
+        }
+    }
+
+    // Cache connections with their visualization properties
+    val connections = remember {
+        listOf(
+            // Torso
+            Connection(PoseLandmark.LEFT_SHOULDER, PoseLandmark.RIGHT_SHOULDER, colors.skeletonLine, 8f),
+            Connection(PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_HIP, colors.skeletonLine, 8f),
+            Connection(PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_HIP, colors.skeletonLine, 8f),
+            Connection(PoseLandmark.LEFT_HIP, PoseLandmark.RIGHT_HIP, colors.skeletonLine, 8f),
+            // Arms
+            Connection(PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_ELBOW, colors.skeletonLine, 6f),
+            Connection(PoseLandmark.LEFT_ELBOW, PoseLandmark.LEFT_WRIST, colors.skeletonLine, 6f),
+            Connection(PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_ELBOW, colors.skeletonLine, 6f),
+            Connection(PoseLandmark.RIGHT_ELBOW, PoseLandmark.RIGHT_WRIST, colors.skeletonLine, 6f),
+            // Legs
+            Connection(PoseLandmark.LEFT_HIP, PoseLandmark.LEFT_KNEE, colors.skeletonLine, 6f),
+            Connection(PoseLandmark.LEFT_KNEE, PoseLandmark.LEFT_ANKLE, colors.skeletonLine, 6f),
+            Connection(PoseLandmark.RIGHT_HIP, PoseLandmark.RIGHT_KNEE, colors.skeletonLine, 6f),
+            Connection(PoseLandmark.RIGHT_KNEE, PoseLandmark.RIGHT_ANKLE, colors.skeletonLine, 6f)
+        )
+    }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer(alpha = 1f) // Removed blur effect for better visibility
+    ) {
+        // Draw connections first (skeleton lines)
+        connections.forEach { connection ->
+            val startPoint = landmarksData.landmarkPoints.find { it.type == connection.start }
+            val endPoint = landmarksData.landmarkPoints.find { it.type == connection.end }
+
+            if (startPoint != null && endPoint != null &&
+                startPoint.inFrameLikelihood > colors.confidenceThreshold &&
+                endPoint.inFrameLikelihood > colors.confidenceThreshold
+            ) {
+                drawLine(
+                    color = connection.color,
+                    start = Offset(startPoint.x * size.width, startPoint.y * size.height),
+                    end = Offset(endPoint.x * size.width, endPoint.y * size.height),
+                    strokeWidth = connection.strokeWidth,
+                    cap = StrokeCap.Round
                 )
             }
-            getPoseConnections().forEach { connection ->
-                val start = validPoints.find { it.type == connection.first }
-                val end = validPoints.find { it.type == connection.second }
-                if (start != null && end != null) {
-                    drawLine(
-                        color = Color.Cyan,
-                        start = Offset(start.x * size.width, start.y * size.height),
-                        end = Offset(end.x * size.width, end.y * size.height),
-                        strokeWidth = 5f,
-                        cap = StrokeCap.Round
-                    )
-                }
+        }
+
+        // Draw joints on top
+        landmarksData.landmarkPoints.forEach { point ->
+            if (point.inFrameLikelihood > colors.confidenceThreshold) {
+                drawCircle(
+                    color = colors.jointPoint,
+                    radius = colors.jointRadius.toPx(),
+                    center = Offset(point.x * size.width, point.y * size.height)
+                )
             }
         }
     }
 }
 
-fun getPoseConnections(): List<Pair<Int, Int>> {
-    return buildList<Pair<Int, Int>> {
-        add(PoseLandmark.LEFT_SHOULDER to PoseLandmark.RIGHT_SHOULDER)
-        add(PoseLandmark.LEFT_HIP to PoseLandmark.RIGHT_HIP)
-        add(PoseLandmark.LEFT_SHOULDER to PoseLandmark.LEFT_ELBOW)
-        add(PoseLandmark.LEFT_ELBOW to PoseLandmark.LEFT_WRIST)
-        add(PoseLandmark.RIGHT_SHOULDER to PoseLandmark.RIGHT_ELBOW)
-        add(PoseLandmark.RIGHT_ELBOW to PoseLandmark.RIGHT_WRIST)
-        add(PoseLandmark.LEFT_SHOULDER to PoseLandmark.LEFT_HIP)
-        add(PoseLandmark.RIGHT_SHOULDER to PoseLandmark.RIGHT_HIP)
-        add(PoseLandmark.LEFT_HIP to PoseLandmark.LEFT_KNEE)
-        add(PoseLandmark.LEFT_KNEE to PoseLandmark.LEFT_ANKLE)
-        add(PoseLandmark.RIGHT_HIP to PoseLandmark.RIGHT_KNEE)
-        add(PoseLandmark.RIGHT_KNEE to PoseLandmark.RIGHT_ANKLE)
-
-        add(PoseLandmark.LEFT_WRIST to PoseLandmark.LEFT_PINKY)
-        add(PoseLandmark.LEFT_WRIST to PoseLandmark.LEFT_INDEX)
-        add(PoseLandmark.LEFT_INDEX to PoseLandmark.LEFT_THUMB)
-        add(PoseLandmark.RIGHT_WRIST to PoseLandmark.RIGHT_PINKY)
-        add(PoseLandmark.RIGHT_WRIST to PoseLandmark.RIGHT_INDEX)
-        add(PoseLandmark.RIGHT_INDEX to PoseLandmark.RIGHT_THUMB)
-
-        add(PoseLandmark.LEFT_ANKLE to PoseLandmark.LEFT_HEEL)
-        add(PoseLandmark.LEFT_HEEL to PoseLandmark.LEFT_FOOT_INDEX)
-        add(PoseLandmark.LEFT_ANKLE to PoseLandmark.LEFT_FOOT_INDEX)
-        add(PoseLandmark.RIGHT_ANKLE to PoseLandmark.RIGHT_HEEL)
-        add(PoseLandmark.RIGHT_HEEL to PoseLandmark.RIGHT_FOOT_INDEX)
-        add(PoseLandmark.RIGHT_ANKLE to PoseLandmark.RIGHT_FOOT_INDEX)
-
-        add(PoseLandmark.NOSE to PoseLandmark.LEFT_EYE_INNER)
-        add(PoseLandmark.LEFT_EYE_INNER to PoseLandmark.LEFT_EYE)
-        add(PoseLandmark.LEFT_EYE to PoseLandmark.LEFT_EYE_OUTER)
-        add(PoseLandmark.LEFT_EYE_OUTER to PoseLandmark.LEFT_EAR)
-        add(PoseLandmark.NOSE to PoseLandmark.RIGHT_EYE_INNER)
-        add(PoseLandmark.RIGHT_EYE_INNER to PoseLandmark.RIGHT_EYE)
-        add(PoseLandmark.RIGHT_EYE to PoseLandmark.RIGHT_EYE_OUTER)
-        add(PoseLandmark.RIGHT_EYE_OUTER to PoseLandmark.RIGHT_EAR)
-        add(PoseLandmark.LEFT_MOUTH to PoseLandmark.RIGHT_MOUTH)
-    }
-}
-
+private data class Connection(
+    val start: Int,
+    val end: Int,
+    val color: Color,
+    val strokeWidth: Float
+)
 
 @Composable
 fun ExerciseFeedbackAndStatsFooter(
-    onDeviceFeedback: OnDeviceFeedback?,
     backendAnalysis: BackendPostureAnalysis?,
     repCount: Int,
     onStopSession: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(8.dp),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.3f))
+            .padding(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Session Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Reps", style = MaterialTheme.typography.labelMedium)
-                    Text("$repCount", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = BrandColors.Purple)
-                }
-                backendAnalysis?.postureScore?.let {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Posture Score", style = MaterialTheme.typography.labelMedium)
-                        Text(String.format(Locale.US, "%.0f%%", it * 100), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = BrandColors.Teal)
-                    }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Reps: $repCount",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                backendAnalysis?.let {
+                    Text(
+                        text = "Form Score: ${(it.postureScore * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = when {
+                            it.postureScore >= 0.8f -> Color(0xFF4CAF50) // Green
+                            it.postureScore >= 0.6f -> Color(0xFFFFA000) // Orange
+                            else -> Color(0xFFF44336) // Red
+                        }
+                    )
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            onDeviceFeedback?.let {
-                Text("Feedback:", style = MaterialTheme.typography.titleSmall)
-                if (it.formIssues.isEmpty() && it.confidence > 0.7) {
-                    Text("Looking Good!", color = Color(0xFF4CAF50))
-                } else if (it.formIssues.isNotEmpty()) {
-                    it.formIssues.forEach { issue -> Text("• $issue", color = MaterialTheme.colorScheme.error) }
-                } else if (it.confidence < 0.7) {
-                    Text("Move into position or ensure good lighting.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("Exercise State: ${it.exerciseState}", style = MaterialTheme.typography.bodySmall)
-
-            }
-            backendAnalysis?.identifiedExercise?.let {
-                Text("Identified: $it", style = MaterialTheme.typography.bodySmall)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onStopSession, modifier = Modifier.fillMaxWidth()) {
-                Text("End Session")
+            Button(
+                onClick = onStopSession,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Stop")
             }
         }
     }
@@ -446,7 +597,6 @@ fun ExerciseSummaryContent(message: String, onBackToSelection: () -> Unit) {
         }
     }
 }
-
 
 @Composable
 fun ErrorScreen(message: String, onRetry: () -> Unit) {

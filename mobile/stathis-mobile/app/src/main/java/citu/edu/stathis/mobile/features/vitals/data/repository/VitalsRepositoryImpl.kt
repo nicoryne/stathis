@@ -7,6 +7,7 @@ import citu.edu.stathis.mobile.features.vitals.data.model.VitalsRequestDto
 import citu.edu.stathis.mobile.features.vitals.data.model.VitalsResponseDto
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import retrofit2.HttpException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -27,8 +28,28 @@ class VitalsRepositoryImpl @Inject constructor(
                 isPreActivity = vitalSigns.isPreActivity,
                 isPostActivity = vitalSigns.isPostActivity
             )
-            vitalsApiService.saveVitals(requestDto)
-            ClientResponse(success = true, message = "Vitals saved successfully.", data = Unit)
+            val response = vitalsApiService.saveVitals(requestDto)
+            if (response.isSuccessful) {
+                ClientResponse(success = true, message = "Vitals saved successfully.", data = Unit)
+            } else {
+                when (response.code()) {
+                    403 -> ClientResponse(
+                        success = false,
+                        message = "You don't have permission to save vitals. Please check your enrollment status.",
+                        data = null
+                    )
+                    401 -> ClientResponse(
+                        success = false,
+                        message = "Session expired. Please log in again.",
+                        data = null
+                    )
+                    else -> ClientResponse(
+                        success = false,
+                        message = "Failed to save vitals: HTTP ${response.code()}",
+                        data = null
+                    )
+                }
+            }
         } catch (e: Exception) {
             ClientResponse(success = false, message = e.message ?: "Failed to save vitals.", data = null)
         }
@@ -36,9 +57,36 @@ class VitalsRepositoryImpl @Inject constructor(
 
     override fun getVitalsHistory(userId: String): Flow<ClientResponse<List<VitalSigns>>> = flow {
         try {
-            val responseDtoList = vitalsApiService.getVitalsHistory(userId)
-            val vitalSignsList = responseDtoList.map { it.toDomain() }
-            emit(ClientResponse(success = true, message = "History fetched", data = vitalSignsList))
+            val response = vitalsApiService.getVitalsHistory(userId)
+            if (response.isSuccessful) {
+                val vitalSignsList = response.body()?.map { it.toDomain() } ?: emptyList()
+                emit(ClientResponse(success = true, message = "History fetched", data = vitalSignsList))
+            } else {
+                when (response.code()) {
+                    403 -> emit(ClientResponse(
+                        success = false,
+                        message = "You don't have permission to view vitals history. Please check your enrollment status.",
+                        data = null
+                    ))
+                    401 -> emit(ClientResponse(
+                        success = false,
+                        message = "Session expired. Please log in again.",
+                        data = null
+                    ))
+                    else -> emit(ClientResponse(
+                        success = false,
+                        message = "Failed to fetch history: HTTP ${response.code()}",
+                        data = null
+                    ))
+                }
+            }
+        } catch (e: HttpException) {
+            val errorMessage = when (e.code()) {
+                403 -> "You don't have permission to view vitals history. Please check your enrollment status."
+                401 -> "Session expired. Please log in again."
+                else -> "Failed to fetch history: HTTP ${e.code()}"
+            }
+            emit(ClientResponse(success = false, message = errorMessage, data = null))
         } catch (e: Exception) {
             emit(ClientResponse(success = false, message = e.message ?: "Failed to fetch history.", data = null))
         }
@@ -46,8 +94,28 @@ class VitalsRepositoryImpl @Inject constructor(
 
     override suspend fun deleteVitalRecord(recordId: String): ClientResponse<Unit> {
         return try {
-            vitalsApiService.deleteVitalRecord(recordId)
-            ClientResponse(success = true, message = "Record deleted.", data = Unit)
+            val response = vitalsApiService.deleteVitalRecord(recordId)
+            if (response.isSuccessful) {
+                ClientResponse(success = true, message = "Record deleted.", data = Unit)
+            } else {
+                when (response.code()) {
+                    403 -> ClientResponse(
+                        success = false,
+                        message = "You don't have permission to delete this record.",
+                        data = null
+                    )
+                    401 -> ClientResponse(
+                        success = false,
+                        message = "Session expired. Please log in again.",
+                        data = null
+                    )
+                    else -> ClientResponse(
+                        success = false,
+                        message = "Failed to delete record: HTTP ${response.code()}",
+                        data = null
+                    )
+                }
+            }
         } catch (e: Exception) {
             ClientResponse(success = false, message = e.message ?: "Failed to delete record.", data = null)
         }
