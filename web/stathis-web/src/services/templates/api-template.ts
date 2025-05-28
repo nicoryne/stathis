@@ -39,8 +39,8 @@ export interface QuizTemplateResponseDTO {
 export interface ExerciseTemplateBodyDTO {
   title: string; // required, minLength: 3, maxLength: 100
   description: string; // required, minLength: 0, maxLength: 500
-  exerciseType: 'PUSH_UP' | 'SIT_UP' | 'JUMPING_JACK' | 'TYPE1' | 'TYPE2'; // required
-  exerciseDifficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'; // required
+  exerciseType: 'PUSH_UP' | 'SQUATS'; // required - updated to match backend enum
+  exerciseDifficulty: 'BEGINNER' | 'EXPERT'; // required - updated to match backend enum
   goalReps: string; // required, pattern: ^[0-9]+$
   goalAccuracy: string; // required, pattern: ^[0-9]+$
   goalTime: string; // required, pattern: ^[0-9]+$

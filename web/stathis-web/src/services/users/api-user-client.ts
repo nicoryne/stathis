@@ -111,10 +111,36 @@ export async function getTeacherProfile(): Promise<UserProfileDTO> {
 }
 
 /**
+ * This function is no longer needed - using physicalId directly
+ */
+
+/**
+ * Validates if a string is in UUID format
+ */
+function isValidUUID(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+/**
  * Update user's general profile information
  */
-export async function updateUserProfile(profileData: UpdateUserProfileDTO): Promise<UserProfileDTO> {
-  const { data, error, status } = await serverApiClient.put('/users/profile', profileData);
+export async function updateUserProfile(
+  userId: string, 
+  profileData: UpdateUserProfileDTO
+): Promise<UserProfileDTO> {
+  console.log('Updating profile with userId:', userId);
+  
+  // Validate UUID format required by backend
+  if (!userId || !isValidUUID(userId)) {
+    console.error('Invalid UUID format for userId:', userId);
+    throw new Error('Invalid user ID format. Expected UUID format.');
+  }
+  
+  // Exactly matching what the backend controller expects: PUT with userId as query param
+  const { data, error, status } = await serverApiClient.put(
+    `/users/profile?userId=${encodeURIComponent(userId)}`,
+    profileData
+  );
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
@@ -130,8 +156,23 @@ export async function updateUserProfile(profileData: UpdateUserProfileDTO): Prom
 /**
  * Update teacher-specific profile information
  */
-export async function updateTeacherProfile(profileData: UpdateTeacherProfileDTO): Promise<UserProfileDTO> {
-  const { data, error, status } = await serverApiClient.put('/users/profile/teacher', profileData);
+export async function updateTeacherProfile(
+  userId: string,
+  profileData: UpdateTeacherProfileDTO
+): Promise<UserProfileDTO> {
+  console.log('Updating teacher profile with userId:', userId);
+  
+  // Validate UUID format required by backend
+  if (!userId || !isValidUUID(userId)) {
+    console.error('Invalid UUID format for userId:', userId);
+    throw new Error('Invalid user ID format. Expected UUID format.');
+  }
+  
+  // Exactly matching what the backend controller expects: PUT with userId as query param
+  const { data, error, status } = await serverApiClient.put(
+    `/users/profile/teacher?userId=${encodeURIComponent(userId)}`,
+    profileData
+  );
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
