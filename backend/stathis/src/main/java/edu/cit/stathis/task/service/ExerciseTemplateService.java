@@ -12,6 +12,7 @@ import edu.cit.stathis.task.enums.ExerciseDifficulty;
 import java.util.List;
 import java.time.OffsetDateTime;
 import java.util.Random;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExerciseTemplateService {
@@ -75,6 +76,7 @@ public class ExerciseTemplateService {
         return exerciseTemplateRepository.save(exerciseTemplate);
     }
 
+    @Transactional
     public void deleteExerciseTemplate(String physicalId) {
         ExerciseTemplate exerciseTemplate = getExerciseTemplate(physicalId);
         if (exerciseTemplate == null) {

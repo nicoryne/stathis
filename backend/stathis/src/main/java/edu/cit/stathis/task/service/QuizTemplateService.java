@@ -2,6 +2,7 @@ package edu.cit.stathis.task.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.task.repository.QuizTemplateRepository;
@@ -67,6 +68,7 @@ public class QuizTemplateService {
         return quizTemplateRepository.save(quizTemplate);
     }
 
+    @Transactional
     public void deleteQuizTemplate(String physicalId) {
         QuizTemplate quizTemplate = getQuizTemplate(physicalId);
         if (quizTemplate == null) {
