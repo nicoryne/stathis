@@ -33,13 +33,6 @@ sealed class HomeNavigationItem(
         unselectedIcon = Icons.Outlined.Dashboard
     )
 
-    data object Posture : HomeNavigationItem(
-        route = "posture",
-        title = "Posture",
-        selectedIcon = Icons.Filled.Accessibility,
-        unselectedIcon = Icons.Outlined.Accessibility
-    )
-
     data object Exercise : HomeNavigationItem(
         route = "exercise",
         title = "Exercise",
@@ -69,7 +62,6 @@ sealed class HomeNavigationItem(
         unselectedIcon = Icons.Outlined.AccountCircle
     )
 
-    // Additional routes that aren't in the bottom navigation
     data object EditProfile : HomeNavigationItem(
         route = "edit_profile",
         title = "Edit Profile",

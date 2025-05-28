@@ -95,11 +95,6 @@ fun DashboardScreen(navController: NavHostController) {
             // User greeting and profile summary
             UserProfileSummary()
 
-            // Posture status card
-            PostureStatusCard(
-                onClick = { navController.navigate(HomeNavigationItem.Posture.route) }
-            )
-
             // Health metrics
             HealthMetricsCard()
 

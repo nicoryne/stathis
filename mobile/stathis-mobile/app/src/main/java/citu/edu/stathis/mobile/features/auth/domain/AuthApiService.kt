@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.features.auth.domain
 import citu.edu.stathis.mobile.features.auth.data.models.LoginRequest
 import citu.edu.stathis.mobile.features.auth.data.models.LoginResponse
 import citu.edu.stathis.mobile.features.auth.data.models.RegisterRequest
+import citu.edu.stathis.mobile.features.auth.data.models.UserResponseDTO
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -24,10 +25,13 @@ interface AuthApiService {
     suspend fun logout(@Query("refreshToken") refreshToken: String): Unit
 
     @POST("api/auth/refresh")
-    suspend fun refresh(@Query("refreshToken") refreshToken: String): Unit
+    suspend fun refresh(@Query("refreshToken") refreshToken: String): LoginResponse
 
     @GET("api/auth/resend-verification-email")
     suspend fun resendVerificationEmail(
         @Query("email") email: String
     ): Unit
+
+    @GET("api/users/profile/student")
+    suspend fun getStudentProfile(): UserResponseDTO
 }

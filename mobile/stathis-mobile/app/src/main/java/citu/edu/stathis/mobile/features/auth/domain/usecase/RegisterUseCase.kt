@@ -1,6 +1,7 @@
 package citu.edu.stathis.mobile.features.auth.domain.usecase
 
 import citu.edu.stathis.mobile.core.data.models.ClientResponse
+import citu.edu.stathis.mobile.features.auth.data.enums.UserRoles
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import citu.edu.stathis.mobile.features.auth.ui.utils.EmailValidator
 import citu.edu.stathis.mobile.features.auth.ui.utils.PasswordValidator // Assuming this util exists
@@ -34,6 +35,7 @@ class RegisterUseCase @Inject constructor(
             password = password,
             firstName = firstName,
             lastName = lastName,
+            userRole = UserRoles.STUDENT
         )
     }
 

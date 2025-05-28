@@ -1,7 +1,7 @@
 package citu.edu.stathis.mobile.features.vitals.domain.usecase
 
 import citu.edu.stathis.mobile.core.data.models.ClientResponse
-import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository // Correct repository import
+import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository
 import javax.inject.Inject
 
 class DeleteVitalRecordUseCase @Inject constructor(

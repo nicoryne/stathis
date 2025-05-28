@@ -35,7 +35,6 @@ import androidx.navigation.compose.rememberNavController
 import citu.edu.stathis.mobile.core.theme.BrandColors
 import citu.edu.stathis.mobile.features.dashboard.ui.DashboardScreen
 import citu.edu.stathis.mobile.features.exercise.ui.ExerciseScreen
-import citu.edu.stathis.mobile.features.posture.ui.PostureScreen
 import citu.edu.stathis.mobile.features.profile.ui.EditProfileScreen
 import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
 import citu.edu.stathis.mobile.features.progress.ui.ProgressScreen
@@ -75,9 +74,6 @@ fun HomeScreen(
                 DashboardScreen(navController = navController)
             }
 
-            composable(HomeNavigationItem.Posture.route) {
-                PostureScreen(navController = navController)
-            }
 
             composable(HomeNavigationItem.Exercise.route) {
                 ExerciseScreen(navController = navController)
@@ -115,7 +111,6 @@ fun HomeBottomNavigation(
 ) {
     val screens = listOf(
         HomeNavigationItem.Dashboard,
-        HomeNavigationItem.Posture,
         HomeNavigationItem.Exercise,
         HomeNavigationItem.Tasks,
         HomeNavigationItem.Vitals,

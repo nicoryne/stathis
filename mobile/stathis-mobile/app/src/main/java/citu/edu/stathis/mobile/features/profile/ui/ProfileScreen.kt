@@ -1,9 +1,5 @@
 package citu.edu.stathis.mobile.features.profile.ui
 
-import android.net.Uri
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,10 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
@@ -40,19 +34,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,17 +56,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import coil3.request.ImageRequest
 import coil3.compose.AsyncImage
-import citu.edu.stathis.mobile.core.theme.BrandColors
-import citu.edu.stathis.mobile.features.home.HomeNavigationItem
-import citu.edu.stathis.mobile.features.profile.domain.model.UserProfile
+import coil3.request.ImageRequest
 import coil3.request.crossfade
-import kotlinx.coroutines.launch
+import citu.edu.stathis.mobile.core.theme.BrandColors
+import citu.edu.stathis.mobile.features.auth.data.models.UserResponseDTO
+import citu.edu.stathis.mobile.features.home.HomeNavigationItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,11 +75,18 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showEditProfileDialog by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    val editState by viewModel.editState.collectAsState()
+    LaunchedEffect(editState) {
+        if (editState is EditProfileUiState.Error) {
+            snackbarHostState.showSnackbar((editState as EditProfileUiState.Error).message)
+            viewModel.resetEditState()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -99,7 +98,7 @@ fun ProfileScreen(
                     )
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Open settings */ }) {
+                    IconButton(onClick = {  }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings",
@@ -114,7 +113,7 @@ fun ProfileScreen(
             )
         }
     ) { paddingValues ->
-        when (uiState) {
+        when (val state = uiState) {
             is ProfileUiState.Loading -> {
                 Box(
                     modifier = Modifier
@@ -138,13 +137,11 @@ fun ProfileScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = (uiState as ProfileUiState.Error).message,
+                            text = state.message,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
-
                         Spacer(modifier = Modifier.height(16.dp))
-
                         Button(
                             onClick = { viewModel.loadUserProfile() },
                             colors = ButtonDefaults.buttonColors(
@@ -158,7 +155,7 @@ fun ProfileScreen(
             }
 
             is ProfileUiState.Success -> {
-                val profile = (uiState as ProfileUiState.Success).profile
+                val profile = state.profile
 
                 Column(
                     modifier = Modifier
@@ -168,23 +165,18 @@ fun ProfileScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // User profile card
                     ProfileCard(
                         profile = profile,
-                        onEditClick = { navController.navigate(HomeNavigationItem.EditProfile.route) } )
-
-                    // Personal Information
+                        onEditClick = { navController.navigate(HomeNavigationItem.EditProfile.route) }
+                    )
                     PersonalInfoCard(profile = profile)
-
-                    // Academic Information
                     AcademicInfoCard(profile = profile)
 
-                    // Logout button
                     OutlinedButton(
                         onClick = { showLogoutDialog = true },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error// Red
+                            contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
                         Icon(
@@ -192,9 +184,7 @@ fun ProfileScreen(
                             contentDescription = "Logout",
                             modifier = Modifier.size(20.dp)
                         )
-
                         Spacer(modifier = Modifier.size(8.dp))
-
                         Text(
                             text = "Logout",
                             style = MaterialTheme.typography.bodyLarge.copy(
@@ -203,31 +193,11 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Edit Profile Dialog
-                if (showEditProfileDialog) {
-                    EditProfileDialog(
-                        profile = profile,
-                        onDismiss = { showEditProfileDialog = false },
-                        onSave = { firstName, lastName, schoolAttending, yearLevel, courseEnrolled ->
-                            viewModel.updateUserProfile(
-                                firstName = firstName,
-                                lastName = lastName,
-                                schoolAttending = schoolAttending,
-                                yearLevel = yearLevel,
-                                courseEnrolled = courseEnrolled
-                            )
-                            showEditProfileDialog = false
-                        }
-                    )
                 }
             }
         }
 
-        // Logout confirmation dialog
         if (showLogoutDialog) {
             AlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
@@ -236,14 +206,13 @@ fun ProfileScreen(
                 confirmButton = {
                     Button(
                         onClick = {
-                          coroutineScope.launch {
-                              viewModel.signOut()
-                              showLogoutDialog = false
-                              onLogout()
-                          }
+                            viewModel.signOut {
+                                showLogoutDialog = false
+                                onLogout()
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error // Red
+                            containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
                         Text("Logout")
@@ -261,7 +230,7 @@ fun ProfileScreen(
 
 @Composable
 fun ProfileCard(
-    profile: UserProfile,
+    profile: UserResponseDTO,
     onEditClick: () -> Unit
 ) {
     Card(
@@ -284,44 +253,36 @@ fun ProfileCard(
                 modifier = Modifier.size(100.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Profile picture
-                if (!profile.pictureUrl.isNullOrEmpty()) {
+                if (!profile.profilePictureUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(profile.pictureUrl)
+                            .data(profile.profilePictureUrl)
                             .crossfade(true)
                             .build(),
                         contentDescription = "Profile Picture",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape),
+                        modifier = Modifier.size(100.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Default profile picture
                     Box(
                         modifier = Modifier
                             .size(100.dp)
                             .clip(CircleShape)
                             .background(
                                 brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        BrandColors.Purple,
-                                        BrandColors.Teal
-                                    )
+                                    colors = listOf(BrandColors.Purple, BrandColors.Teal)
                                 )
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = profile.firstName.firstOrNull()?.toString() + profile.lastName.firstOrNull()?.toString(),
+                            text = (profile.firstName.firstOrNull()?.toString() ?: "") +
+                                    (profile.lastName.firstOrNull()?.toString() ?: ""),
                             style = MaterialTheme.typography.headlineMedium,
                             color = Color.White
                         )
                     }
                 }
-
-                // Edit button
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -348,14 +309,12 @@ fun ProfileCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = profile.fullName,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold
-                )
+                text = "${profile.firstName} ${profile.lastName}",
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
             )
 
             Text(
-                text = profile.userRole,
+                text = profile.role.name,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -366,22 +325,13 @@ fun ProfileCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ProfileStat(
-                    title = "Role",
-                    value = profile.userRole
-                )
-
-                if (!profile.courseEnrolled.isNullOrEmpty()) {
-                    ProfileStat(
-                        title = "Course",
-                        value = profile.courseEnrolled
-                    )
+                ProfileStat(title = "Role", value = profile.role.name)
+                profile.course?.takeIf { it.isNotBlank() }?.let {
+                    ProfileStat(title = "Course", value = it)
                 }
-
-                ProfileStat(
-                    title = "Year",
-                    value = profile.yearLevel.toString()
-                )
+                profile.yearLevel?.let {
+                    ProfileStat(title = "Year", value = it.toString())
+                }
             }
         }
     }
@@ -412,7 +362,7 @@ fun ProfileStat(
 }
 
 @Composable
-fun PersonalInfoCard(profile: UserProfile) {
+fun PersonalInfoCard(profile: UserResponseDTO) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -424,41 +374,40 @@ fun PersonalInfoCard(profile: UserProfile) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Text(
                 text = "Personal Information",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                )
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
             InfoItem(
                 icon = Icons.Default.Person,
                 label = "Name",
-                value = profile.fullName
+                value = "${profile.firstName} ${profile.lastName}"
             )
-
             Divider(
                 modifier = Modifier.padding(vertical = 12.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
-
             InfoItem(
                 icon = Icons.Default.Email,
                 label = "Email",
                 value = profile.email
             )
+            profile.birthdate?.takeIf { it.isNotBlank() }?.let {
+                Divider(
+                    modifier = Modifier.padding(vertical = 12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                InfoItem(icon = Icons.Filled.Person, label = "Birthdate", value = it) // Using Person icon as placeholder
+            }
         }
     }
 }
 
 @Composable
-fun AcademicInfoCard(profile: UserProfile) {
+fun AcademicInfoCard(profile: UserResponseDTO) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -470,50 +419,31 @@ fun AcademicInfoCard(profile: UserProfile) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
             Text(
                 text = "Academic Information",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                )
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (!profile.schoolAttending.isNullOrEmpty()) {
-                InfoItem(
-                    icon = Icons.Default.School,
-                    label = "School",
-                    value = profile.schoolAttending
-                )
-
+            profile.school?.takeIf { it.isNotBlank() }?.let {
+                InfoItem(icon = Icons.Default.School, label = "School", value = it)
                 Divider(
                     modifier = Modifier.padding(vertical = 12.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             }
-
-            if (!profile.courseEnrolled.isNullOrEmpty()) {
-                InfoItem(
-                    icon = Icons.Default.School,
-                    label = "Course",
-                    value = profile.courseEnrolled
-                )
-
+            profile.course?.takeIf { it.isNotBlank() }?.let {
+                InfoItem(icon = Icons.Default.School, label = "Course", value = it)
                 Divider(
                     modifier = Modifier.padding(vertical = 12.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             }
-
-            InfoItem(
-                icon = Icons.Default.School,
-                label = "Year Level",
-                value = profile.yearLevel.toString()
-            )
+            profile.yearLevel?.let {
+                InfoItem(icon = Icons.Default.School, label = "Year Level", value = it.toString())
+            }
         }
     }
 }
@@ -562,109 +492,4 @@ fun InfoItem(
             )
         }
     }
-}
-
-@Composable
-fun EditProfileDialog(
-    profile: UserProfile,
-    onDismiss: () -> Unit,
-    onSave: (firstName: String, lastName: String, schoolAttending: String?, yearLevel: Short?, courseEnrolled: String?) -> Unit
-) {
-    var firstName by remember { mutableStateOf(profile.firstName) }
-    var lastName by remember { mutableStateOf(profile.lastName) }
-    var schoolAttending by remember { mutableStateOf(profile.schoolAttending ?: "") }
-    var yearLevel by remember { mutableStateOf(profile.yearLevel ?: 1) }
-    var courseEnrolled by remember { mutableStateOf(profile.courseEnrolled ?: "") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Profile") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                OutlinedTextField(
-                    value = firstName,
-                    onValueChange = { firstName = it },
-                    label = { Text("First Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = lastName,
-                    onValueChange = { lastName = it },
-                    label = { Text("Last Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Academic Information",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = schoolAttending,
-                    onValueChange = { schoolAttending = it },
-                    label = { Text("School") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = courseEnrolled,
-                    onValueChange = { courseEnrolled = it },
-                    label = { Text("Course") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = yearLevel.toString(),
-                    onValueChange = {
-                        val parsed = it.toShortOrNull()
-                        if (parsed != null) {
-                            yearLevel = parsed
-                        }
-                    },
-                    label = { Text("Year Level") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        firstName,
-                        lastName,
-                        schoolAttending.ifEmpty { null },
-                        yearLevel,
-                        courseEnrolled.ifEmpty { null }
-                    )
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BrandColors.Purple
-                )
-            ) {
-                Text("Save", color = MaterialTheme.colorScheme.onPrimary)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }

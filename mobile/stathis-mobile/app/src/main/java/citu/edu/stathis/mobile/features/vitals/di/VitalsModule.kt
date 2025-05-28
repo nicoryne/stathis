@@ -13,7 +13,7 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class VitalsRepositoryModule { // Renamed for clarity since it binds repository
+abstract class VitalsRepositoryModule {
 
     @Binds
     @Singleton
@@ -24,7 +24,7 @@ abstract class VitalsRepositoryModule { // Renamed for clarity since it binds re
 
 @Module
 @InstallIn(SingletonComponent::class)
-object VitalsNetworkModule { // Separate module for network specific provisions
+object VitalsNetworkModule {
 
 
     @Provides
@@ -34,4 +34,3 @@ object VitalsNetworkModule { // Separate module for network specific provisions
     }
 }
 
-// Use cases will have @Inject constructor and be provided by Hilt automatically.
