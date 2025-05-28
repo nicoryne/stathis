@@ -52,6 +52,7 @@ public class QuizTemplateService {
         return quizTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
     }
 
+    @Transactional
     public QuizTemplate updateQuizTemplate(String physicalId, QuizTemplateBodyDTO quizTemplateBodyDTO) {
         QuizTemplate quizTemplate = getQuizTemplate(physicalId);
         if (quizTemplate == null) {

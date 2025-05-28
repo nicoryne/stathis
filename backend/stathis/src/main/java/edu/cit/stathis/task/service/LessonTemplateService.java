@@ -51,6 +51,7 @@ public class LessonTemplateService {
         return lessonTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
     }
 
+    @Transactional
     public LessonTemplate updateLessonTemplate(String physicalId, LessonTemplateBodyDTO lessonTemplateBodyDTO) {
         LessonTemplate lessonTemplate = getLessonTemplate(physicalId);
         if (lessonTemplate == null) {

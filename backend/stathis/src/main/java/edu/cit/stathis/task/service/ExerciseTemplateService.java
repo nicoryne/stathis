@@ -57,6 +57,7 @@ public class ExerciseTemplateService {
         return exerciseTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
     }
 
+    @Transactional
     public ExerciseTemplate updateExerciseTemplate(String physicalId, ExerciseTemplateBodyDTO exerciseTemplateBodyDTO) {
         ExerciseTemplate exerciseTemplate = getExerciseTemplate(physicalId);
         if (exerciseTemplate == null) {
