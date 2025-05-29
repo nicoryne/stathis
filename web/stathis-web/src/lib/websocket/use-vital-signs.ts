@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { WebSocketManager } from './websocket-client';
-import { VitalSignsDTO } from '@/services/vitals/api-vitals-client';
-import { getStudentVitalSigns } from '@/services/vitals/api-vitals-client';
+import { VitalSignsDTO, getStudentVitalSigns } from '@/services/vitals/api-vitals-client';
 
 /**
  * Custom hook for subscribing to real-time vital signs from the backend
@@ -13,18 +12,70 @@ export function useVitalSigns(studentId: string, taskId: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [subscriptionTopics, setSubscriptionTopics] = useState<string[]>([]);
 
+  // Define message handler for vital sign updates
+  const handleVitalSignsMessage = useCallback((data: any) => {
+    console.log('Processing potential vital signs data:', data);
+    
+    // Validate message structure
+    if (!data || typeof data !== 'object') {
+      console.warn('Received invalid vital signs data format');
+      return;
+    }
+    
+    // Extract studentId and taskId from the message
+    const messageStudentId = data.studentId;
+    const messageTaskId = data.taskId;
+    
+    // Only process if this message is for our specific student and task
+    if (messageStudentId === studentId && messageTaskId === taskId) {
+      console.log('✅ Matched vital signs for:', studentId, 'task:', taskId);
+      
+      // Validate required fields
+      if (typeof data.heartRate !== 'number' || typeof data.oxygenSaturation !== 'number') {
+        console.warn('Vital signs data missing required fields:', data);
+        return;
+      }
+      
+      // Format the data according to the DTO structure
+      const vitalSignsData: VitalSignsDTO = {
+        physicalId: data.physicalId || undefined,
+        studentId: data.studentId,
+        classroomId: data.classroomId,
+        taskId: data.taskId,
+        heartRate: data.heartRate,
+        oxygenSaturation: data.oxygenSaturation,
+        timestamp: data.timestamp,
+        isPreActivity: data.isPreActivity,
+        isPostActivity: data.isPostActivity
+      };
+      
+      // Update state with the new data
+      setVitalSigns(vitalSignsData);
+      setLastUpdated(new Date());
+    }
+  }, [studentId, taskId]);
+  
   useEffect(() => {
-    if (!studentId || !taskId) return;
+    if (!studentId || !taskId) {
+      console.log('Missing studentId or taskId, not subscribing to vital signs');
+      return;
+    }
 
+    console.log('Setting up vital signs subscriptions for student:', studentId, 'task:', taskId);
     const wsManager = WebSocketManager.getInstance();
     const subscriptions: (() => void)[] = [];
+    const topics: string[] = [];
     
     // Track connection status
     subscriptions.push(wsManager.subscribe('$SYSTEM/connected', () => {
       setIsConnected(true);
       setError(null);
       console.log('WebSocket connected - ready to receive vital signs');
+      
+      // Initial data fetch when connected
+      refreshData();
     }));
     
     subscriptions.push(wsManager.subscribe('$SYSTEM/disconnected', () => {
@@ -32,37 +83,41 @@ export function useVitalSigns(studentId: string, taskId: string) {
       setError('Connection lost. Attempting to reconnect...');
     }));
 
-    // Subscribe to the global topic that the backend may use
-    subscriptions.push(wsManager.subscribe('/topic/vitals', (data) => {
-      // Filter messages for our specific student and task
-      if (data.studentId === studentId && data.taskId === taskId) {
-        console.log('Received vital signs from /topic/vitals for:', studentId, 'task:', taskId);
-        setVitalSigns(data);
-        setLastUpdated(new Date());
-      }
-    }));
+    // Subscribe to all possible topics where vital signs might be published
     
-    // Also subscribe to all possible classroom topics using a "wildcard" approach
-    // by creating subscriptions for common patterns
-    // First: Try the pattern that we observed in the backend code
-    const classroomSubscriber = (data: any) => {
-      // Only update if the message is for our student and task
-      if (data.studentId === studentId && data.taskId === taskId) {
-        console.log('Received vital signs from classroom topic for:', studentId, 'task:', taskId);
-        setVitalSigns(data);
-        setLastUpdated(new Date());
-      }
-    };
+    // 1. Global topic
+    const globalTopic = '/topic/vitals';
+    subscriptions.push(wsManager.subscribe(globalTopic, handleVitalSignsMessage));
+    topics.push(globalTopic);
     
-    // Since we don't know which classroom the student is in, subscribe to a broader topic pattern
-    // that will catch all classroom-related vital signs
-    subscriptions.push(wsManager.subscribe('/topic/classroom/+/vitals', classroomSubscriber));
+    // 2. Student-specific topic
+    const studentTopic = `/topic/student/${studentId}/vitals`;
+    subscriptions.push(wsManager.subscribe(studentTopic, handleVitalSignsMessage));
+    topics.push(studentTopic);
     
-    // If + wildcard is not supported, try with # wildcard which is sometimes used
-    subscriptions.push(wsManager.subscribe('/topic/classroom/#', classroomSubscriber));
+    // 3. Task-specific topic
+    const taskTopic = `/topic/task/${taskId}/vitals`;
+    subscriptions.push(wsManager.subscribe(taskTopic, handleVitalSignsMessage));
+    topics.push(taskTopic);
     
-    // As a fallback, subscribe to specific topics if we know common classroom IDs
-    // This would need to be expanded with actual classroom IDs
+    // 4. Combined student+task topic
+    const combinedTopic = `/topic/student/${studentId}/task/${taskId}/vitals`;
+    subscriptions.push(wsManager.subscribe(combinedTopic, handleVitalSignsMessage));
+    topics.push(combinedTopic);
+    
+    // 5. Classroom wildcards (based on backend code)
+    // Pattern from VitalSignsService: /topic/classroom/{classroomId}/vitals
+    const classroomWildcardTopic = '/topic/classroom/+/vitals';
+    subscriptions.push(wsManager.subscribe(classroomWildcardTopic, handleVitalSignsMessage));
+    topics.push(classroomWildcardTopic);
+    
+    // 6. Multi-level wildcard for any classroom messages
+    const multiLevelWildcardTopic = '/topic/classroom/#';
+    subscriptions.push(wsManager.subscribe(multiLevelWildcardTopic, handleVitalSignsMessage));
+    topics.push(multiLevelWildcardTopic);
+    
+    // Save subscribed topics for debugging
+    setSubscriptionTopics(topics);
     
     // Start connection if not already connected
     if (!wsManager.isConnected()) {
@@ -71,6 +126,8 @@ export function useVitalSigns(studentId: string, taskId: string) {
       wsManager.connect(token || undefined);
     } else {
       setIsConnected(true);
+      // Initial data fetch if already connected
+      refreshData();
     }
 
     // Cleanup all subscriptions
@@ -79,18 +136,30 @@ export function useVitalSigns(studentId: string, taskId: string) {
     };
   }, [studentId, taskId]);
 
-  // Method to request immediate data refresh through a REST API
-  const refreshData = async () => {
-    if (!studentId || !taskId) return;
+  // Method to refresh the connection by reconnecting the WebSocket
+  const refreshData = () => {
+    if (!studentId || !taskId) {
+      console.log('Cannot refresh data: missing studentId or taskId');
+      return;
+    }
+    
+    console.log('Manually refreshing WebSocket connection for vital signs...');
     
     try {
-      // Use the existing API client to get the latest vital signs
-      const data = await getStudentVitalSigns(taskId, studentId);
-      setVitalSigns(data);
+      // Get the WebSocket manager instance
+      const wsManager = WebSocketManager.getInstance();
+      
+      // Use the reconnect method to establish a fresh connection
+      wsManager.reconnect();
+      
+      // Update last refreshed timestamp
       setLastUpdated(new Date());
+      
+      // Provide user feedback
+      console.log('WebSocket connection refreshed successfully');
     } catch (err) {
-      console.error('Error refreshing vital signs data:', err);
-      setError('Failed to refresh data');
+      console.error('Error refreshing WebSocket connection:', err);
+      setError('Failed to refresh connection');
     }
   };
 
@@ -99,6 +168,7 @@ export function useVitalSigns(studentId: string, taskId: string) {
     isConnected,
     error,
     lastUpdated,
-    refreshData
+    refreshData,
+    subscriptionTopics // For debugging purposes
   };
 }
