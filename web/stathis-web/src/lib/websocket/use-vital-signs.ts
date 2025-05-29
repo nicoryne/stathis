@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { WebSocketManager } from './websocket-client';
 import { VitalSignsDTO } from '@/services/vitals/api-vitals-client';
+import { getStudentVitalSigns } from '@/services/vitals/api-vitals-client';
 
 /**
- * Custom hook for subscribing to real-time vital signs with optimized polling
+ * Custom hook for subscribing to real-time vital signs from the backend
  */
 export function useVitalSigns(studentId: string, taskId: string) {
   const [vitalSigns, setVitalSigns] = useState<VitalSignsDTO | null>(null);
@@ -17,43 +18,51 @@ export function useVitalSigns(studentId: string, taskId: string) {
     if (!studentId || !taskId) return;
 
     const wsManager = WebSocketManager.getInstance();
+    const subscriptions: (() => void)[] = [];
     
     // Track connection status
-    const connectionSub = wsManager.subscribe('$SYSTEM/connected', () => {
+    subscriptions.push(wsManager.subscribe('$SYSTEM/connected', () => {
       setIsConnected(true);
       setError(null);
-    });
+      console.log('WebSocket connected - ready to receive vital signs');
+    }));
     
-    const disconnectionSub = wsManager.subscribe('$SYSTEM/disconnected', () => {
+    subscriptions.push(wsManager.subscribe('$SYSTEM/disconnected', () => {
       setIsConnected(false);
       setError('Connection lost. Attempting to reconnect...');
-    });
+    }));
 
-    // Subscribe to vital signs topic for this student and task
-    const vitalSignsSub = wsManager.subscribe(`/topic/vitals/${studentId}/${taskId}`, (data) => {
-      setVitalSigns(data);
-      setLastUpdated(new Date());
-    });
-    
-    // Send request for initial vital signs data
-    // This helps reduce load by only requesting data when needed
-    wsManager.sendMessage('/app/vitals/request', {
-      studentId,
-      taskId,
-      requestType: 'INITIAL'
-    });
-    
-    // Request updates at a reasonable interval (e.g., every 10 seconds)
-    // This is a compromise between real-time updates and avoiding rate limits
-    const intervalId = setInterval(() => {
-      if (wsManager.isConnected()) {
-        wsManager.sendMessage('/app/vitals/request', {
-          studentId,
-          taskId,
-          requestType: 'UPDATE'
-        });
+    // Subscribe to the global topic that the backend may use
+    subscriptions.push(wsManager.subscribe('/topic/vitals', (data) => {
+      // Filter messages for our specific student and task
+      if (data.studentId === studentId && data.taskId === taskId) {
+        console.log('Received vital signs from /topic/vitals for:', studentId, 'task:', taskId);
+        setVitalSigns(data);
+        setLastUpdated(new Date());
       }
-    }, 10000); // 10 seconds
+    }));
+    
+    // Also subscribe to all possible classroom topics using a "wildcard" approach
+    // by creating subscriptions for common patterns
+    // First: Try the pattern that we observed in the backend code
+    const classroomSubscriber = (data: any) => {
+      // Only update if the message is for our student and task
+      if (data.studentId === studentId && data.taskId === taskId) {
+        console.log('Received vital signs from classroom topic for:', studentId, 'task:', taskId);
+        setVitalSigns(data);
+        setLastUpdated(new Date());
+      }
+    };
+    
+    // Since we don't know which classroom the student is in, subscribe to a broader topic pattern
+    // that will catch all classroom-related vital signs
+    subscriptions.push(wsManager.subscribe('/topic/classroom/+/vitals', classroomSubscriber));
+    
+    // If + wildcard is not supported, try with # wildcard which is sometimes used
+    subscriptions.push(wsManager.subscribe('/topic/classroom/#', classroomSubscriber));
+    
+    // As a fallback, subscribe to specific topics if we know common classroom IDs
+    // This would need to be expanded with actual classroom IDs
     
     // Start connection if not already connected
     if (!wsManager.isConnected()) {
@@ -64,25 +73,25 @@ export function useVitalSigns(studentId: string, taskId: string) {
       setIsConnected(true);
     }
 
-    // Cleanup
+    // Cleanup all subscriptions
     return () => {
-      connectionSub();
-      disconnectionSub();
-      vitalSignsSub();
-      clearInterval(intervalId);
+      subscriptions.forEach(unsub => unsub());
     };
   }, [studentId, taskId]);
 
-  // Method to request immediate data refresh
-  const refreshData = () => {
+  // Method to request immediate data refresh through a REST API
+  const refreshData = async () => {
     if (!studentId || !taskId) return;
     
-    const wsManager = WebSocketManager.getInstance();
-    wsManager.sendMessage('/app/vitals/request', {
-      studentId,
-      taskId,
-      requestType: 'IMMEDIATE'
-    });
+    try {
+      // Use the existing API client to get the latest vital signs
+      const data = await getStudentVitalSigns(taskId, studentId);
+      setVitalSigns(data);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Error refreshing vital signs data:', err);
+      setError('Failed to refresh data');
+    }
   };
 
   return {

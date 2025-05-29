@@ -97,52 +97,17 @@ export default function MonitoringPage() {
     switch (type) {
       case 'heartRate':
         return value < 60 || value > 100 ? 'text-red-500' : 'text-green-500';
-      case 'respirationRate':
-        return value < 12 || value > 20 ? 'text-red-500' : 'text-green-500';
       case 'oxygenSaturation':
         return value < 95 ? 'text-red-500' : 'text-green-500';
-      case 'systolicBP':
-        return value < 90 || value > 140 ? 'text-red-500' : 'text-green-500';
-      case 'diastolicBP':
-        return value < 60 || value > 90 ? 'text-red-500' : 'text-green-500';
-      case 'temperature':
-        return value < 36 || value > 37.5 ? 'text-red-500' : 'text-green-500';
       default:
         return 'text-green-500';
     }
   };
   
-  // Enhanced VitalSignsDTO interface to add fields needed for the UI
-  type EnhancedVitalSigns = VitalSignsDTO & {
-    respirationRate: number;
-    bloodOxygen: number;
-    bloodPressure: {
-      systolic: number;
-      diastolic: number;
-    };
-    temperature: number;
-  };
+  // Only use the actual vital signs available from the backend
+  // The backend provides only heart rate and oxygen saturation
   
-  // Function to transform the API response into the expected format
-  const transformVitalSigns = (data: VitalSignsDTO | null): EnhancedVitalSigns | null => {
-    if (!data) return null;
-    
-    // Generate reasonable values for missing fields
-    // In a real app, these would come from the API
-    return {
-      ...data,
-      respirationRate: 15 + Math.floor(Math.random() * 5),  // 15-20 range
-      bloodOxygen: data.oxygenSaturation,  // Map from oxygenSaturation
-      bloodPressure: {
-        systolic: 120 + Math.floor(Math.random() * 10 - 5),  // 115-125 range
-        diastolic: 80 + Math.floor(Math.random() * 10 - 5)   // 75-85 range
-      },
-      temperature: 36.5 + (Math.random() * 0.5)  // 36.5-37 range
-    };
-  };
-  
-  // Transform the vitalSigns data for display
-  const enhancedVitalSigns = transformVitalSigns(vitalSigns);
+  // No need to transform the data - use it as is
   
   return (
     <div className="flex min-h-screen">
@@ -265,7 +230,7 @@ export default function MonitoringPage() {
           </div>
         )}
         
-        {selectedStudent && enhancedVitalSigns ? (
+        {selectedStudent && vitalSigns ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* Heart Rate */}
             <Card>
@@ -274,8 +239,8 @@ export default function MonitoringPage() {
                 <Heart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${getVitalStatusColor(enhancedVitalSigns.heartRate, 'heartRate')}`}>
-                  {enhancedVitalSigns.heartRate} <span className="text-sm font-normal">BPM</span>
+                <div className={`text-2xl font-bold ${getVitalStatusColor(vitalSigns.heartRate, 'heartRate')}`}>
+                  {vitalSigns.heartRate} <span className="text-sm font-normal">BPM</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Normal range: 60-100 BPM
@@ -283,73 +248,18 @@ export default function MonitoringPage() {
               </CardContent>
             </Card>
 
-            {/* Respiration Rate */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Respiration Rate</CardTitle>
-                <Wind className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${getVitalStatusColor(enhancedVitalSigns.respirationRate, 'respirationRate')}`}>
-                  {enhancedVitalSigns.respirationRate} <span className="text-sm font-normal">breaths/min</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Normal range: 12-20 breaths/min
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Blood Oxygen */}
+            {/* Blood Oxygen / Oxygen Saturation */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Blood Oxygen</CardTitle>
                 <Droplet className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className={`text-2xl font-bold ${getVitalStatusColor(enhancedVitalSigns.oxygenSaturation, 'oxygenSaturation')}`}>
-                  {enhancedVitalSigns.oxygenSaturation}%
+                <div className={`text-2xl font-bold ${getVitalStatusColor(vitalSigns.oxygenSaturation, 'oxygenSaturation')}`}>
+                  {vitalSigns.oxygenSaturation}%
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Normal range: ≥95%
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Blood Pressure */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Blood Pressure</CardTitle>
-                <Activity className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-baseline gap-1">
-                  <span className={`text-2xl font-bold ${getVitalStatusColor(enhancedVitalSigns.bloodPressure.systolic, 'systolicBP')}`}>
-                    {enhancedVitalSigns.bloodPressure.systolic}
-                  </span>
-                  <span>/</span>
-                  <span className={`text-2xl font-bold ${getVitalStatusColor(enhancedVitalSigns.bloodPressure.diastolic, 'diastolicBP')}`}>
-                    {enhancedVitalSigns.bloodPressure.diastolic}
-                  </span>
-                  <span className="text-sm font-normal ml-1">mmHg</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Normal range: 90-140/60-90 mmHg
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Temperature */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Temperature</CardTitle>
-                <Thermometer className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${getVitalStatusColor(enhancedVitalSigns.temperature, 'temperature')}`}>
-                  {enhancedVitalSigns.temperature.toFixed(1)}°C
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Normal range: 36.0-37.5°C
                 </p>
               </CardContent>
             </Card>
