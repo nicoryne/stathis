@@ -1,29 +1,21 @@
 package citu.edu.stathis.mobile.features.exercise.ui
 
 import android.Manifest
-import android.graphics.RenderEffect
-import android.graphics.Shader
+import android.graphics.Color as AndroidColor
 import android.util.Log
-import android.util.Size
 import android.view.Surface
 import android.view.ViewGroup
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview as CameraXPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -38,7 +30,6 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,21 +40,14 @@ import citu.edu.stathis.mobile.features.exercise.data.Exercise
 import citu.edu.stathis.mobile.features.exercise.data.OnDeviceFeedback
 import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
 import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalysis
+import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseAnalyzer
+import citu.edu.stathis.mobile.features.exercise.ui.components.EnhancedSkeletonOverlay
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import com.google.android.material.chip.Chip
-import com.google.mlkit.vision.pose.PoseLandmark
+import com.google.mlkit.vision.pose.Pose
 import java.util.Locale
 import java.util.concurrent.TimeUnit
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.graphicsLayer
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.pose.PoseDetection
-import com.google.mlkit.vision.pose.PoseDetector
-import com.google.mlkit.vision.pose.accurate.AccuratePoseDetectorOptions
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -129,7 +113,11 @@ fun ExerciseScreen(
                 is ExerciseScreenUiState.ExerciseActive -> {
                     ExerciseActiveContent(
                         activeState = currentUiState,
-                        onPoseDetected = { pose, exercise -> viewModel.onPoseDetected(pose, exercise) },
+                        onPoseDetected = { pose, imageWidth, imageHeight, isFlipped, exercise -> 
+                            viewModel.onPoseDetected(pose, exercise)
+                            // Store the pose and image dimensions for rendering
+                            viewModel.updatePoseForRendering(pose, imageWidth, imageHeight, isFlipped)
+                        },
                         onStopSession = { viewModel.stopExerciseSession() },
                         onToggleCamera = { viewModel.toggleCamera(currentUiState.currentCameraSelector) }
                     )
@@ -314,20 +302,18 @@ fun ExerciseIntroductionContent(
 @Composable
 fun ExerciseActiveContent(
     activeState: ExerciseScreenUiState.ExerciseActive,
-    onPoseDetected: (com.google.mlkit.vision.pose.Pose, Exercise) -> Unit,
+    onPoseDetected: (Pose, Int, Int, Boolean, Exercise) -> Unit,
     onStopSession: () -> Unit,
     onToggleCamera: () -> Unit
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-
-    // Create pose detector with optimized settings
-    val options = remember {
-        AccuratePoseDetectorOptions.Builder()
-            .setDetectorMode(AccuratePoseDetectorOptions.STREAM_MODE)
-            .build()
-    }
-    val poseDetector = remember { PoseDetection.getClient(options) }
+    
+    // Track current pose for rendering
+    var currentPose by remember { mutableStateOf<Pose?>(null) }
+    var imageWidth by remember { mutableStateOf(0) }
+    var imageHeight by remember { mutableStateOf(0) }
+    val isImageFlipped = activeState.currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Camera Preview in background
@@ -343,7 +329,6 @@ fun ExerciseActiveContent(
                 }
             }
         ) { previewView ->
-            // Camera setup code remains the same
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
@@ -359,34 +344,27 @@ fun ExerciseActiveContent(
                         .setTargetAspectRatio(AspectRatio.RATIO_16_9)
                         .setTargetRotation(Surface.ROTATION_0)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                         .build()
-                        .also { analysis ->
-                            analysis.setAnalyzer(
-                                ContextCompat.getMainExecutor(context)
-                            ) { imageProxy ->
-                                val mediaImage = imageProxy.image
-                                if (mediaImage != null) {
-                                    val image = InputImage.fromMediaImage(
-                                        mediaImage,
-                                        imageProxy.imageInfo.rotationDegrees
-                                    )
-                                    
-                                    poseDetector.process(image)
-                                        .addOnSuccessListener { pose ->
-                                            onPoseDetected(pose, activeState.selectedExercise)
-                                        }
-                                        .addOnFailureListener { e ->
-                                            Log.e("ExerciseScreen", "Pose detection failed", e)
-                                        }
-                                        .addOnCompleteListener {
-                                            imageProxy.close()
-                                        }
-                                } else {
-                                    imageProxy.close()
-                                }
-                            }
-                        }
+
+                    // Create pose analyzer
+                    val poseAnalyzer = PoseAnalyzer(
+                        executor = ContextCompat.getMainExecutor(context),
+                        onPoseDetected = { pose, width, height, flipped ->
+                            // Update local state for rendering
+                            currentPose = pose
+                            imageWidth = width
+                            imageHeight = height
+                            
+                            // Pass to view model for processing
+                            onPoseDetected(pose, width, height, flipped, activeState.selectedExercise)
+                        },
+                        isImageFlipped = isImageFlipped
+                    )
+                    
+                    imageAnalysis.setAnalyzer(
+                        ContextCompat.getMainExecutor(context),
+                        poseAnalyzer
+                    )
 
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
@@ -401,11 +379,15 @@ fun ExerciseActiveContent(
             }, ContextCompat.getMainExecutor(context))
         }
 
-        // Skeleton overlay on top with proper z-index
-        Box(modifier = Modifier.fillMaxSize()) {
-            val currentLandmarks = remember(activeState.currentPoseLandmarks) { activeState.currentPoseLandmarks }
-            PoseSkeletonOverlay(landmarksData = currentLandmarks)
-        }
+        // Enhanced Skeleton Overlay with our custom view
+        EnhancedSkeletonOverlay(
+            pose = currentPose,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            isImageFlipped = isImageFlipped,
+            landmarkColor = AndroidColor.RED,
+            connectionColor = AndroidColor.GREEN
+        )
 
         // UI controls on top
         Column(modifier = Modifier.fillMaxSize()) {
@@ -421,12 +403,6 @@ fun ExerciseActiveContent(
                 repCount = activeState.repCount,
                 onStopSession = onStopSession
             )
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            poseDetector.close()
         }
     }
 }
@@ -452,86 +428,6 @@ fun ExerciseHeader(exerciseName: String, timerMs: Long, onToggleCamera: () -> Un
         }
     }
 }
-
-@Composable
-fun PoseSkeletonOverlay(landmarksData: PoseLandmarksData?) {
-    if (landmarksData == null) return
-
-    // Cache colors and stroke widths
-    val colors = remember {
-        object {
-            val skeletonLine = Color.Green.copy(alpha = 0.8f)
-            val jointPoint = Color.Red.copy(alpha = 0.9f)
-            val confidenceThreshold = 0.5f
-            val strokeWidth = 8f  // Increased for better visibility
-            val jointRadius = 8.dp // Increased for better visibility
-        }
-    }
-
-    // Cache connections with their visualization properties
-    val connections = remember {
-        listOf(
-            // Torso
-            Connection(PoseLandmark.LEFT_SHOULDER, PoseLandmark.RIGHT_SHOULDER, colors.skeletonLine, 8f),
-            Connection(PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_HIP, colors.skeletonLine, 8f),
-            Connection(PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_HIP, colors.skeletonLine, 8f),
-            Connection(PoseLandmark.LEFT_HIP, PoseLandmark.RIGHT_HIP, colors.skeletonLine, 8f),
-            // Arms
-            Connection(PoseLandmark.LEFT_SHOULDER, PoseLandmark.LEFT_ELBOW, colors.skeletonLine, 6f),
-            Connection(PoseLandmark.LEFT_ELBOW, PoseLandmark.LEFT_WRIST, colors.skeletonLine, 6f),
-            Connection(PoseLandmark.RIGHT_SHOULDER, PoseLandmark.RIGHT_ELBOW, colors.skeletonLine, 6f),
-            Connection(PoseLandmark.RIGHT_ELBOW, PoseLandmark.RIGHT_WRIST, colors.skeletonLine, 6f),
-            // Legs
-            Connection(PoseLandmark.LEFT_HIP, PoseLandmark.LEFT_KNEE, colors.skeletonLine, 6f),
-            Connection(PoseLandmark.LEFT_KNEE, PoseLandmark.LEFT_ANKLE, colors.skeletonLine, 6f),
-            Connection(PoseLandmark.RIGHT_HIP, PoseLandmark.RIGHT_KNEE, colors.skeletonLine, 6f),
-            Connection(PoseLandmark.RIGHT_KNEE, PoseLandmark.RIGHT_ANKLE, colors.skeletonLine, 6f)
-        )
-    }
-
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer(alpha = 1f) // Removed blur effect for better visibility
-    ) {
-        // Draw connections first (skeleton lines)
-        connections.forEach { connection ->
-            val startPoint = landmarksData.landmarkPoints.find { it.type == connection.start }
-            val endPoint = landmarksData.landmarkPoints.find { it.type == connection.end }
-
-            if (startPoint != null && endPoint != null &&
-                startPoint.inFrameLikelihood > colors.confidenceThreshold &&
-                endPoint.inFrameLikelihood > colors.confidenceThreshold
-            ) {
-                drawLine(
-                    color = connection.color,
-                    start = Offset(startPoint.x * size.width, startPoint.y * size.height),
-                    end = Offset(endPoint.x * size.width, endPoint.y * size.height),
-                    strokeWidth = connection.strokeWidth,
-                    cap = StrokeCap.Round
-                )
-            }
-        }
-
-        // Draw joints on top
-        landmarksData.landmarkPoints.forEach { point ->
-            if (point.inFrameLikelihood > colors.confidenceThreshold) {
-                drawCircle(
-                    color = colors.jointPoint,
-                    radius = colors.jointRadius.toPx(),
-                    center = Offset(point.x * size.width, point.y * size.height)
-                )
-            }
-        }
-    }
-}
-
-private data class Connection(
-    val start: Int,
-    val end: Int,
-    val color: Color,
-    val strokeWidth: Float
-)
 
 @Composable
 fun ExerciseFeedbackAndStatsFooter(
@@ -634,4 +530,3 @@ fun formatDuration(milliseconds: Long): String {
     val seconds = totalSeconds % 60
     return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }
-

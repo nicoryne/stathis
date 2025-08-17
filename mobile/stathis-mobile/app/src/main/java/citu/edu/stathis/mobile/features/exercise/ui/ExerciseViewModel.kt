@@ -1,14 +1,11 @@
 package citu.edu.stathis.mobile.features.exercise.ui
 
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageProxy
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import citu.edu.stathis.mobile.core.data.models.ClientResponse
 import citu.edu.stathis.mobile.features.exercise.data.Exercise
-import citu.edu.stathis.mobile.features.exercise.data.OnDeviceFeedback
-import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
 import citu.edu.stathis.mobile.features.exercise.data.LandmarkPoint
+import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
 import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalysis
 import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseDetectionService
 import citu.edu.stathis.mobile.features.exercise.data.toPoseLandmarksData
@@ -16,23 +13,13 @@ import citu.edu.stathis.mobile.features.exercise.domain.usecase.*
 import com.google.mlkit.vision.pose.Pose
 import com.google.mlkit.vision.pose.PoseLandmark
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlin.math.abs
-
-data class LandmarkPoint(
-    val x: Float,
-    val y: Float,
-    val z: Float,
-    val type: Int,
-    val inFrameLikelihood: Float
-)
 
 sealed class ExerciseScreenUiState {
     data object Initial : ExerciseScreenUiState()
@@ -45,7 +32,12 @@ sealed class ExerciseScreenUiState {
         val backendAnalysis: BackendPostureAnalysis? = null,
         val sessionTimerMs: Long = 0L,
         val repCount: Int = 0,
-        val currentCameraSelector: CameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+        val currentCameraSelector: CameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA,
+        // Add rendering data for the skeleton overlay
+        val renderPose: Pose? = null,
+        val renderImageWidth: Int = 0,
+        val renderImageHeight: Int = 0,
+        val renderIsFlipped: Boolean = false
     ) : ExerciseScreenUiState()
     data class ExerciseSummary(val message: String) : ExerciseScreenUiState()
     data class Error(val message: String) : ExerciseScreenUiState()
@@ -123,8 +115,22 @@ class ExerciseViewModel @Inject constructor(
             selectedExercise = exercise
         )
     }
+    
+    /**
+     * Update the pose data used for rendering the skeleton overlay
+     */
+    fun updatePoseForRendering(pose: Pose, imageWidth: Int, imageHeight: Int, isFlipped: Boolean) {
+        (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
+            _uiState.value = currentState.copy(
+                renderPose = pose,
+                renderImageWidth = imageWidth,
+                renderImageHeight = imageHeight,
+                renderIsFlipped = isFlipped
+            )
+        }
+    }
 
-    fun onPoseDetected(pose: com.google.mlkit.vision.pose.Pose, exercise: Exercise) {
+    fun onPoseDetected(pose: Pose, exercise: Exercise) {
         val currentTime = System.currentTimeMillis()
         
         // Frame rate control - skip processing if too soon
@@ -258,7 +264,12 @@ class ExerciseViewModel @Inject constructor(
                     backendAnalysis = backendAnalysis,
                     sessionTimerMs = sessionTimer,
                     repCount = currentRepCount,
-                    currentCameraSelector = currentState.currentCameraSelector
+                    currentCameraSelector = currentState.currentCameraSelector,
+                    // Preserve rendering data
+                    renderPose = currentState.renderPose,
+                    renderImageWidth = currentState.renderImageWidth,
+                    renderImageHeight = currentState.renderImageHeight,
+                    renderIsFlipped = currentState.renderIsFlipped
                 )
             }
         }
@@ -350,7 +361,11 @@ class ExerciseViewModel @Inject constructor(
         }
         
         (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
-            _uiState.value = currentState.copy(currentCameraSelector = newSelector)
+            _uiState.value = currentState.copy(
+                currentCameraSelector = newSelector,
+                // Update flipped state for rendering
+                renderIsFlipped = newSelector == CameraSelector.DEFAULT_FRONT_CAMERA
+            )
         }
     }
 
