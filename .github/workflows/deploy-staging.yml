@@ -16,31 +16,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy Staging via Docker Compose
+      - name: Upload Code to Staging
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          source: "."
+          target: "/tmp/stathis-staging-deploy/"
+          rm: true
+
+      - name: Deploy Staging
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
-            # Navigate to project directory
-            cd /root/stathis || { echo "Project directory not found"; exit 1; }
+            echo "📥 Updating staging code..."
+            cd /root/stathis
             
-            # Single git pull for entire monorepo
-            echo "📥 Pulling latest dev code..."
-            git fetch origin
-            git reset --hard origin/dev
+            # Update staging frontend code
+            if [ -d "/tmp/stathis-staging-deploy/web/stathis-web" ]; then
+              echo "Updating staging frontend..."
+              rm -rf ./staging_frontend/frontend/*
+              mkdir -p ./staging_frontend/frontend
+              cp -r /tmp/stathis-staging-deploy/web/stathis-web/* ./staging_frontend/frontend/
+            fi
             
-            # Build staging containers from monorepo subfolders
-            echo "🔨 Building staging containers..."
+            # Update staging backend code  
+            if [ -d "/tmp/stathis-staging-deploy/backend/stathis" ]; then
+              echo "Updating staging backend..."
+              rm -rf ./staging_backend/backend/*
+              mkdir -p ./staging_backend/backend
+              cp -r /tmp/stathis-staging-deploy/backend/stathis/* ./staging_backend/backend/
+            fi
             
-            # Build staging containers from same source (staging folders are empty)
-            # Use same code but different tags for staging
-            docker build -t stathis-frontend-staging:latest ./frontend/frontend
-            docker build -t stathis-backend-staging:latest ./backend/backend
+            # Restart staging containers to pick up new code
+            echo "🔄 Restarting staging containers..."
+            docker compose restart stathis-frontend-staging stathis-backend-staging
             
-            # Deploy staging with compose
-            docker compose -f docker-compose.staging.yml up -d --force-recreate
+            # Clean up temp files
+            rm -rf /tmp/stathis-staging-deploy
             
             # Wait for services
             echo "⏳ Waiting for staging services to start..."
