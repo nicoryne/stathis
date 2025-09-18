@@ -3,12 +3,16 @@ name: Deploy to Staging
 on:
   push:
     branches: [dev]
+  pull_request:
+    branches: [dev]
   workflow_dispatch:
 
 jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
+    # Only deploy on push to dev, not on PRs
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +24,7 @@ jobs:
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
             # Navigate to project directory
-            cd /opt/stathis || { echo "Project directory not found"; exit 1; }
+            cd /root/stathis || { echo "Project directory not found"; exit 1; }
             
             # Single git pull for entire monorepo
             echo "📥 Pulling latest dev code..."
@@ -30,11 +34,10 @@ jobs:
             # Build staging containers from monorepo subfolders
             echo "🔨 Building staging containers..."
             
-            # Build staging frontend from web/stathis-web subfolder
-            docker build -t stathis-frontend-staging:latest ./web/stathis-web
-            
-            # Build staging backend from backend/stathis subfolder
-            docker build -t stathis-backend-staging:latest ./backend/stathis
+            # Build staging containers from same source (staging folders are empty)
+            # Use same code but different tags for staging
+            docker build -t stathis-frontend-staging:latest ./frontend/frontend
+            docker build -t stathis-backend-staging:latest ./backend/backend
             
             # Deploy staging with compose
             docker compose -f docker-compose.staging.yml up -d --force-recreate
