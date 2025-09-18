@@ -49,20 +49,54 @@ export default function LoginPage() {
       });
       router.replace('/dashboard');
     },
-    onError: (error) => {
-      toast.error('Login failed', {
-        description: error.message || 'Please check your credentials and try again'
-      });
+    onError: (error: any) => {
+      // Check if the error message mentions invalid credentials or 401/403
+      const errorMessage = error.message || '';
+      
+      if (errorMessage.includes('Invalid email or password') || 
+          errorMessage.includes('check your credentials')) {
+        // User-friendly message for authentication errors
+        toast.error('Invalid credentials', {
+          description: 'The email or password you entered is incorrect. Please try again.'
+        });
+      } else if (error.status === 401 || error.status === 403) {
+        // Handle unauthorized/forbidden responses
+        toast.error('Authentication failed', {
+          description: 'Your account could not be verified. Please check your credentials.'
+        });
+      } else {
+        // Generic error handling for other cases
+        toast.error('Login failed', {
+          description: errorMessage || 'An unexpected error occurred. Please try again later.'
+        });
+      }
     }
   });
 
   const loginOAuthMutation = useMutation({
     mutationFn: loginWithOAuth,
     onSuccess: () => {},
-    onError: (error) => {
-      toast.error('Login failed', {
-        description: error.message || 'Please check your credentials and try again'
-      });
+    onError: (error: any) => {
+      // Check if the error message mentions invalid credentials or 401/403
+      const errorMessage = error.message || '';
+      
+      if (errorMessage.includes('Invalid') || 
+          errorMessage.includes('credentials')) {
+        // User-friendly message for authentication errors
+        toast.error('Authentication failed', {
+          description: 'Your account could not be verified with this provider. Please try again.'
+        });
+      } else if (error.status === 401 || error.status === 403) {
+        // Handle unauthorized/forbidden responses
+        toast.error('Provider login failed', {
+          description: 'We couldn\'t authenticate you with this provider. Please try another method.'
+        });
+      } else {
+        // Generic error handling for other cases
+        toast.error('Login failed', {
+          description: errorMessage || 'An unexpected error occurred. Please try another login method.'
+        });
+      }
     }
   });
 

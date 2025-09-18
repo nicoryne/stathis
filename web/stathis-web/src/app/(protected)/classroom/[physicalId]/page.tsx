@@ -223,7 +223,7 @@ export default function ClassroomDetailPage() {
       console.log('DIRECT API CALL: Fetching students for classroom:', physicalId);
       try {
         // Make a direct fetch to the API for debugging
-        const apiUrl = `https://stathis.onrender.com/api/classrooms/${physicalId}/students`;
+        const apiUrl = `https://api-stathis.ryne.dev/api/classrooms/${physicalId}/students`;
         console.log('DIRECT API CALL: URL:', apiUrl);
         
         // Get the auth token

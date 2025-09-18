@@ -45,7 +45,7 @@ export async function signUp(form: SignUpFormValues) {
     // This bypasses any potential issues with our custom client
     try {
       console.log('[Auth] Trying direct fetch approach');
-      const response = await fetch('https://stathis.onrender.com/api/auth/register', {
+      const response = await fetch('https://api-stathis.ryne.dev/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -219,6 +219,21 @@ export async function loginWithEmail(form: LoginFormValues) {
 
     if (error) {
       console.error('[Auth Login Error]', { error, status, data });
+      
+      // Handle specific HTTP status codes with user-friendly messages
+      if (status === 401 || status === 403) {
+        throw new Error('Invalid email or password. Please check your credentials and try again.');
+      }
+      
+      // Check for common error message patterns
+      if (typeof error === 'string') {
+        if (error.toLowerCase().includes('invalid') || 
+            error.toLowerCase().includes('incorrect') || 
+            error.toLowerCase().includes('not found')) {
+          throw new Error('Invalid email or password. Please check your credentials and try again.');
+        }
+      }
+      
       throw new Error(error);
     }
 
@@ -235,7 +250,13 @@ export async function loginWithEmail(form: LoginFormValues) {
     return data;
   } catch (e) {
     console.error('[Auth] Login failed with exception:', e);
-    throw new Error(e instanceof Error ? e.message : 'Login failed - check browser console for details');
+    if (e instanceof Error) {
+      // If we already have a formatted error message, use it
+      throw e;
+    } else {
+      // Generic fallback error
+      throw new Error('Login failed. Please check your credentials and try again.');
+    }
   }
 }
 
