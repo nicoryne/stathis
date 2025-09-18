@@ -1,0 +1,144 @@
+name: Monorepo CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+jobs:
+  # Web Dashboard Build
+  web-build:
+    name: Build Web Dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/stathis-web
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/stathis-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: web/stathis-web/.next/
+          retention-days: 1
+
+  # Mobile App Build
+  mobile-build:
+    name: Build Mobile App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile/stathis-mobile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 30
+          build-tools: 34.0.0
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Run linting
+        run: ./gradlew lint
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-apk
+          path: mobile/stathis-mobile/app/build/outputs/apk/debug/
+          retention-days: 1
+
+  # Backend API Build
+  backend-build:
+    name: Build Backend API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/stathis
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Build application
+        run: mvn clean package -DskipTests
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/stathis/target/*.jar
+          retention-days: 1
+
+  # All builds must pass
+  all-builds-pass:
+    name: All Builds Pass
+    runs-on: ubuntu-latest
+    needs: [web-build, mobile-build, backend-build]
+    if: always()
+    steps:
+      - name: Check build results
+        run: |
+          if [[ "${{ needs.web-build.result }}" != "success" || "${{ needs.mobile-build.result }}" != "success" || "${{ needs.backend-build.result }}" != "success" ]]; then
+            echo "One or more builds failed"
+            exit 1
+          else
+            echo "All builds passed successfully!"
+          fi

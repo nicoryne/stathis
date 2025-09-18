@@ -1,0 +1,80 @@
+########################
+# OS / Editor Junk
+########################
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+########################
+# Logs
+########################
+*.log
+logs/
+
+########################
+# Environment Files
+########################
+.env
+.env.*
+!.env.example
+
+########################
+# Node
+########################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+.next/
+out/
+dist/
+.cache/
+
+########################
+# Java / Spring Boot
+########################
+target/
+build/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle/
+.classpath
+.project
+.settings/
+bin/
+tmp/
+
+########################
+# Kotlin / Android
+########################
+*.iml
+.gradle/
+.kotlin/
+local.properties
+captures/
+output.json
+app/build/
+*.apk
+*.aab
+*.keystore
+*.jks
+.cxx/
+
+# Android Studio generated
+.idea/caches
+.idea/libraries
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+########################
+# Misc
+########################
+*.swp
+*.swo
+*.tmp
+*.bak
