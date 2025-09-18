@@ -36,20 +36,43 @@ jobs:
             echo "📥 Updating staging code..."
             cd /root/stathis
             
+            # Debug: Show uploaded structure
+            echo "🔍 Checking uploaded file structure..."
+            ls -la /tmp/stathis-staging-deploy/ || echo "Upload directory not found"
+            
             # Update staging frontend code
             if [ -d "/tmp/stathis-staging-deploy/web/stathis-web" ]; then
               echo "Updating staging frontend..."
               rm -rf ./staging_frontend/frontend/*
               mkdir -p ./staging_frontend/frontend
               cp -r /tmp/stathis-staging-deploy/web/stathis-web/* ./staging_frontend/frontend/
+              echo "✅ Frontend code updated"
+            else
+              echo "⚠️  Frontend source not found, checking alternative paths..."
+              find /tmp/stathis-staging-deploy -name "package.json" -type f | head -5
             fi
             
-            # Update staging backend code  
+            # Update staging backend code and build JAR
             if [ -d "/tmp/stathis-staging-deploy/backend/stathis" ]; then
               echo "Updating staging backend..."
               rm -rf ./staging_backend/backend/*
               mkdir -p ./staging_backend/backend
               cp -r /tmp/stathis-staging-deploy/backend/stathis/* ./staging_backend/backend/
+              
+              # Build the JAR file for staging
+              echo "🔨 Building staging JAR..."
+              cd ./staging_backend/backend
+              if [ -f "pom.xml" ]; then
+                mvn clean package -DskipTests -q
+                # Copy the built JAR to expected location
+                find target -name "*.jar" -not -name "*-sources.jar" -exec cp {} server-staging.jar \;
+                echo "✅ Backend JAR built successfully"
+              else
+                echo "⚠️  No pom.xml found, cannot build JAR"
+              fi
+              cd /root/stathis
+            else
+              echo "⚠️  Backend source not found"
             fi
             
             # Restart staging containers to pick up new code
