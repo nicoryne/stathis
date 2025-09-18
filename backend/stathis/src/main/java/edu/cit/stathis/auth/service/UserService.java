@@ -66,7 +66,7 @@ public class UserService {
         .passwordHash(passwordEncoder.encode(userDTO.getPassword()))
         .userRole(role)
         .physicalId(provideUniquePhysicalId())
-        .emailVerified(false)
+        .emailVerified(true) // DISABLED: Set to true to bypass email verification
         .version(0L)
         .build();
 
@@ -84,48 +84,50 @@ public class UserService {
     // Save the User (which will cascade to UserProfile)
     user = uRepo.save(user);
 
-    CreatedToken created =
-        tokenService.createToken(
-            user, TokenTypeEnum.EMAIL_VERIFICATION, OffsetDateTime.now().plusMinutes(30));
+    // DISABLED: Email verification functionality
+    // CreatedToken created =
+    //     tokenService.createToken(
+    //         user, TokenTypeEnum.EMAIL_VERIFICATION, OffsetDateTime.now().plusMinutes(30));
 
-    String tokenValue = created.rawToken();
+    // String tokenValue = created.rawToken();
 
-    try {
-      emailService.sendVerificationEmail(user.getEmail(), tokenValue);
-    } catch (MessagingException e) {
-      throw new RuntimeException("Failed to send verification email", e);
-    }
+    // try {
+    //   emailService.sendVerificationEmail(user.getEmail(), tokenValue);
+    // } catch (MessagingException e) {
+    //   throw new RuntimeException("Failed to send verification email", e);
+    // }
 
     webhookService.notifyUserEvent(user, "registered");
 
     return user;
   }
 
+  // DISABLED: Email verification functionality
   public String resendVerificationEmail(String email) {
-    User user =
-        uRepo.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("User not found"));
+    // User user =
+    //     uRepo.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-    if (user.isEmailVerified()) {
-      throw new IllegalStateException("User is already verified");
-    }
+    // if (user.isEmailVerified()) {
+    //   throw new IllegalStateException("User is already verified");
+    // }
 
-    tokenService.revokeAllTokensForUser(user, TokenTypeEnum.EMAIL_VERIFICATION);
+    // tokenService.revokeAllTokensForUser(user, TokenTypeEnum.EMAIL_VERIFICATION);
 
-    CreatedToken created =
-        tokenService.createToken(
-            user, TokenTypeEnum.EMAIL_VERIFICATION, OffsetDateTime.now().plusMinutes(30));
+    // CreatedToken created =
+    //     tokenService.createToken(
+    //         user, TokenTypeEnum.EMAIL_VERIFICATION, OffsetDateTime.now().plusMinutes(30));
 
-    String tokenValue = created.rawToken();
+    // String tokenValue = created.rawToken();
 
-    try {
-      emailService.sendVerificationEmail(user.getEmail(), tokenValue);
-    } catch (MessagingException e) {
-      throw new RuntimeException("Failed to send verification email", e);
-    }
+    // try {
+    //   emailService.sendVerificationEmail(user.getEmail(), tokenValue);
+    // } catch (MessagingException e) {
+    //   throw new RuntimeException("Failed to send verification email", e);
+    // }
 
-    webhookService.notifyUserEvent(user, "registered");
+    // webhookService.notifyUserEvent(user, "registered");
 
-    return "Verification email has been resent.";
+    return "Email verification is currently disabled.";
   }
 
   @Transactional
@@ -140,9 +142,10 @@ public class UserService {
             .findByEmail(loginDTO.getEmail())
             .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
-    if (!user.isEmailVerified()) {
-      throw new IllegalArgumentException("Email not verified.");
-    }
+    // DISABLED: Email verification check
+    // if (!user.isEmailVerified()) {
+    //   throw new IllegalArgumentException("Email not verified.");
+    // }
 
     tokenService.revokeAllTokensForUser(user, TokenTypeEnum.REFRESH);
 
@@ -215,23 +218,26 @@ public class UserService {
     tokenRepo.save(token);
   }
 
+  // DISABLED: Email verification functionality
   @Transactional
   public void verifyEmail(String tokenValue) {
-    Token token =
-        tokenService
-            .getValidToken(tokenValue, TokenTypeEnum.EMAIL_VERIFICATION)
-            .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token."));
+    // Token token =
+    //     tokenService
+    //         .getValidToken(tokenValue, TokenTypeEnum.EMAIL_VERIFICATION)
+    //         .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token."));
 
-    if (token.getUsedAt() != null) {
-      throw new IllegalArgumentException("Token already used.");
-    }
+    // if (token.getUsedAt() != null) {
+    //   throw new IllegalArgumentException("Token already used.");
+    // }
 
-    User user = token.getUser();
-    user.setEmailVerified(true);
-    token.setUsedAt(OffsetDateTime.now());
+    // User user = token.getUser();
+    // user.setEmailVerified(true);
+    // token.setUsedAt(OffsetDateTime.now());
 
-    uRepo.save(user);
-    tokenRepo.save(token);
+    // uRepo.save(user);
+    // tokenRepo.save(token);
+    
+    // Email verification is disabled - no action needed
   }
 
   public boolean existByEmail(String email) {
