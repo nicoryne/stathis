@@ -16,18 +16,21 @@ public class EmailService {
   @Value("${MAIL_USERNAME}")
   private String mailFrom;
 
+  // DISABLED: Email verification functionality
   public void sendVerificationEmail(String to, String token) throws MessagingException {
-    MimeMessage message = mailSender.createMimeMessage();
-    MimeMessageHelper helper = new MimeMessageHelper(message, true);
-    helper.setFrom(mailFrom);
-    helper.setTo(to);
-    helper.setSubject("Verify Your Email");
-    helper.setText(
-        "Please verify your email by clicking the link: "
-            + "http://localhost:8080/api/auth/verify-email?token="
-            + token,
-        true);
-    mailSender.send(message);
+    // MimeMessage message = mailSender.createMimeMessage();
+    // MimeMessageHelper helper = new MimeMessageHelper(message, true);
+    // helper.setFrom(mailFrom);
+    // helper.setTo(to);
+    // helper.setSubject("Verify Your Email");
+    // helper.setText(
+    //     "Please verify your email by clicking the link: "
+    //         + "http://stathis.onrender.com/api/auth/verify-email?token="
+    //         + token,
+    //     true);
+    // mailSender.send(message);
+    
+    // Email verification is disabled - no action needed
   }
 
   public void sendPasswordResetEmail(String to, String token) throws MessagingException {
@@ -38,7 +41,7 @@ public class EmailService {
     helper.setSubject("Reset Your Password");
     helper.setText(
         "Please reset your password by clicking the link: "
-            + "http://localhost:8080/api/auth/reset-password?token="
+            + "http://stathis.onrender.com/api/auth/reset-password?token="
             + token,
         true);
     mailSender.send(message);

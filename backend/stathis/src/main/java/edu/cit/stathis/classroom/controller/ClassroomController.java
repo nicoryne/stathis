@@ -88,12 +88,12 @@ public class ClassroomController {
     @Operation(summary = "Enroll a student in a classroom", description = "Enroll a student in a classroom")
     public ResponseEntity<Void> enrollStudentInClassroom(@RequestBody Map<String, String> body) {
         String classroomCode = body.get("classroomCode");
-        classroomService.enrollStudentInClassroom(null, classroomCode);
+        classroomService.enrollStudentInClassroom(classroomCode);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
     @GetMapping("/{classroomPhysicalId}/students")
-    @Operation(summary = "Get students in a classroom", description = "Get students in a classroom")
+    @Operation(summary = "Get students in a classroom using classroom physical id", description = "Get students in a classroom using classroom physical id")
     public ResponseEntity<List<StudentListResponseDTO>> getStudentListByClassroomPhysicalId(@PathVariable String classroomPhysicalId) {
         List<StudentListResponseDTO> students = classroomService.getStudentListByClassroomPhysicalId(classroomPhysicalId);
         return new ResponseEntity<>(students, HttpStatus.OK);
@@ -103,6 +103,13 @@ public class ClassroomController {
     @Operation(summary = "Verify a student's status in a classroom", description = "Verify a student's status in a classroom")
     public ResponseEntity<Void> verifyStudentStatus(@PathVariable String classroomPhysicalId, @PathVariable String studentId) {
         classroomService.verifyStudentStatus(classroomPhysicalId, studentId);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{classroomPhysicalId}/students/{studentId}/unenroll")
+    @Operation(summary = "Remove a student in a classroom", description = "Remove a student in a classroom")
+    public ResponseEntity<Void> unenrollStudentInClassroom(@PathVariable String classroomPhysicalId, @PathVariable String studentId) {
+        classroomService.unenrollStudentInClassroom(classroomPhysicalId, studentId);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 

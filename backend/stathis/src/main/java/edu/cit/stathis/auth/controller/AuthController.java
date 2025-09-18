@@ -38,22 +38,25 @@ public class AuthController {
     return new ResponseEntity<>(response, HttpStatus.CREATED);
   }
 
+  // DISABLED: Email verification functionality
   @GetMapping("/verify-email")
   public ResponseEntity<String> verifyEmail(@RequestParam("token") String tokenValue) {
-    userService.verifyEmail(tokenValue);
-    return new ResponseEntity<>("Email verified successfully!", HttpStatus.OK);
+    // userService.verifyEmail(tokenValue);
+    return new ResponseEntity<>("Email verification is currently disabled.", HttpStatus.OK);
   }
 
+  // DISABLED: Email verification functionality
   @PostMapping("/resend-verification-email")
   public ResponseEntity<?> resendVerification(@RequestParam String email) {
-    try {
-      String message = userService.resendVerificationEmail(email);
-      return ResponseEntity.ok(message);
-    } catch (IllegalArgumentException e) {
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
-    } catch (IllegalStateException e) {
-      return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-    }
+    // try {
+    //   String message = userService.resendVerificationEmail(email);
+    //   return ResponseEntity.ok(message);
+    // } catch (IllegalArgumentException e) {
+    //   return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    // } catch (IllegalStateException e) {
+    //   return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+    // }
+    return ResponseEntity.ok("Email verification is currently disabled.");
   }
 
   @PostMapping("/refresh")
