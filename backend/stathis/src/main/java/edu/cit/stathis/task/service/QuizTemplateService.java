@@ -2,7 +2,9 @@ package edu.cit.stathis.task.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.task.repository.QuizTemplateRepository;
 import edu.cit.stathis.task.entity.QuizTemplate;
 import edu.cit.stathis.task.dto.QuizTemplateBodyDTO;
@@ -16,9 +18,13 @@ public class QuizTemplateService {
     @Autowired
     private QuizTemplateRepository quizTemplateRepository;
 
+    @Autowired
+    private PhysicalIdService physicalIdService;
+
     public QuizTemplate createQuizTemplate(QuizTemplateBodyDTO quizTemplateBodyDTO) {
         QuizTemplate quizTemplate = new QuizTemplate();
         quizTemplate.setPhysicalId(generatePhysicalId());
+        quizTemplate.setTeacherPhysicalId(physicalIdService.getCurrentUserPhysicalId());
         quizTemplate.setTitle(quizTemplateBodyDTO.getTitle());
         quizTemplate.setInstruction(quizTemplateBodyDTO.getInstruction());
         quizTemplate.setMaxScore(quizTemplateBodyDTO.getMaxScore());
@@ -40,6 +46,40 @@ public class QuizTemplateService {
 
     public List<QuizTemplate> getAllQuizTemplates() {
         return quizTemplateRepository.findAll();
+    }
+
+    public List<QuizTemplate> getAllQuizTemplatesByTeacherPhysicalId(String teacherPhysicalId) {
+        return quizTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
+    }
+
+    @Transactional
+    public QuizTemplate updateQuizTemplate(String physicalId, QuizTemplateBodyDTO quizTemplateBodyDTO) {
+        QuizTemplate quizTemplate = getQuizTemplate(physicalId);
+        if (quizTemplate == null) {
+            throw new RuntimeException("Quiz template not found");
+        }
+
+        if (!quizTemplate.getTeacherPhysicalId().equals(physicalIdService.getCurrentUserPhysicalId())) {
+            throw new RuntimeException("You are not the teacher of this quiz template");
+        }
+        quizTemplate.setTitle(quizTemplateBodyDTO.getTitle());
+        quizTemplate.setInstruction(quizTemplateBodyDTO.getInstruction());
+        quizTemplate.setMaxScore(quizTemplateBodyDTO.getMaxScore());
+        quizTemplate.setContent(quizTemplateBodyDTO.getContent());
+        return quizTemplateRepository.save(quizTemplate);
+    }
+
+    @Transactional
+    public void deleteQuizTemplate(String physicalId) {
+        QuizTemplate quizTemplate = getQuizTemplate(physicalId);
+        if (quizTemplate == null) {
+            throw new RuntimeException("Quiz template not found");
+        }
+
+        if (!quizTemplate.getTeacherPhysicalId().equals(physicalIdService.getCurrentUserPhysicalId())) {
+            throw new RuntimeException("You are not the teacher of this quiz template");
+        }
+        quizTemplateRepository.deleteByPhysicalId(physicalId);
     }
 
     public QuizTemplateResponseDTO getQuizTemplateResponseDTO(String physicalId) {

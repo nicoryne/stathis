@@ -24,6 +24,9 @@ public class ExerciseTemplate {
     @Column(name = "physical_id")
     private String physicalId;
 
+    @Column(name = "teacher_physical_id")
+    private String teacherPhysicalId;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
