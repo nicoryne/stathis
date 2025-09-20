@@ -35,7 +35,6 @@ import androidx.navigation.compose.rememberNavController
 import citu.edu.stathis.mobile.core.theme.BrandColors
 import citu.edu.stathis.mobile.features.dashboard.ui.DashboardScreen
 import citu.edu.stathis.mobile.features.exercise.ui.ExerciseScreen
-import citu.edu.stathis.mobile.features.posture.ui.PostureScreen
 import citu.edu.stathis.mobile.features.profile.ui.EditProfileScreen
 import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
 import citu.edu.stathis.mobile.features.progress.ui.ProgressScreen
@@ -44,7 +43,8 @@ import citu.edu.stathis.mobile.features.vitals.ui.VitalsScreen
 
 @Composable
 fun HomeScreen(
-    onNavigateToAuth: () -> Unit
+    onNavigateToAuth: () -> Unit,
+    onClassroomSelected: (String) -> Unit
 ) {
     val navController = rememberNavController()
     var bottomBarVisible by remember { mutableStateOf(true) }
@@ -72,11 +72,10 @@ fun HomeScreen(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(HomeNavigationItem.Dashboard.route) {
-                DashboardScreen(navController = navController)
-            }
-
-            composable(HomeNavigationItem.Posture.route) {
-                PostureScreen(navController = navController)
+                DashboardScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
+                )
             }
 
             composable(HomeNavigationItem.Exercise.route) {
@@ -84,7 +83,10 @@ fun HomeScreen(
             }
 
             composable(HomeNavigationItem.Tasks.route) {
-                TasksScreen(navController = navController)
+                TasksScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
+                )
             }
 
             composable(HomeNavigationItem.Vitals.route) {
@@ -115,7 +117,6 @@ fun HomeBottomNavigation(
 ) {
     val screens = listOf(
         HomeNavigationItem.Dashboard,
-        HomeNavigationItem.Posture,
         HomeNavigationItem.Exercise,
         HomeNavigationItem.Tasks,
         HomeNavigationItem.Vitals,

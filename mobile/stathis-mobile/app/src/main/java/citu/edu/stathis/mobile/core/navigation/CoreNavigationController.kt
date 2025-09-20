@@ -8,33 +8,64 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import citu.edu.stathis.mobile.features.auth.ui.forgotpassword.ForgotPasswordScreen
 import citu.edu.stathis.mobile.features.auth.ui.login.LoginScreen
 import citu.edu.stathis.mobile.features.auth.ui.login.LoginViewModel
 import citu.edu.stathis.mobile.features.auth.ui.register.RegisterScreen
 import citu.edu.stathis.mobile.features.home.HomeScreen
+import citu.edu.stathis.mobile.features.tasks.navigation.taskGraph
+import citu.edu.stathis.mobile.features.tasks.navigation.navigateToTaskList
+import citu.edu.stathis.mobile.features.tasks.navigation.navigateToTaskDetail
 
 @Composable
 fun CoreNavigationController(
-    viewModel: CoreNavigationViewModel = hiltViewModel<CoreNavigationViewModel>(),
-    loginViewModel: LoginViewModel = hiltViewModel<LoginViewModel>(),
+    coreViewModel: CoreNavigationViewModel = hiltViewModel(),
+    loginViewModel: LoginViewModel = hiltViewModel(),
 ) {
     val navController = rememberNavController()
-    val biometricHelper by viewModel.biometricHelperState.collectAsState()
+    val biometricHelper by coreViewModel.biometricHelperState.collectAsState()
+    val shouldShowBiometric by coreViewModel.shouldShowBiometric.collectAsState()
+    val isLoggedIn by coreViewModel.isLoggedIn.collectAsState()
+    val selectedClassroomId by coreViewModel.selectedClassroomId.collectAsState()
+    val selectedTaskId by coreViewModel.selectedTaskId.collectAsState()
 
     LaunchedEffect(Unit) {
-        loginViewModel.refreshBiometricState()
+        if (shouldShowBiometric) {
+            loginViewModel.refreshBiometricState()
+        }
+    }
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            navController.navigate("home") {
+                popUpTo("auth") { inclusive = true }
+            }
+        } else {
+            if (navController.currentDestination?.route != "auth" && navController.currentDestination?.route != "register") {
+                navController.navigate("auth") {
+                    popUpTo("home") { inclusive = true }
+                }
+            }
+        }
+    }
+
+    // Handle classroom selection
+    LaunchedEffect(selectedClassroomId) {
+        selectedClassroomId?.let { classroomId ->
+            navController.navigateToTaskList(classroomId)
+        }
+    }
+
+    // Handle task selection
+    LaunchedEffect(selectedTaskId) {
+        selectedTaskId?.let { taskId ->
+            navController.navigateToTaskDetail(taskId)
+        }
     }
 
     NavHost(navController = navController, startDestination = "auth") {
-        composable("splash") {
-            // Splash screen will be shown while checking auth state
-        }
-
         composable("auth") {
             LoginScreen(
                 onNavigateToRegister = { navController.navigate("register") },
-                onNavigateToForgotPassword = { navController.navigate("forgot_password") },
                 onNavigateToHome = {
                     navController.navigate("home") {
                         popUpTo("auth") { inclusive = true }
@@ -55,24 +86,28 @@ fun CoreNavigationController(
             )
         }
 
-        composable("forgot_password") {
-            ForgotPasswordScreen(
-                onNavigateToLogin = { navController.popBackStack() }
-            )
-        }
-
         composable("home") {
-            // Use our HomeScreen here
+            LaunchedEffect(isLoggedIn) {
+                if (!isLoggedIn) {
+                    navController.navigate("auth") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }
+            }
             HomeScreen(
                 onNavigateToAuth = {
                     navController.navigate("auth") {
-                        popUpTo(0) {
-                            inclusive = true
-                        }
+                        popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
+                },
+                onClassroomSelected = { classroomId ->
+                    coreViewModel.setSelectedClassroom(classroomId)
                 }
             )
         }
+
+        // Add task navigation graph
+        taskGraph(navController)
     }
 }

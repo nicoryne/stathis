@@ -1,17 +1,17 @@
 package citu.edu.stathis.mobile.features.auth.ui.register
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import citu.edu.stathis.mobile.features.auth.domain.model.AuthResult
-import citu.edu.stathis.mobile.features.auth.domain.usecase.SignUpUseCase
-import citu.edu.stathis.mobile.features.auth.domain.usecase.SocialSignInUseCase
+// Import ClientResponse if you need to explicitly type it for clarity
+import citu.edu.stathis.mobile.core.data.models.ClientResponse
+import citu.edu.stathis.mobile.features.auth.data.enums.UserRoles // For passing UserRole
+import citu.edu.stathis.mobile.features.auth.domain.usecase.RegisterUseCase // Renamed from SignUpUseCase
+// SocialSignInUseCase import removed
 import citu.edu.stathis.mobile.features.auth.ui.components.PasswordStrength
 import citu.edu.stathis.mobile.features.auth.ui.utils.PasswordValidator.calculatePasswordStrength
 import citu.edu.stathis.mobile.features.auth.ui.utils.PasswordValidator.doPasswordsMatch
 import citu.edu.stathis.mobile.features.auth.ui.utils.PasswordValidator.isValidPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -24,8 +24,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val signUpUseCase: SignUpUseCase,
-    private val socialSignInUseCase: SocialSignInUseCase
+    private val registerUseCase: RegisterUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RegisterState())
@@ -78,127 +77,55 @@ class RegisterViewModel @Inject constructor(
             is RegisterUiEvent.Register -> {
                 register()
             }
-            is RegisterUiEvent.GoogleSignIn -> {
-                googleSignIn()
-            }
-            is RegisterUiEvent.MicrosoftSignIn -> {
-                microsoftSignIn()
-            }
             is RegisterUiEvent.NavigateToLogin -> {
                 viewModelScope.launch {
                     _events.emit(RegisterEvent.NavigateToLogin)
                 }
             }
             is RegisterUiEvent.ResendVerificationEmail -> {
-                viewModelScope.launch {
-                    try {
-                        _state.update { it.copy(isResendingEmail = true) }
-
-                        // Call your authentication service to resend the verification email
-                        signUpUseCase.resendVerificationEmail(state.value.email)
-
-                        // Simulate a delay for demonstration purposes
-                        delay(1500)
-
-                        _state.update { it.copy(isResendingEmail = false) }
-                    } catch (e: Exception) {
-                        _state.update { it.copy(isResendingEmail = false) }
-                        _events.emit(RegisterEvent.ShowError(e.message ?: "Failed to resend verification email"))
-                    }
-                }
+                resendVerificationEmail()
             }
         }
     }
 
     private fun register() {
-        val state = state.value
-
-        if (state.firstName.isBlank() || state.lastName.isBlank() || state.email.isBlank()) {
-            viewModelScope.launch {
-                _events.emit(RegisterEvent.ShowError("Please fill in all fields"))
-            }
-            return
-        }
-
-        if (!isValidPassword(state.password)) {
-            viewModelScope.launch {
-                _events.emit(RegisterEvent.ShowError("Password does not meet requirements"))
-            }
-            return
-        }
-
-        if (!state.passwordsMatch) {
-            viewModelScope.launch {
-                _events.emit(RegisterEvent.ShowError("Passwords do not match"))
-            }
-            return
-        }
+        val currentState = state.value
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
 
-            val result = signUpUseCase(
-                firstName = state.firstName,
-                lastName = state.lastName,
-                email = state.email,
-                password = state.password
+            val result: ClientResponse<Unit> = registerUseCase(
+                firstName = currentState.firstName,
+                lastName = currentState.lastName,
+                email = currentState.email,
+                password = currentState.password,
+                confirmPassword = currentState.confirmPassword,
             )
 
             _state.update { it.copy(isLoading = false) }
 
-            when (result) {
-                is AuthResult.Success -> {
-                    viewModelScope.launch {
-                        _events.emit(RegisterEvent.RegistrationSuccess(state.email))
-                    }
-                }
-                is AuthResult.Error -> {
-                    _events.emit(RegisterEvent.ShowError(result.message))
-
-                }
-
+            if (result.success) {
+                _events.emit(RegisterEvent.RegistrationSuccess(currentState.email))
+            } else {
+                _events.emit(RegisterEvent.ShowError(result.message))
             }
         }
     }
 
-    private fun googleSignIn() {
+    private fun resendVerificationEmail() {
         viewModelScope.launch {
-            _state.update { it.copy(isGoogleLoading = true) }
+            _state.update { it.copy(isResendingEmail = true) }
+            val result = registerUseCase.resendVerificationEmail(state.value.email)
 
-            val result = socialSignInUseCase.signInWithGoogle()
-
-            _state.update { it.copy(isGoogleLoading = false) }
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _events.emit(RegisterEvent.NavigateToHome)
-                }
-                is AuthResult.Error -> {
-                    _events.emit(RegisterEvent.ShowError(result.message))
-                }
+            if (result.success) {
+                // Optionally show a success message for resend, or rely on dialog behavior
+                // For example: _events.emit(RegisterEvent.ShowMessage("Verification email resent."))
+            } else {
+                _events.emit(RegisterEvent.ShowError(result.message))
             }
+            _state.update { it.copy(isResendingEmail = false) }
         }
     }
-
-    private fun microsoftSignIn() {
-        viewModelScope.launch {
-            _state.update { it.copy(isMicrosoftLoading = true) }
-
-            val result = socialSignInUseCase.signInWithMicrosoft()
-
-            _state.update { it.copy(isMicrosoftLoading = false) }
-
-            when (result) {
-                is AuthResult.Success -> {
-                    _events.emit(RegisterEvent.NavigateToHome)
-                }
-                is AuthResult.Error -> {
-                    _events.emit(RegisterEvent.ShowError(result.message))
-                }
-            }
-        }
-    }
-
 }
 
 data class RegisterState(
@@ -213,9 +140,7 @@ data class RegisterState(
     val passwordStrength: PasswordStrength = PasswordStrength.EMPTY,
     val passwordsMatch: Boolean = true,
     val isLoading: Boolean = false,
-    val isGoogleLoading: Boolean = false,
-    val isMicrosoftLoading: Boolean = false,
-    val isResendingEmail: Boolean = false,
+    val isResendingEmail: Boolean = false
 )
 
 sealed class RegisterUiEvent {
@@ -228,8 +153,6 @@ sealed class RegisterUiEvent {
     data object ToggleConfirmPasswordVisibility : RegisterUiEvent()
     data object TogglePasswordRequirements : RegisterUiEvent()
     data object Register : RegisterUiEvent()
-    data object GoogleSignIn : RegisterUiEvent()
-    data object MicrosoftSignIn : RegisterUiEvent()
     data object NavigateToLogin : RegisterUiEvent()
     data object ResendVerificationEmail : RegisterUiEvent()
 }

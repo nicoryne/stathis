@@ -1,15 +1,12 @@
 package citu.edu.stathis.mobile.features.auth.ui.login
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,7 +25,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,8 +34,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -70,12 +64,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import citu.edu.stathis.mobile.core.auth.BiometricHelper
 import citu.edu.stathis.mobile.core.theme.appColors
-import citu.edu.stathis.mobile.features.auth.domain.model.BiometricState
+import citu.edu.stathis.mobile.features.auth.data.models.BiometricState
 import citu.edu.stathis.mobile.features.auth.ui.components.AuthBackground
 import citu.edu.stathis.mobile.features.auth.ui.components.AuthCard
 import citu.edu.stathis.mobile.features.auth.ui.components.BackgroundDecorations
-import citu.edu.stathis.mobile.features.auth.ui.components.GoogleSignInButton
-import citu.edu.stathis.mobile.features.auth.ui.components.MicrosoftSignInButton
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
@@ -84,7 +76,6 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
-    onNavigateToForgotPassword: () -> Unit,
     onNavigateToHome: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel(),
     biometricHelper: BiometricHelper
@@ -96,53 +87,41 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
 
     val biometricState by viewModel.biometricState.collectAsState()
-
     val context = LocalContext.current
-
-    var showBiometricPrompt by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var shouldShowBiometricPrompt by remember { mutableStateOf(false) }
 
     val loginAnimation by rememberLottieComposition(
         spec = LottieCompositionSpec.Url("https://assets5.lottiefiles.com/packages/lf20_mjlh3hcy.json")
     )
 
     LaunchedEffect(biometricState) {
-        showBiometricPrompt = biometricState == BiometricState.Available
+        shouldShowBiometricPrompt = biometricState == BiometricState.Available
     }
 
-    if (showBiometricPrompt) {
+    if (shouldShowBiometricPrompt) {
         LaunchedEffect(Unit) {
             biometricHelper.showBiometricPrompt(
                 activity = context as FragmentActivity,
                 onSuccess = {
                     viewModel.onEvent(LoginUiEvent.BiometricLogin)
-                    showBiometricPrompt = false
+                    shouldShowBiometricPrompt = false
                 },
-                onError = { error ->
-                    showBiometricPrompt = false
+                onError = { _ ->
+                    shouldShowBiometricPrompt = false
                 },
                 onFailed = {
-                    showBiometricPrompt = false
+                    shouldShowBiometricPrompt = false
                 }
             )
         }
     }
 
-    LaunchedEffect(key1 = true) {
+    LaunchedEffect(key1 = Unit) {
         viewModel.events.collect { event ->
             when (event) {
-                is LoginEvent.NavigateToHome -> {
-                    onNavigateToHome()
-                }
-                is LoginEvent.NavigateToRegister -> {
-                    onNavigateToRegister()
-                }
-                is LoginEvent.NavigateToForgotPassword -> {
-                    onNavigateToForgotPassword()
-                }
-                is LoginEvent.ShowError -> {
-                    snackbarHostState.showSnackbar(event.message)
-                }
+                is LoginEvent.NavigateToHome -> onNavigateToHome()
+                is LoginEvent.NavigateToRegister -> onNavigateToRegister()
+                is LoginEvent.ShowError -> snackbarHostState.showSnackbar(event.message)
             }
         }
     }
@@ -170,23 +149,17 @@ fun LoginScreen(
                         fontSize = 28.sp
                     )
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
                     text = "Sign in to continue",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         color = Color.White.copy(alpha = 0.8f)
                     )
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Login animation
                 Box(
-                    modifier = Modifier
-                        .size(160.dp)
-                        .padding(8.dp),
+                    modifier = Modifier.size(160.dp).padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     LottieAnimation(
@@ -240,25 +213,13 @@ fun LoginScreen(
                                     onClick = { viewModel.onEvent(LoginUiEvent.TogglePasswordVisibility) }
                                 ) {
                                     Icon(
-                                        imageVector = if (state.isPasswordVisible) {
-                                            Icons.Default.Visibility
-                                        } else {
-                                            Icons.Default.VisibilityOff
-                                        },
-                                        contentDescription = if (state.isPasswordVisible) {
-                                            "Hide password"
-                                        } else {
-                                            "Show password"
-                                        },
+                                        imageVector = if (state.isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (state.isPasswordVisible) "Hide password" else "Show password",
                                         tint = colors.iconTint
                                     )
                                 }
                             },
-                            visualTransformation = if (state.isPasswordVisible) {
-                                VisualTransformation.None
-                            } else {
-                                PasswordVisualTransformation()
-                            },
+                            visualTransformation = if (state.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
@@ -279,21 +240,8 @@ fun LoginScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        TextButton(
-                            onClick = { viewModel.onEvent(LoginUiEvent.NavigateToForgotPassword) },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
-                            Text(
-                                text = "Forgot Password?",
-                                color = Color(0xFF9334EA),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
 
                         Spacer(modifier = Modifier.height(24.dp))
-
                         Button(
                             onClick = { viewModel.onEvent(LoginUiEvent.Login) },
                             modifier = Modifier.fillMaxWidth(),
@@ -317,42 +265,6 @@ fun LoginScreen(
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Divider(
-                                modifier = Modifier.weight(1f),
-                                color = Color.LightGray
-                            )
-                            Text(
-                                text = "OR",
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Divider(
-                                modifier = Modifier.weight(1f),
-                                color = Color.LightGray
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        GoogleSignInButton(
-                            onClick = { viewModel.onEvent(LoginUiEvent.GoogleSignIn) },
-                            isLoading = state.isGoogleLoading
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        MicrosoftSignInButton(
-                            onClick = { viewModel.onEvent(LoginUiEvent.MicrosoftSignIn) },
-                            isLoading = state.isMicrosoftLoading
-                        )
                     }
                 }
 
@@ -392,9 +304,7 @@ fun LoginScreen(
                         .background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = Color(0xFF9334EA)
-                    )
+                    CircularProgressIndicator(color = Color(0xFF9334EA))
                 }
             }
         }
