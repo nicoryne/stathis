@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import './animations.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -45,8 +46,15 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --background: oklch(0.97 0 0); /* Slightly darker white */
   --foreground: oklch(0.145 0 0);
+  
+  /* Section background colors with accessibility in mind */
+  --section-bg-primary-light: oklch(0.98 0.03 296.8 / 5%); /* Very light purple */
+  --section-bg-primary-medium: oklch(0.98 0.03 296.8 / 10%); /* Light purple */
+  --section-bg-secondary-light: oklch(0.98 0.02 180 / 5%); /* Very light teal */
+  --section-bg-secondary-medium: oklch(0.98 0.02 180 / 10%); /* Light teal */
+  --section-bg-muted-light: oklch(0.95 0 0 / 20%); /* Light gray */
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
