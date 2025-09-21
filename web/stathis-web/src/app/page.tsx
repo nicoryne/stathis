@@ -90,13 +90,6 @@ export default function Home() {
                     <span className="relative z-10">Start Free Trial</span>
                   </Link>
                 </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="font-medium hover:shadow-md transition-shadow duration-300 text-base h-14 px-8"
-                >
-                  Request Demo
-                </Button>
               </div>
             </motion.div>
 
@@ -733,22 +726,15 @@ export default function Home() {
               everyone.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex justify-center">
               <Button 
                 size="lg" 
-                className="cta-button font-medium text-base h-14 px-8"
+                className="cta-button font-medium text-base h-14 px-12 w-full sm:w-auto"
                 asChild
               >
                 <Link href="/sign-up">
                   <span className="relative z-10">Start Free Trial</span>
                 </Link>
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="font-medium hover:shadow-md transition-shadow duration-300 text-base h-14 px-8"
-              >
-                Request Demo
               </Button>
             </div>
             <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center text-sm text-muted-foreground">
