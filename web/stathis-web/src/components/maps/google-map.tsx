@@ -12,18 +12,19 @@ export function GoogleMap({ className = '' }: GoogleMapProps) {
   const longitude = 123.8811;
   
   return (
-      <div className={`w-full h-96 rounded-xl overflow-hidden border border-border shadow-md ${className}`}>      {/* Using a more specific embed URL with zoom level 17 for better visibility */}
-        <iframe
-          src={`https://maps.google.com/maps?q=${latitude},${longitude}&z=17&output=embed`}
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          allowFullScreen={false}
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title="Cebu Institute of Technology - University Map"
-          aria-label="Map showing the location of Cebu Institute of Technology - University"
-        />
+    <div className={`w-full h-96 rounded-xl overflow-hidden border border-border shadow-md relative ${className}`}>
+      {/* Using a more specific embed URL with zoom level 17 for better visibility */}
+      <iframe
+        src={`https://maps.google.com/maps?q=${latitude},${longitude}&z=17&output=embed`}
+        width="100%"
+        height="100%"
+        style={{ border: 0 }}
+        allowFullScreen={false}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        title="Cebu Institute of Technology - University Map"
+        aria-label="Map showing the location of Cebu Institute of Technology - University"
+      />
       
       {/* Add a visual indicator that this is CIT-U */}
       <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm p-3 rounded-lg border border-border shadow-md">
