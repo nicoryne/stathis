@@ -83,3 +83,21 @@ cp .env.example .env
 ## 📌 Contributing
 
 We welcome contributions! Feel free to open issues, submit pull requests, or reach out to the team.
+
+## ✅ Testing
+
+Run JVM unit tests:
+
+```sh
+./gradlew test
+```
+
+Optional: real backend smoke test (opt-in via env vars). If not set, the test skips.
+
+```sh
+export STATHIS_API_BASE_URL="https://api.example.com/"  # must end with '/'
+export STATHIS_TEST_EMAIL="test@example.com"
+export STATHIS_TEST_PASSWORD="password123"
+
+./gradlew :app:test --tests citu.edu.stathis.mobile.integration.BackendSmokeTest
+```
