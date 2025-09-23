@@ -58,16 +58,17 @@ export default function SignUpPage() {
         (data && typeof data === 'object' && 'email' in data) ? 
         (data.email as string) : form.getValues().email;
       
-      toast.success('Sign Up successful', {
-        description: 'Please verify your email to continue'
+      toast.success('Sign up successful', {
+        description: 'Please proceed to login'
       });
       
       // Always set the email and show verification modal
       setSignedUpEmail(userEmail);
-      setShowVerificationModal(true);
+      setShowVerificationModal(false);
       
       // Extra logging to confirm verification modal should be shown
       console.log('[Sign Up] Showing verification modal for:', userEmail);
+      
     },
     onError: (error: any) => {
       console.error('[Sign Up] Error details:', error);
@@ -101,12 +102,20 @@ export default function SignUpPage() {
         return;
       }
       
+      // For 403/401 errors which are likely non-existent accounts or password issues
+      if (error.status === 403 || error.status === 401) {
+        toast.error('Account error', {
+          description: 'We couldn\'t create your account. This email might be in use or invalid.'
+        });
+        return;
+      }
+      
       // For other errors, show the standard error message
       const errorMessage = error.message && error.message !== '""' 
         ? error.message 
-        : 'Existing email, please try logging in or verifying.';
+        : 'Something went wrong while creating your account. Please try again.';
         
-      toast.error('Error Signing Up', {
+      toast.error('Error signing up', {
         description: errorMessage
       });
     }
