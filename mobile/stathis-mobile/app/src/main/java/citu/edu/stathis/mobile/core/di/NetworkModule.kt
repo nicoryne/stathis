@@ -11,6 +11,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import citu.edu.stathis.mobile.core.network.Constants
+import cit.edu.stathis.mobile.BuildConfig
 import javax.inject.Singleton
 
 @Module
@@ -29,11 +30,13 @@ object NetworkModule {
     fun provideBackendOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
         authInterceptor: AuthInterceptor,
+        tokenAuthenticator: citu.edu.stathis.mobile.core.network.TokenAuthenticator,
     ): OkHttpClient =
         OkHttpClient
             .Builder()
             .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
+            .authenticator(tokenAuthenticator)
             .build()
 
     @Provides
@@ -44,7 +47,7 @@ object NetworkModule {
     ): Retrofit =
         Retrofit
             .Builder()
-            .baseUrl(Constants.BACKEND_URL_PROD)
+            .baseUrl(if (BuildConfig.API_BASE_URL.isNotBlank()) BuildConfig.API_BASE_URL else Constants.BACKEND_URL_PROD)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

@@ -18,35 +18,10 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlin.math.abs
 
-sealed class ExerciseScreenUiState {
-    data object Initial : ExerciseScreenUiState()
-    data object PermissionNeeded : ExerciseScreenUiState()
-    data class ExerciseSelection(val exercises: List<Exercise>, val isLoading: Boolean = false) : ExerciseScreenUiState()
-    data class ExerciseIntroduction(val exercise: Exercise) : ExerciseScreenUiState()
-    data class ExerciseActive(
-        val selectedExercise: Exercise,
-        val currentPoseLandmarks: PoseLandmarksData? = null,
-        val backendAnalysis: BackendPostureAnalysis? = null,
-        val sessionTimerMs: Long = 0L,
-        val repCount: Int = 0,
-        val currentCameraSelector: CameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA,
-        // Add rendering data for the skeleton overlay
-        val renderPose: Pose? = null,
-        val renderImageWidth: Int = 0,
-        val renderImageHeight: Int = 0,
-        val renderIsFlipped: Boolean = false
-    ) : ExerciseScreenUiState()
-    data class ExerciseSummary(val message: String) : ExerciseScreenUiState()
-    data class Error(val message: String) : ExerciseScreenUiState()
-}
-
-sealed class ExerciseViewEvent {
-    data class ShowSnackbar(val message: String) : ExerciseViewEvent()
-    data object NavigateToExerciseSelection : ExerciseViewEvent()
-}
 
 @HiltViewModel
 class ExerciseViewModel @Inject constructor(
@@ -90,10 +65,10 @@ class ExerciseViewModel @Inject constructor(
 
     fun loadExercises() {
         viewModelScope.launch {
-            _uiState.value = ExerciseScreenUiState.ExerciseSelection(emptyList(), isLoading = true)
+            _uiState.value = ExerciseScreenUiState.ExerciseSelection(isLoading = true, exercises = emptyList())
             val response = getAvailableExercisesUseCase()
             if (response.success && response.data != null) {
-                _uiState.value = ExerciseScreenUiState.ExerciseSelection(response.data, isLoading = false)
+                _uiState.value = ExerciseScreenUiState.ExerciseSelection(isLoading = false, exercises = response.data)
             } else {
                 _uiState.value = ExerciseScreenUiState.Error(response.message ?: "Failed to load exercises")
             }
@@ -112,7 +87,8 @@ class ExerciseViewModel @Inject constructor(
         currentRepCount = 0
         accumulatedPostureScores.clear()
         _uiState.value = ExerciseScreenUiState.ExerciseActive(
-            selectedExercise = exercise
+            selectedExercise = exercise,
+            sessionTimerMs = 0L
         )
     }
     
@@ -120,14 +96,8 @@ class ExerciseViewModel @Inject constructor(
      * Update the pose data used for rendering the skeleton overlay
      */
     fun updatePoseForRendering(pose: Pose, imageWidth: Int, imageHeight: Int, isFlipped: Boolean) {
-        (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
-            _uiState.value = currentState.copy(
-                renderPose = pose,
-                renderImageWidth = imageWidth,
-                renderImageHeight = imageHeight,
-                renderIsFlipped = isFlipped
-            )
-        }
+        // This functionality is handled directly in the UI
+        // No state update needed for rendering data
     }
 
     fun onPoseDetected(pose: Pose, exercise: Exercise) {
@@ -264,12 +234,7 @@ class ExerciseViewModel @Inject constructor(
                     backendAnalysis = backendAnalysis,
                     sessionTimerMs = sessionTimer,
                     repCount = currentRepCount,
-                    currentCameraSelector = currentState.currentCameraSelector,
-                    // Preserve rendering data
-                    renderPose = currentState.renderPose,
-                    renderImageWidth = currentState.renderImageWidth,
-                    renderImageHeight = currentState.renderImageHeight,
-                    renderIsFlipped = currentState.renderIsFlipped
+                    currentCameraSelector = currentState.currentCameraSelector
                 )
             }
         }
@@ -362,12 +327,11 @@ class ExerciseViewModel @Inject constructor(
         
         (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
             _uiState.value = currentState.copy(
-                currentCameraSelector = newSelector,
-                // Update flipped state for rendering
-                renderIsFlipped = newSelector == CameraSelector.DEFAULT_FRONT_CAMERA
+                currentCameraSelector = newSelector
             )
         }
     }
+
 
     override fun onCleared() {
         super.onCleared()

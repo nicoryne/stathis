@@ -58,7 +58,7 @@ class PoseSkeletonOverlay @JvmOverloads constructor(
         Pair(PoseLandmark.RIGHT_EYE_INNER, PoseLandmark.RIGHT_EYE),
         Pair(PoseLandmark.RIGHT_EYE, PoseLandmark.RIGHT_EYE_OUTER),
         Pair(PoseLandmark.RIGHT_EYE_OUTER, PoseLandmark.RIGHT_EAR),
-        Pair(PoseLandmark.MOUTH_LEFT, PoseLandmark.MOUTH_RIGHT),
+        Pair(PoseLandmark.LEFT_MOUTH, PoseLandmark.RIGHT_MOUTH),
 
         // Torso
         Pair(PoseLandmark.LEFT_SHOULDER, PoseLandmark.RIGHT_SHOULDER),

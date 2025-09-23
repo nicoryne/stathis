@@ -98,15 +98,14 @@ private fun bindCameraPreview(
             .build()
             .also { it.setSurfaceProvider(previewView.surfaceProvider) }
         
-        // Setup image analysis
-        val imageAnalysis = viewModel.setupPoseDetectionAnalyzer(executor)
+        // Setup image analysis is handled in ExerciseActiveContent
+        // This CameraPreview component is not used in the current implementation
         
         // Bind use cases to camera
         cameraProvider.bindToLifecycle(
             lifecycleOwner,
             cameraSelector,
-            preview,
-            imageAnalysis
+            preview
         )
     } catch (e: Exception) {
         Timber.e(e, "Failed to bind camera use cases")

@@ -9,6 +9,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
+import cit.edu.stathis.mobile.BuildConfig
 
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -20,7 +21,7 @@ class AuthInterceptor @Inject constructor(
             val token =
                 runBlocking {
                     try {
-                        authTokenManager.accessTokenFlow.first()
+                        if (BuildConfig.BYPASS_AUTH) "debug" else authTokenManager.accessTokenFlow.first()
                     } catch (e: Exception) {
                         Log.e("AuthInterceptor", "Error getting auth token", e)
                         null
@@ -34,6 +35,9 @@ class AuthInterceptor @Inject constructor(
                 Log.d("AuthInterceptor", "Added Bearer token auth to request: ${originalRequest.url}")
             }
 
+            if (BuildConfig.BYPASS_AUTH) {
+                newRequestBuilder.header("X-Bypass-Auth", "true")
+            }
             val newRequest = newRequestBuilder.build()
 
             return chain.proceed(newRequest)

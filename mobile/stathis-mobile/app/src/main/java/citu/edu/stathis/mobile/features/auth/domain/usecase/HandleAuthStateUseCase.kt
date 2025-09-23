@@ -4,6 +4,7 @@ import citu.edu.stathis.mobile.core.data.AuthTokenManager
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import cit.edu.stathis.mobile.BuildConfig
 
 class HandleAuthStateUseCase @Inject constructor(
     private val authTokenManager: AuthTokenManager,
@@ -11,6 +12,9 @@ class HandleAuthStateUseCase @Inject constructor(
     private val tokenValidationUseCase: TokenValidationUseCase
 ) {
     suspend fun execute(): AuthState {
+        if (BuildConfig.BYPASS_AUTH) {
+            return AuthState.AUTHENTICATED
+        }
         val accessToken = authTokenManager.accessTokenFlow.first()
         val refreshToken = authTokenManager.refreshTokenFlow.first()
         
