@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.features.classroom.domain.usecase
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
 import citu.edu.stathis.mobile.features.classroom.domain.repository.ClassroomRepository
 import citu.edu.stathis.mobile.features.common.domain.Result
+import citu.edu.stathis.mobile.features.common.domain.asResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -15,9 +16,9 @@ class GetStudentClassroomsResultUseCase @Inject constructor(
     private val classroomRepository: ClassroomRepository
 ) {
     suspend operator fun invoke(): Flow<Result<List<Classroom>>> =
-        classroomRepository.getStudentClassrooms()
-            .map { value -> Result.Success(value) as Result<List<Classroom>> }
-            .catch { e -> emit(Result.Error(e.message ?: "Unknown error", e)) }
+        classroomRepository
+            .getStudentClassrooms()
+            .asResult()
 }
 
 

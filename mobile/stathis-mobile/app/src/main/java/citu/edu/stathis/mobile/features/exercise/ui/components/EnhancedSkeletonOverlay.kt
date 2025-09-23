@@ -11,6 +11,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.mlkit.vision.pose.Pose
+import citu.edu.stathis.mobile.core.theme.Purple
+import citu.edu.stathis.mobile.core.theme.Teal
+import androidx.compose.ui.graphics.toArgb
 
 /**
  * A Composable that wraps the PoseSkeletonOverlay custom view for use in Jetpack Compose UI.
@@ -30,7 +33,9 @@ fun EnhancedSkeletonOverlay(
     imageHeight: Int,
     isImageFlipped: Boolean = false,
     landmarkColor: Int? = null,
-    connectionColor: Int? = null
+    connectionColor: Int? = null,
+    offsetXPx: Float = 0f,
+    offsetYPx: Float = 0f
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -45,17 +50,18 @@ fun EnhancedSkeletonOverlay(
         }
     }
     
-    // Apply custom colors if provided
+    // Apply colors (use branding defaults if not provided)
     DisposableEffect(landmarkColor, connectionColor) {
-        if (landmarkColor != null && connectionColor != null) {
-            overlayView.setSkeletonColors(landmarkColor, connectionColor)
-        }
+        val lmColor = landmarkColor ?: Purple.toArgb()
+        val connColor = connectionColor ?: Teal.toArgb()
+        overlayView.setSkeletonColors(lmColor, connColor)
         onDispose { }
     }
     
     // Update the pose data whenever it changes
-    DisposableEffect(pose, imageWidth, imageHeight, isImageFlipped) {
+    DisposableEffect(pose, imageWidth, imageHeight, isImageFlipped, offsetXPx, offsetYPx) {
         overlayView.updatePose(pose, imageWidth, imageHeight, isImageFlipped)
+        overlayView.setOffsets(offsetXPx, offsetYPx)
         onDispose { }
     }
     

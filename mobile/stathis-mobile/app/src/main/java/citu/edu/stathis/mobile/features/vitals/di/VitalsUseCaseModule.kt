@@ -7,6 +7,8 @@ import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.DeleteVitalRecordUseCase
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.GetVitalsHistoryUseCase
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.SaveVitalsUseCase
+import citu.edu.stathis.mobile.features.vitals.domain.usecase.GetVitalsHistoryResultUseCase
+import citu.edu.stathis.mobile.features.vitals.domain.usecase.SaveVitalsResultUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -33,6 +35,24 @@ object VitalsUseCaseModule {
         getCurrentUserIdUseCase: GetCurrentUserIdUseCase
     ): SaveVitalsUseCase {
         return SaveVitalsUseCase(repository, getCurrentUserIdUseCase)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetVitalsHistoryResultUseCase(
+        repository: VitalsRepository,
+        getCurrentUserIdUseCase: GetCurrentUserIdUseCase
+    ): GetVitalsHistoryResultUseCase {
+        return GetVitalsHistoryResultUseCase(repository, getCurrentUserIdUseCase)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSaveVitalsResultUseCase(
+        repository: VitalsRepository,
+        getCurrentUserIdUseCase: GetCurrentUserIdUseCase
+    ): SaveVitalsResultUseCase {
+        return SaveVitalsResultUseCase(repository, getCurrentUserIdUseCase)
     }
     
     @Provides

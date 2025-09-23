@@ -7,6 +7,7 @@ import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
 import citu.edu.stathis.mobile.features.vitals.data.model.HealthRiskAlert
 import citu.edu.stathis.mobile.features.vitals.data.model.VitalsThresholds
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.*
+import citu.edu.stathis.mobile.features.common.domain.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -56,6 +57,8 @@ class VitalsViewModel @Inject constructor(
     private val detectHealthRiskUseCase: DetectHealthRiskUseCase,
     private val saveVitalsUseCase: SaveVitalsUseCase,
     private val getVitalsHistoryUseCase: GetVitalsHistoryUseCase,
+    private val saveVitalsResultUseCase: SaveVitalsResultUseCase,
+    private val getVitalsHistoryResultUseCase: GetVitalsHistoryResultUseCase,
     private val deleteVitalRecordUseCase: DeleteVitalRecordUseCase,
     private val healthConnectManager: HealthConnectManager
 ) : ViewModel() {
@@ -254,18 +257,21 @@ class VitalsViewModel @Inject constructor(
         val currentVitalsState = _realTimeState.value
         if (currentVitalsState is VitalsRealTimeUiState.Data) {
             viewModelScope.launch {
-                val result = saveVitalsUseCase(
+                val result = saveVitalsResultUseCase(
                     vitalSignsFromHealthConnect = currentVitalsState.vitalSigns,
                     classroomId = classroomId,
                     taskId = taskId,
                     isPreActivity = isPreActivity,
                     isPostActivity = isPostActivity
                 )
-                if (result.success) {
-                    _events.emit(VitalsViewEvent.ShowSnackbar("Vitals saved successfully."))
-                    loadVitalsHistory()
-                } else {
-                    _events.emit(VitalsViewEvent.ShowSnackbar("Failed to save vitals: ${result.message}"))
+                when (result) {
+                    is Result.Success -> {
+                        _events.emit(VitalsViewEvent.ShowSnackbar("Vitals saved successfully."))
+                        loadVitalsHistory()
+                    }
+                    is Result.Error -> {
+                        _events.emit(VitalsViewEvent.ShowSnackbar("Failed to save vitals: ${result.message}"))
+                    }
                 }
             }
         } else {
@@ -279,18 +285,20 @@ class VitalsViewModel @Inject constructor(
         val userId = currentUserId ?: return
         viewModelScope.launch {
             _historyState.value = VitalsHistoryUiState.Loading
-            getVitalsHistoryUseCase()?.collectLatest { result ->
-                if (result.success && result.data != null) {
-                    _historyState.value = if (result.data.isNotEmpty()) {
-                        VitalsHistoryUiState.Data(result.data)
-                    } else {
-                        VitalsHistoryUiState.Empty
+            getVitalsHistoryResultUseCase().collectLatest { result ->
+                when (result) {
+                    is Result.Success -> {
+                        val data = result.data
+                        _historyState.value = if (data.isNotEmpty()) {
+                            VitalsHistoryUiState.Data(data)
+                        } else {
+                            VitalsHistoryUiState.Empty
+                        }
                     }
-                } else {
-                    _historyState.value = VitalsHistoryUiState.Error(result.message)
+                    is Result.Error -> {
+                        _historyState.value = VitalsHistoryUiState.Error(result.message)
+                    }
                 }
-            } ?: run {
-                _historyState.value = VitalsHistoryUiState.Error("User ID not available for history.")
             }
         }
     }
