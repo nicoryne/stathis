@@ -6,7 +6,6 @@ import edu.cit.stathis.auth.dto.UpdateUserProfileDTO;
 import edu.cit.stathis.auth.dto.UserResponseDTO;
 import edu.cit.stathis.auth.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,23 +19,20 @@ public class UserController {
   @Autowired private UserService userService;
 
   @PutMapping("/profile")
-  public ResponseEntity<UserResponseDTO> updateUserProfile(
-      @RequestParam UUID userId, @RequestBody UpdateUserProfileDTO profileDTO) {
-    UserResponseDTO response = userService.updateUserProfile(userId, profileDTO);
+  public ResponseEntity<UserResponseDTO> updateUserProfile(@RequestBody UpdateUserProfileDTO profileDTO) {
+    UserResponseDTO response = userService.updateUserProfile(profileDTO);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
 
   @PutMapping("/profile/student")
-  public ResponseEntity<UserResponseDTO> updateStudentProfile(
-      @RequestParam UUID userId, @RequestBody UpdateStudentProfileDTO studentDTO) {
-    UserResponseDTO response = userService.updateStudentProfile(userId, studentDTO);
+  public ResponseEntity<UserResponseDTO> updateStudentProfile(@RequestBody UpdateStudentProfileDTO studentDTO) {
+    UserResponseDTO response = userService.updateStudentProfile(studentDTO);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
 
   @PutMapping("/profile/teacher")
-  public ResponseEntity<UserResponseDTO> updateTeacherProfile(
-      @RequestParam UUID userId, @RequestBody UpdateTeacherProfileDTO teacherDTO) {
-    UserResponseDTO response = userService.updateTeacherProfile(userId, teacherDTO);
+  public ResponseEntity<UserResponseDTO> updateTeacherProfile(@RequestBody UpdateTeacherProfileDTO teacherDTO) {
+    UserResponseDTO response = userService.updateTeacherProfile(teacherDTO);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
 

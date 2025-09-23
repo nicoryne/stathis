@@ -70,22 +70,15 @@ public class SecurityConfig {
         logger.debug("Configuring CORS with allowed origins: {}", allowedOrigins);
         
     CorsConfiguration configuration = new CorsConfiguration();
-    
-    // Split the comma-separated list of allowed origins
-    String[] origins = allowedOrigins.split(",");
-    for (String origin : origins) {
-        configuration.addAllowedOrigin(origin.trim());
-        logger.debug("Added allowed origin: {}", origin.trim());
-    }
-    
-    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+    configuration.setAllowedOrigins(List.of(allowedOrigins));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
     configuration.setAllowedHeaders(List.of("*"));
     configuration.setAllowCredentials(true);
         
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);
         
-    logger.debug("CORS configuration completed");
+        logger.debug("CORS configuration completed");
     return source;
   }
 

@@ -1,0 +1,122 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    # Only deploy on push to dev, not on PRs
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload Code to Staging
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          source: "."
+          target: "/tmp/stathis-staging-deploy/"
+          rm: true
+
+      - name: Deploy Staging
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            echo "📥 Updating staging code..."
+            cd /root/stathis
+            
+            # Debug: Show uploaded structure
+            echo "🔍 Checking uploaded file structure..."
+            ls -la /tmp/stathis-staging-deploy/ || echo "Upload directory not found"
+            
+            # Update staging frontend code
+            if [ -d "/tmp/stathis-staging-deploy/web/stathis-web" ]; then
+              echo "Updating staging frontend..."
+              rm -rf ./staging_frontend/frontend/*
+              mkdir -p ./staging_frontend/frontend
+              cp -r /tmp/stathis-staging-deploy/web/stathis-web/* ./staging_frontend/frontend/
+              echo "✅ Frontend code updated"
+            else
+              echo "⚠️  Frontend source not found, checking alternative paths..."
+              find /tmp/stathis-staging-deploy -name "package.json" -type f | head -5
+            fi
+            
+            # Update staging backend code and build JAR
+            if [ -d "/tmp/stathis-staging-deploy/backend/stathis" ]; then
+              echo "Updating staging backend..."
+              rm -rf ./staging_backend/backend/*
+              mkdir -p ./staging_backend/backend
+              cp -r /tmp/stathis-staging-deploy/backend/stathis/* ./staging_backend/backend/
+              
+              # Build the JAR file for staging
+              echo "🔨 Building staging JAR..."
+              cd ./staging_backend/backend
+              if [ -f "pom.xml" ]; then
+                mvn clean package -DskipTests -q
+                # Copy the built JAR to expected location
+                find target -name "*.jar" -not -name "*-sources.jar" -exec cp {} server-staging.jar \;
+                echo "✅ Backend JAR built successfully"
+              else
+                echo "⚠️  No pom.xml found, cannot build JAR"
+              fi
+              cd /root/stathis
+            else
+              echo "⚠️  Backend source not found"
+            fi
+            
+            # Restart staging containers to pick up new code
+            echo "🔄 Restarting staging containers..."
+            docker compose restart stathis-frontend-staging stathis-backend-staging
+            
+            # Clean up temp files
+            rm -rf /tmp/stathis-staging-deploy
+            
+            # Wait for services
+            echo "⏳ Waiting for staging services to start..."
+            sleep 30
+            
+            # Health checks
+            echo "🔍 Checking staging service health..."
+            
+            # Check staging frontend
+            if docker exec stathis-frontend-staging curl -f http://localhost:3000 >/dev/null 2>&1; then
+              echo "✅ Staging frontend is healthy"
+            else
+              echo "⚠️  Staging frontend health check failed"
+              docker logs stathis-frontend-staging --tail 10
+            fi
+            
+            # Check staging backend
+            if docker exec stathis-backend-staging curl -f http://localhost:8080 >/dev/null 2>&1; then
+              echo "✅ Staging backend is healthy"
+            else
+              echo "⚠️  Staging backend health check failed"
+              docker logs stathis-backend-staging --tail 10
+            fi
+            
+            # Show resource usage
+            echo ""
+            echo "📊 Server Resources:"
+            docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+            echo ""
+            echo "💾 Disk Usage:"
+            df -h /
+            
+            # Clean up old images
+            docker image prune -f
+            
+            echo ""
+            echo "🧪 Staging deployment complete!"
+            echo "Web: https://staging-stathis.ryne.dev"
+            echo "API: https://staging-api-stathis.ryne.dev"

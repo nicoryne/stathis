@@ -1,6 +1,6 @@
 [versions]
 accompanistPermissions = "0.34.0"
-agp = "8.8.2"
+agp = "8.10.0"
 androidxJunit = "1.1.5"
 bluetooth = "1.0.0-alpha02"
 bom = "3.1.4"
@@ -8,10 +8,13 @@ cameraCamera2 = "1.4.2"
 coilCompose = "3.1.0"
 coilNetworkOkhttp = "3.1.0"
 composeBom = "2025.04.01"
+connectClient = "1.1.0-rc01"
 datastorePreferences = "1.1.4"
 espressoCoreVersion = "3.5.1"
+healthServicesClient = "1.1.0-alpha05"
 hiltAndroid = "2.56.1"
 hiltNavigationCompose = "1.2.0"
+jwtdecode = "2.0.2"
 kotlin = "2.1.20"
 coreKtx = "1.16.0"
 junit = "4.13.2"
@@ -39,13 +42,16 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-biometric-ktx = { module = "androidx.biometric:biometric-ktx", version.ref = "biometricKtx" }
 androidx-bluetooth = { module = "androidx.bluetooth:bluetooth", version.ref = "bluetooth" }
+androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCamera2" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraCamera2" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraCamera2" }
 androidx-camera-view = { module = "androidx.camera:camera-view", version.ref = "cameraCamera2" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
+androidx-connect-client = { module = "androidx.health.connect:connect-client", version.ref = "connectClient" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-espresso-core-v351 = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCoreVersion" }
+androidx-health-services-client = { module = "androidx.health:health-services-client", version.ref = "healthServicesClient" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 androidx-junit-v115 = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
 androidx-material-icons-extended-android = { module = "androidx.compose.material:material-icons-extended-android", version.ref = "materialIconsExtendedAndroid" }
@@ -67,6 +73,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+jwtdecode = { module = "com.auth0.android:jwtdecode", version.ref = "jwtdecode" }
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktorClientAndroid" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktorClientCore" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktorClientOkhttp" }
@@ -74,10 +81,6 @@ lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 pose-detection = { module = "com.google.mlkit:pose-detection", version.ref = "poseDetection" }
 pose-detection-accurate = { module = "com.google.mlkit:pose-detection-accurate", version.ref = "poseDetectionAccurate" }
-postgrest-kt = { module = "io.github.jan-tennert.supabase:postgrest-kt" }
-realtime-kt = { module = "io.github.jan-tennert.supabase:realtime-kt" }
-storage-kt = { module = "io.github.jan-tennert.supabase:storage-kt" }
-supabase-kt = { module = "io.github.jan-tennert.supabase:supabase-kt", version.ref = "supabaseKt" }
 ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 ui-tooling = { module = "androidx.compose.ui:ui-tooling" }

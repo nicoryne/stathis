@@ -1,179 +1,380 @@
 package citu.edu.stathis.mobile.features.exercise.ui
 
-import android.content.Context
-import android.util.Log
-import androidx.annotation.OptIn
-import androidx.camera.core.ExperimentalGetImage
-import androidx.camera.core.ImageProxy
+import androidx.camera.core.CameraSelector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import citu.edu.stathis.mobile.features.exercise.data.ExerciseDetector
-import citu.edu.stathis.mobile.features.exercise.data.ExerciseResult
-import citu.edu.stathis.mobile.features.exercise.data.ExerciseState
-import citu.edu.stathis.mobile.features.exercise.data.ExerciseType
-import citu.edu.stathis.mobile.features.posture.data.PostureDetector
-import com.google.mlkit.vision.common.InputImage
+import citu.edu.stathis.mobile.features.exercise.data.Exercise
+import citu.edu.stathis.mobile.features.exercise.data.LandmarkPoint
+import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
+import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalysis
+import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseDetectionService
+import citu.edu.stathis.mobile.features.exercise.data.toPoseLandmarksData
+import citu.edu.stathis.mobile.features.exercise.domain.usecase.*
+import com.google.mlkit.vision.pose.Pose
+import com.google.mlkit.vision.pose.PoseLandmark
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.util.concurrent.Executors
+import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
 import javax.inject.Inject
+import kotlin.math.abs
+
+sealed class ExerciseScreenUiState {
+    data object Initial : ExerciseScreenUiState()
+    data object PermissionNeeded : ExerciseScreenUiState()
+    data class ExerciseSelection(val exercises: List<Exercise>, val isLoading: Boolean = false) : ExerciseScreenUiState()
+    data class ExerciseIntroduction(val exercise: Exercise) : ExerciseScreenUiState()
+    data class ExerciseActive(
+        val selectedExercise: Exercise,
+        val currentPoseLandmarks: PoseLandmarksData? = null,
+        val backendAnalysis: BackendPostureAnalysis? = null,
+        val sessionTimerMs: Long = 0L,
+        val repCount: Int = 0,
+        val currentCameraSelector: CameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA,
+        // Add rendering data for the skeleton overlay
+        val renderPose: Pose? = null,
+        val renderImageWidth: Int = 0,
+        val renderImageHeight: Int = 0,
+        val renderIsFlipped: Boolean = false
+    ) : ExerciseScreenUiState()
+    data class ExerciseSummary(val message: String) : ExerciseScreenUiState()
+    data class Error(val message: String) : ExerciseScreenUiState()
+}
+
+sealed class ExerciseViewEvent {
+    data class ShowSnackbar(val message: String) : ExerciseViewEvent()
+    data object NavigateToExerciseSelection : ExerciseViewEvent()
+}
 
 @HiltViewModel
 class ExerciseViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    private val poseDetectionService: PoseDetectionService,
+    private val getAvailableExercisesUseCase: GetAvailableExercisesUseCase,
+    private val analyzePostureWithBackendUseCase: AnalyzePostureWithBackendUseCase,
+    private val saveExerciseSessionUseCase: SaveExerciseSessionUseCase,
+    private val getCurrentUserIdUseCase: GetCurrentUserIdUseCase
 ) : ViewModel() {
-    private val TAG = "ExerciseViewModel"
 
-    // Create executor for ML Kit operations
-    private val mlExecutor = Executors.newSingleThreadExecutor()
+    private val _uiState = MutableStateFlow<ExerciseScreenUiState>(ExerciseScreenUiState.Initial)
+    val uiState: StateFlow<ExerciseScreenUiState> = _uiState.asStateFlow()
 
-    // Create pose detector
-    private val postureDetector = PostureDetector(context, mlExecutor)
+    private val _events = MutableSharedFlow<ExerciseViewEvent>()
+    val events: SharedFlow<ExerciseViewEvent> = _events.asSharedFlow()
 
-    // Create exercise detector
-    private val exerciseDetector = ExerciseDetector()
+    private var sessionStartTime: Long = 0L
+    private var lastBackendAnalysisTime: Long = 0L
+    private var lastFrameAnalysisTime: Long = 0L
+    private val backendAnalysisIntervalMs = 2000L // Every 2 seconds
+    private val frameAnalysisIntervalMs = 33L // ~30fps
+    private var selectedExercise: Exercise? = null
+    private var currentRepCount: Int = 0
+    private var lastPostureScore: Float = 0f
+    private val accumulatedPostureScores = mutableListOf<Float>()
+    private var lastProcessedPose: PoseLandmarksData? = null
+    
+    // Cache for landmark smoothing
+    private val landmarkBuffer = Array(4) { mutableListOf<LandmarkPoint>() }
+    private var bufferIndex = 0
 
-    // State flows
-    private val _exerciseState = MutableStateFlow<ExerciseUiState>(ExerciseUiState.Initial)
-    val exerciseState: StateFlow<ExerciseUiState> = _exerciseState.asStateFlow()
-
-    private val _cameraState = MutableStateFlow<CameraState>(CameraState.Inactive)
-    val cameraState: StateFlow<CameraState> = _cameraState.asStateFlow()
-
-    private val _exerciseStats = MutableStateFlow(ExerciseStats())
-    val exerciseStats: StateFlow<ExerciseStats> = _exerciseStats.asStateFlow()
-
-    // Selected exercise type
-    private val _selectedExerciseType = MutableStateFlow<ExerciseType?>(null)
-    val selectedExerciseType: StateFlow<ExerciseType?> = _selectedExerciseType.asStateFlow()
-
-    // Track session time
-    private var sessionStartTimeMs = 0L
-    private var lastUpdateTimeMs = 0L
-
-    /**
-     * Process image from camera
-     */
-    @OptIn(ExperimentalGetImage::class)
-    fun processImage(imageProxy: ImageProxy) {
+    fun onCameraPermissionGranted() {
         viewModelScope.launch {
-            try {
-                val mediaImage = imageProxy.image ?: return@launch
-                val image = InputImage.fromMediaImage(
-                    mediaImage,
-                    imageProxy.imageInfo.rotationDegrees
-                )
+            loadExercises()
+        }
+    }
 
-                val pose = postureDetector.detectPose(image)
+    fun onCameraPermissionDenied() {
+        _uiState.value = ExerciseScreenUiState.PermissionNeeded
+    }
 
-                // Process based on selected exercise type
-                val selectedType = _selectedExerciseType.value ?: return@launch
-
-                val result = when (selectedType) {
-                    ExerciseType.SQUAT -> exerciseDetector.analyzeSquat(pose)
-                    ExerciseType.PUSHUP -> exerciseDetector.analyzePushup(pose)
-                }
-
-                updateExerciseState(result)
-                updateExerciseStats(result)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error processing image", e)
-                _exerciseState.value = ExerciseUiState.Error("Failed to analyze exercise: ${e.message}")
-            } finally {
-                imageProxy.close()
+    fun loadExercises() {
+        viewModelScope.launch {
+            _uiState.value = ExerciseScreenUiState.ExerciseSelection(emptyList(), isLoading = true)
+            val response = getAvailableExercisesUseCase()
+            if (response.success && response.data != null) {
+                _uiState.value = ExerciseScreenUiState.ExerciseSelection(response.data, isLoading = false)
+            } else {
+                _uiState.value = ExerciseScreenUiState.Error(response.message ?: "Failed to load exercises")
             }
         }
     }
 
-    /**
-     * Select exercise type
-     */
-    fun selectExerciseType(type: ExerciseType) {
-        _selectedExerciseType.value = type
-        exerciseDetector.resetExercise()
-        _exerciseState.value = ExerciseUiState.Initial
-        _exerciseStats.value = ExerciseStats()
+    fun selectExercise(exercise: Exercise) {
+        selectedExercise = exercise
+        _uiState.value = ExerciseScreenUiState.ExerciseIntroduction(exercise)
     }
 
+    fun startExerciseSession(exercise: Exercise) {
+        selectedExercise = exercise
+        sessionStartTime = System.currentTimeMillis()
+        lastBackendAnalysisTime = 0L
+        currentRepCount = 0
+        accumulatedPostureScores.clear()
+        _uiState.value = ExerciseScreenUiState.ExerciseActive(
+            selectedExercise = exercise
+        )
+    }
+    
     /**
-     * Start camera and exercise tracking
+     * Update the pose data used for rendering the skeleton overlay
      */
-    fun startExercise() {
-        if (_selectedExerciseType.value == null) {
-            _exerciseState.value = ExerciseUiState.Error("Please select an exercise type first")
+    fun updatePoseForRendering(pose: Pose, imageWidth: Int, imageHeight: Int, isFlipped: Boolean) {
+        (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
+            _uiState.value = currentState.copy(
+                renderPose = pose,
+                renderImageWidth = imageWidth,
+                renderImageHeight = imageHeight,
+                renderIsFlipped = isFlipped
+            )
+        }
+    }
+
+    fun onPoseDetected(pose: Pose, exercise: Exercise) {
+        val currentTime = System.currentTimeMillis()
+        
+        // Frame rate control - skip processing if too soon
+        if (currentTime - lastFrameAnalysisTime < frameAnalysisIntervalMs) {
             return
         }
+        
+        lastFrameAnalysisTime = currentTime
+        viewModelScope.launch(Dispatchers.Default) {
+            // Convert ML Kit pose to our data structure
+            val landmarksData = pose.toPoseLandmarksData()
+            
+            // Skip processing if no significant change
+            if (lastProcessedPose != null && !hasSignificantPoseChange(lastProcessedPose!!, landmarksData)) {
+                return@launch
+            }
+            
+            // Apply advanced smoothing using multiple frames
+            val smoothedLandmarks = smoothLandmarksAdvanced(landmarksData)
+            lastProcessedPose = smoothedLandmarks
 
-        _cameraState.value = CameraState.Active
-        sessionStartTimeMs = System.currentTimeMillis()
-        lastUpdateTimeMs = sessionStartTimeMs
-        _exerciseStats.value = ExerciseStats()
-    }
+            val sessionTimer = System.currentTimeMillis() - sessionStartTime
 
-    /**
-     * Stop camera and exercise tracking
-     */
-    fun stopExercise() {
-        _cameraState.value = CameraState.Inactive
-        _exerciseState.value = ExerciseUiState.Initial
-    }
+            // Update UI with landmarks immediately
+            withContext(Dispatchers.Main) {
+                updateExerciseState(
+                    exercise = exercise,
+                    landmarksData = smoothedLandmarks,
+                    backendAnalysis = (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.backendAnalysis,
+                    sessionTimer = sessionTimer
+                )
+            }
 
-    /**
-     * Update exercise state based on detection result
-     */
-    private fun updateExerciseState(result: ExerciseResult) {
-        _exerciseState.value = when {
-            result.confidence < 0.7f -> ExerciseUiState.Detecting
-            result.currentState == ExerciseState.INVALID -> ExerciseUiState.Invalid(result)
-            else -> ExerciseUiState.Tracking(result)
+            // Perform backend analysis at intervals
+            if (currentTime - lastBackendAnalysisTime > backendAnalysisIntervalMs) {
+                lastBackendAnalysisTime = currentTime
+                performBackendAnalysis(smoothedLandmarks, exercise)
+            }
         }
     }
 
-    /**
-     * Update exercise statistics
-     */
-    private fun updateExerciseStats(result: ExerciseResult) {
-        val currentTime = System.currentTimeMillis()
-        val timeDelta = currentTime - lastUpdateTimeMs
-        lastUpdateTimeMs = currentTime
-
-        val totalSessionTime = currentTime - sessionStartTimeMs
-
-        _exerciseStats.value = ExerciseStats(
-            sessionDurationMs = totalSessionTime,
-            repCount = result.repCount,
-            currentState = result.currentState,
-            formIssues = result.formIssues
+    private fun hasSignificantPoseChange(
+        oldLandmarks: PoseLandmarksData,
+        newLandmarks: PoseLandmarksData,
+        threshold: Float = 0.02f
+    ): Boolean {
+        // Check key points for significant movement
+        val keyPoints = listOf(
+            PoseLandmark.LEFT_SHOULDER,
+            PoseLandmark.RIGHT_SHOULDER,
+            PoseLandmark.LEFT_ELBOW,
+            PoseLandmark.RIGHT_ELBOW,
+            PoseLandmark.LEFT_HIP,
+            PoseLandmark.RIGHT_HIP,
+            PoseLandmark.LEFT_KNEE,
+            PoseLandmark.RIGHT_KNEE
         )
+
+        return keyPoints.any { landmarkType ->
+            val oldPoint = oldLandmarks.landmarkPoints.find { it.type == landmarkType }
+            val newPoint = newLandmarks.landmarkPoints.find { it.type == landmarkType }
+            
+            if (oldPoint != null && newPoint != null) {
+                abs(newPoint.x - oldPoint.x) > threshold ||
+                abs(newPoint.y - oldPoint.y) > threshold ||
+                abs(newPoint.z - oldPoint.z) > threshold
+            } else {
+                true
+            }
+        }
+    }
+
+    private fun smoothLandmarksAdvanced(current: PoseLandmarksData): PoseLandmarksData {
+        // Update circular buffer
+        landmarkBuffer[bufferIndex] = current.landmarkPoints.toMutableList()
+        bufferIndex = (bufferIndex + 1) % landmarkBuffer.size
+
+        // Apply weighted moving average
+        val smoothedPoints = current.landmarkPoints.mapIndexed { index, currentPoint ->
+            var sumX = 0f
+            var sumY = 0f
+            var sumZ = 0f
+            var totalWeight = 0f
+
+            landmarkBuffer.forEachIndexed { bufferIdx, points ->
+                if (points.isNotEmpty()) {
+                    val weight = when (bufferIdx) {
+                        bufferIndex -> 0.4f // Current frame
+                        (bufferIndex - 1).mod(landmarkBuffer.size) -> 0.3f // Previous frame
+                        (bufferIndex - 2).mod(landmarkBuffer.size) -> 0.2f // 2 frames ago
+                        else -> 0.1f // 3 frames ago
+                    }
+                    
+                    points.getOrNull(index)?.let { point ->
+                        if (point.inFrameLikelihood > 0.5f) {
+                            sumX += point.x * weight
+                            sumY += point.y * weight
+                            sumZ += point.z * weight
+                            totalWeight += weight
+                        }
+                    }
+                }
+            }
+
+            if (totalWeight > 0) {
+                currentPoint.copy(
+                    x = sumX / totalWeight,
+                    y = sumY / totalWeight,
+                    z = sumZ / totalWeight
+                )
+            } else {
+                currentPoint
+            }
+        }
+
+        return current.copy(landmarkPoints = smoothedPoints)
+    }
+
+    private fun updateExerciseState(
+        exercise: Exercise,
+        landmarksData: PoseLandmarksData,
+        backendAnalysis: BackendPostureAnalysis?,
+        sessionTimer: Long
+    ) {
+        (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
+            // Only update if there are significant changes
+            if (shouldUpdateState(currentState, landmarksData, backendAnalysis, sessionTimer)) {
+                _uiState.value = ExerciseScreenUiState.ExerciseActive(
+                    selectedExercise = exercise,
+                    currentPoseLandmarks = landmarksData,
+                    backendAnalysis = backendAnalysis,
+                    sessionTimerMs = sessionTimer,
+                    repCount = currentRepCount,
+                    currentCameraSelector = currentState.currentCameraSelector,
+                    // Preserve rendering data
+                    renderPose = currentState.renderPose,
+                    renderImageWidth = currentState.renderImageWidth,
+                    renderImageHeight = currentState.renderImageHeight,
+                    renderIsFlipped = currentState.renderIsFlipped
+                )
+            }
+        }
+    }
+
+    private fun shouldUpdateState(
+        currentState: ExerciseScreenUiState.ExerciseActive,
+        newLandmarks: PoseLandmarksData,
+        newAnalysis: BackendPostureAnalysis?,
+        newTimer: Long
+    ): Boolean {
+        // Check if there are significant changes to avoid unnecessary updates
+        return currentState.currentPoseLandmarks == null ||
+               currentState.backendAnalysis != newAnalysis ||
+               abs(currentState.sessionTimerMs - newTimer) >= 1000 || // Update timer every second
+               hasSignificantPoseChange(currentState.currentPoseLandmarks, newLandmarks)
+    }
+
+    private suspend fun performBackendAnalysis(landmarksData: PoseLandmarksData, exercise: Exercise) {
+        val backendResponse = analyzePostureWithBackendUseCase(landmarksData.toFloatArrayForBackend())
+        if (backendResponse.success && backendResponse.data != null) {
+            val backendAnalysis = BackendPostureAnalysis(
+                identifiedExercise = backendResponse.data.exerciseName,
+                postureScore = backendResponse.data.postureScore
+            )
+            
+            if (backendResponse.data.exerciseName.equals(exercise.name, ignoreCase = true)) {
+                lastPostureScore = backendResponse.data.postureScore
+                accumulatedPostureScores.add(lastPostureScore)
+                
+                if (lastPostureScore > 0.7f) {
+                    if ((_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.repCount ?: 0 < currentRepCount + 1) {
+                        currentRepCount++
+                    }
+                }
+            }
+
+            // Update UI with new backend analysis
+            (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
+                updateExerciseState(
+                    exercise = exercise,
+                    landmarksData = currentState.currentPoseLandmarks ?: return,
+                    backendAnalysis = backendAnalysis,
+                    sessionTimer = currentState.sessionTimerMs
+                )
+            }
+        } else {
+            _events.emit(ExerciseViewEvent.ShowSnackbar("Backend analysis failed: ${backendResponse.message}"))
+        }
+    }
+
+    fun stopExerciseSession() {
+        viewModelScope.launch {
+            val currentState = _uiState.value as? ExerciseScreenUiState.ExerciseActive ?: return@launch
+            val exercise = selectedExercise ?: return@launch
+            val userId = getCurrentUserIdUseCase() ?: return@launch
+
+            val endTime = LocalDateTime.now()
+            val startTime = endTime.minusNanos(currentState.sessionTimerMs * 1_000_000) // Convert ms to nanos
+            val averageAccuracy = accumulatedPostureScores.average().toFloat()
+
+            val saveResponse = saveExerciseSessionUseCase(
+                userId = userId,
+                exercise = exercise,
+                startTime = startTime,
+                endTime = endTime,
+                durationMs = currentState.sessionTimerMs,
+                repCount = currentState.repCount,
+                averageAccuracy = averageAccuracy,
+                formIssues = null
+            )
+
+            if (saveResponse.success) {
+                _uiState.value = ExerciseScreenUiState.ExerciseSummary(
+                    "Great job! You completed ${currentState.repCount} reps with ${(averageAccuracy * 100).toInt()}% accuracy."
+                )
+            } else {
+                _events.emit(ExerciseViewEvent.ShowSnackbar("Failed to save session: ${saveResponse.message}"))
+                loadExercises()
+            }
+        }
+    }
+
+    fun toggleCamera(currentSelector: CameraSelector) {
+        val newSelector = if (currentSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
+            CameraSelector.DEFAULT_BACK_CAMERA
+        } else {
+            CameraSelector.DEFAULT_FRONT_CAMERA
+        }
+        
+        (_uiState.value as? ExerciseScreenUiState.ExerciseActive)?.let { currentState ->
+            _uiState.value = currentState.copy(
+                currentCameraSelector = newSelector,
+                // Update flipped state for rendering
+                renderIsFlipped = newSelector == CameraSelector.DEFAULT_FRONT_CAMERA
+            )
+        }
     }
 
     override fun onCleared() {
         super.onCleared()
-        postureDetector.close()
-        mlExecutor.shutdown()
+        // Clear buffers and caches
+        landmarkBuffer.forEach { it.clear() }
+        accumulatedPostureScores.clear()
+        lastProcessedPose = null
+        poseDetectionService.close()
     }
 }
-
-sealed class ExerciseUiState {
-    data object Initial : ExerciseUiState()
-    data object Detecting : ExerciseUiState()
-    data class Tracking(val result: ExerciseResult) : ExerciseUiState()
-    data class Invalid(val result: ExerciseResult) : ExerciseUiState()
-    data class Error(val message: String) : ExerciseUiState()
-}
-
-enum class CameraState {
-    Active,
-    Inactive
-}
-
-data class ExerciseStats(
-    val sessionDurationMs: Long = 0,
-    val repCount: Int = 0,
-    val currentState: ExerciseState = ExerciseState.WAITING,
-    val formIssues: List<String> = emptyList()
-)

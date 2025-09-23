@@ -1,8 +1,3 @@
-import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
-
-val supabaseUrl: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.url")
-val supabaseAnonKey: String = gradleLocalProperties(rootDir, providers).getProperty("supabase.anon.key")
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -15,19 +10,16 @@ plugins {
 
 android {
     namespace = "cit.edu.stathis.mobile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "cit.edu.stathis.mobile"
-        minSdk = 27
-        targetSdk = 35
+        minSdk = 30
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("String", "SUPABASE_URL", supabaseUrl)
-        buildConfigField("String", "SUPABASE_ANON_KEY", supabaseAnonKey)
     }
 
     buildTypes {
@@ -35,7 +27,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -96,19 +88,8 @@ dependencies {
     implementation(libs.lottie.compose)
 
     // Jetpack Compose
-    val composeBom = platform("androidx.compose:compose-bom:2025.02.00")
-    implementation(composeBom)
-    androidTestImplementation(composeBom)
-
-    // Supabase
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.1.4"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:auth-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:realtime-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:storage-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:functions-kt:3.1.4")
-    implementation("io.github.jan-tennert.supabase:supabase-kt:3.1.4")
-
+    implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
 
     // Ktor Client Engine
     implementation(libs.ktor.client.core)
@@ -130,9 +111,13 @@ dependencies {
     implementation(libs.pose.detection.accurate)
 
     // CameraX dependencies
+    implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+
+    implementation("com.google.guava:guava:31.0.1-android")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.1.0")
 
     // Accompanist permissions for camera permission handling
     implementation(libs.accompanist.permissions)
@@ -145,11 +130,28 @@ dependencies {
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
+
+    implementation(libs.jwtdecode)
+
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
+
+    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
+
+    implementation("com.squareup.okhttp3:okhttp")
+    implementation("com.squareup.okhttp3:logging-interceptor")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    implementation("androidx.health.connect:connect-client:1.1.0-rc01")
+
+    // Compose Charts
+    implementation("com.patrykandpatrick.vico:compose:1.13.1")
+    implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
+    implementation("com.patrykandpatrick.vico:core:1.13.1")
+
 }
 
 kapt {
     correctErrorTypes = true
 }
-
-
-

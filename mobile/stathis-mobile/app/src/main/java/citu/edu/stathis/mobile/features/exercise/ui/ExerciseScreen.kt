@@ -1,83 +1,52 @@
 package citu.edu.stathis.mobile.features.exercise.ui
 
 import android.Manifest
-import android.content.pm.PackageManager
+import android.graphics.Color as AndroidColor
 import android.util.Log
+import android.view.Surface
 import android.view.ViewGroup
+import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
+import androidx.camera.core.Preview as CameraXPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import citu.edu.stathis.mobile.core.theme.BrandColors
-import citu.edu.stathis.mobile.features.exercise.data.ExerciseState
-import citu.edu.stathis.mobile.features.exercise.data.ExerciseType
+import citu.edu.stathis.mobile.features.exercise.data.Exercise
+import citu.edu.stathis.mobile.features.exercise.data.OnDeviceFeedback
+import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
+import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalysis
+import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseAnalyzer
+import citu.edu.stathis.mobile.features.exercise.ui.components.EnhancedSkeletonOverlay
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import java.util.concurrent.Executors
+import com.google.mlkit.vision.pose.Pose
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -86,569 +55,87 @@ fun ExerciseScreen(
     navController: NavHostController,
     viewModel: ExerciseViewModel = hiltViewModel()
 ) {
-    val TAG = "ExerciseScreen"
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val viewEvents by viewModel.events.collectAsStateWithLifecycle(initialValue = null)
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    val exerciseState by viewModel.exerciseState.collectAsState()
-    val cameraState by viewModel.cameraState.collectAsState()
-    val exerciseStats by viewModel.exerciseStats.collectAsState()
-    val selectedExerciseType by viewModel.selectedExerciseType.collectAsState()
+    val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
-    // Camera permission state
-    val cameraPermissionState = rememberPermissionState(
-        Manifest.permission.CAMERA
-    )
-
-    // Check if camera permission is granted
-    val hasCameraPermission = cameraPermissionState.status.isGranted
-
-    // Clean up when leaving the screen
-    DisposableEffect(key1 = true) {
-        onDispose {
-            viewModel.stopExercise()
+    LaunchedEffect(cameraPermissionState.status) {
+        if (cameraPermissionState.status.isGranted) {
+            viewModel.onCameraPermissionGranted()
         }
     }
 
-    Scaffold { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Camera permission request
-            if (!hasCameraPermission) {
-                CameraPermissionRequest(
-                    onRequestPermission = {
-                        cameraPermissionState.launchPermissionRequest()
-                    }
-                )
-            } else {
-                // Camera is permitted, show exercise UI
-                when {
-                    selectedExerciseType == null -> {
-                        ExerciseTypeSelection(
-                            onSelectExerciseType = { type ->
-                                viewModel.selectExerciseType(type)
-                            }
-                        )
-                    }
-                    cameraState == CameraState.Inactive -> {
-                        ExerciseIntroduction(
-                            exerciseType = selectedExerciseType,
-                            onStartExercise = {
-                                viewModel.startExercise()
-                            },
-                            onChangeExercise = {
-                                viewModel.selectExerciseType(selectedExerciseType!!)
-                            }
-                        )
-                    }
-                    cameraState == CameraState.Active -> {
-                        ExerciseTrackingScreen(
-                            exerciseType = selectedExerciseType!!,
-                            exerciseState = exerciseState,
-                            exerciseStats = exerciseStats,
-                            onStopExercise = {
-                                viewModel.stopExercise()
-                            },
-                            onImageAnalyzed = { imageProxy ->
-                                viewModel.processImage(imageProxy)
-                            }
-                        )
-                    }
+    LaunchedEffect(viewEvents) {
+        viewEvents?.let { event ->
+            when(event) {
+                is ExerciseViewEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is ExerciseViewEvent.NavigateToExerciseSelection -> {
+                    viewModel.loadExercises()
                 }
             }
         }
     }
-}
 
-@Composable
-fun CameraPermissionRequest(
-    onRequestPermission: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.CameraAlt,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = BrandColors.Purple
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Camera Permission Required",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "To analyze your exercise form, we need access to your camera. Your privacy is important to us - camera data is only processed on your device and never stored or shared.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onRequestPermission,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = BrandColors.Purple
-            ),
-            modifier = Modifier.fillMaxWidth(0.8f)
-        ) {
-            Text("Grant Camera Permission")
-        }
-    }
-}
-
-@Composable
-fun ExerciseTypeSelection(
-    onSelectExerciseType: (ExerciseType) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = Icons.Default.FitnessCenter,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = BrandColors.Purple
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Choose Exercise",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Select the exercise you want to track with AI-powered form analysis",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Exercise type cards
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-                .clickable { onSelectExerciseType(ExerciseType.SQUAT) },
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFF0F4FF)
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccessibilityNew,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = BrandColors.Purple
-                )
-
-                Spacer(modifier = Modifier.size(16.dp))
-
-                Column {
-                    Text(
-                        text = "Squats",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Track proper form and count reps",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-                .clickable { onSelectExerciseType(ExerciseType.PUSHUP) },
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFF0F4FF)
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FitnessCenter,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = BrandColors.Purple
-                )
-
-                Spacer(modifier = Modifier.size(16.dp))
-
-                Column {
-                    Text(
-                        text = "Push-ups",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Text(
-                        text = "Track proper form and count reps",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ExerciseIntroduction(
-    exerciseType: ExerciseType?,
-    onStartExercise: () -> Unit,
-    onChangeExercise: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = when (exerciseType) {
-                ExerciseType.SQUAT -> Icons.Default.AccessibilityNew
-                ExerciseType.PUSHUP -> Icons.Default.FitnessCenter
-                else -> Icons.Default.FitnessCenter
-            },
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = BrandColors.Purple
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = when (exerciseType) {
-                ExerciseType.SQUAT -> "Squat Form Analysis"
-                ExerciseType.PUSHUP -> "Push-up Form Analysis"
-                else -> "Exercise Form Analysis"
-            },
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Get real-time feedback on your form using AI-powered analysis. Position yourself so your full body is visible.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFF0F4FF)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = when (exerciseType) {
-                        ExerciseType.SQUAT -> "For proper squat form:"
-                        ExerciseType.PUSHUP -> "For proper push-up form:"
-                        else -> "For best results:"
-                    },
-                    fontWeight = FontWeight.Bold,
-                    color = BrandColors.Purple
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                when (exerciseType) {
-                    ExerciseType.SQUAT -> {
-                        Text("• Keep your back straight")
-                        Text("• Knees should track over toes")
-                        Text("• Lower until thighs are parallel to ground")
-                        Text("• Keep weight in your heels")
-                    }
-                    ExerciseType.PUSHUP -> {
-                        Text("• Keep your body in a straight line")
-                        Text("• Hands should be shoulder-width apart")
-                        Text("• Lower until elbows are at 90 degrees")
-                        Text("• Keep core engaged throughout")
-                    }
-                    else -> {
-                        Text("• Position yourself 3-6 feet from the camera")
-                        Text("• Ensure your full body is visible")
-                        Text("• Find a well-lit environment")
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = onStartExercise,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = BrandColors.Purple
-            ),
-            modifier = Modifier.fillMaxWidth(0.8f)
-        ) {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.size(8.dp))
-            Text("Start Exercise Tracking")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = onChangeExercise,
-            modifier = Modifier.fillMaxWidth(0.8f)
-        ) {
-            Text("Change Exercise")
-        }
-    }
-}
-
-@Composable
-fun ExerciseTrackingScreen(
-    exerciseType: ExerciseType,
-    exerciseState: ExerciseUiState,
-    exerciseStats: ExerciseStats,
-    onStopExercise: () -> Unit,
-    onImageAnalyzed: (ImageProxy) -> Unit
-) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Camera preview (takes 70% of the screen)
-        Box(
-            modifier = Modifier
-                .weight(0.7f)
-                .fillMaxWidth()
-        ) {
-            // Camera preview
-            AndroidView(
-                factory = { context ->
-                    val previewView = PreviewView(context).apply {
-                        this.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                    }
-
-                    // Setup camera
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-
-                        // Preview use case
-                        val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
+    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when (val currentUiState = uiState) {
+                ExerciseScreenUiState.Initial -> {
+                    LaunchedEffect(Unit) {
+                        if (cameraPermissionState.status.isGranted) {
+                            viewModel.onCameraPermissionGranted()
+                        } else {
+                            viewModel.onCameraPermissionDenied()
                         }
-
-                        // Image analysis use case
-                        val imageAnalysis = ImageAnalysis.Builder()
-                            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                            .build()
-                            .also {
-                                it.setAnalyzer(
-                                    Executors.newSingleThreadExecutor(),
-                                    { imageProxy ->
-                                        onImageAnalyzed(imageProxy)
-                                    }
-                                )
-                            }
-
-                        try {
-                            // Unbind all use cases before rebinding
-                            cameraProvider.unbindAll()
-
-                            // For push-ups, use back camera (user will be facing down)
-                            // For squats, use front camera (user will be facing the device)
-                            val cameraSelector = when (exerciseType) {
-                                ExerciseType.PUSHUP -> CameraSelector.DEFAULT_BACK_CAMERA
-                                ExerciseType.SQUAT -> CameraSelector.DEFAULT_FRONT_CAMERA
-                            }
-
-                            // Bind use cases to camera
-                            cameraProvider.bindToLifecycle(
-                                lifecycleOwner,
-                                cameraSelector,
-                                preview,
-                                imageAnalysis
-                            )
-                        } catch (e: Exception) {
-                            Log.e("ExerciseScreen", "Camera binding failed", e)
-                        }
-                    }, ContextCompat.getMainExecutor(context))
-
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-
-            // Overlay exercise feedback
-            ExerciseFeedbackOverlay(exerciseState, exerciseType)
-        }
-
-        // Exercise stats and controls (takes 30% of the screen)
-        ExerciseStatsPanel(
-            exerciseType = exerciseType,
-            exerciseState = exerciseState,
-            exerciseStats = exerciseStats,
-            onStopExercise = onStopExercise
-        )
-    }
-}
-
-@Composable
-fun ExerciseFeedbackOverlay(
-    exerciseState: ExerciseUiState,
-    exerciseType: ExerciseType
-) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
-    ) {
-        // Status indicator at the top
-        AnimatedVisibility(
-            visible = exerciseState !is ExerciseUiState.Initial,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Card(
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .fillMaxWidth(0.9f),
-                colors = CardDefaults.cardColors(
-                    containerColor = when (exerciseState) {
-                        is ExerciseUiState.Tracking -> {
-                            when (exerciseState.result.currentState) {
-                                ExerciseState.UP -> Color(0xFFE8F5E9) // Green for up position
-                                ExerciseState.DOWN -> Color(0xFFE3F2FD) // Blue for down position
-                                else -> Color(0xFFF5F5F5) // Gray for other states
-                            }
-                        }
-                        is ExerciseUiState.Invalid -> Color(0xFFFFEBEE) // Red for invalid
-                        is ExerciseUiState.Detecting -> Color(0xFFF5F5F5) // Gray for detecting
-                        is ExerciseUiState.Error -> Color(0xFFFFF3E0) // Orange for error
-                        else -> Color.Transparent
                     }
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = when (exerciseState) {
-                            is ExerciseUiState.Tracking -> {
-                                when (exerciseState.result.currentState) {
-                                    ExerciseState.UP -> Icons.Default.Check
-                                    ExerciseState.DOWN -> Icons.Default.Info
-                                    else -> Icons.Default.Info
-                                }
-                            }
-                            is ExerciseUiState.Invalid -> Icons.Default.Warning
-                            is ExerciseUiState.Detecting -> Icons.Default.Info
-                            is ExerciseUiState.Error -> Icons.Default.Error
-                            else -> Icons.Default.Info
+                    LoadingIndicator("Initializing...")
+                }
+                ExerciseScreenUiState.PermissionNeeded -> {
+                    CameraPermissionRequestHandler(
+                        onGrantPermission = { cameraPermissionState.launchPermissionRequest() }
+                    )
+                }
+                is ExerciseScreenUiState.ExerciseSelection -> {
+                    if (currentUiState.isLoading) LoadingIndicator("Fetching Exercises...")
+                    else ExerciseSelectionContent(
+                        exercises = currentUiState.exercises,
+                        onExerciseSelected = { viewModel.selectExercise(it) }
+                    )
+                }
+                is ExerciseScreenUiState.ExerciseIntroduction -> {
+                    ExerciseIntroductionContent(
+                        exercise = currentUiState.exercise,
+                        onStartSession = { viewModel.startExerciseSession(currentUiState.exercise) },
+                        onBackToSelection = { viewModel.loadExercises() }
+                    )
+                }
+                is ExerciseScreenUiState.ExerciseActive -> {
+                    ExerciseActiveContent(
+                        activeState = currentUiState,
+                        onPoseDetected = { pose, imageWidth, imageHeight, isFlipped, exercise -> 
+                            viewModel.onPoseDetected(pose, exercise)
+                            // Store the pose and image dimensions for rendering
+                            viewModel.updatePoseForRendering(pose, imageWidth, imageHeight, isFlipped)
                         },
-                        contentDescription = null,
-                        tint = when (exerciseState) {
-                            is ExerciseUiState.Tracking -> {
-                                when (exerciseState.result.currentState) {
-                                    ExerciseState.UP -> Color(0xFF4CAF50) // Green
-                                    ExerciseState.DOWN -> Color(0xFF2196F3) // Blue
-                                    else -> Color(0xFF9E9E9E) // Gray
-                                }
-                            }
-                            is ExerciseUiState.Invalid -> Color(0xFFE53935) // Red
-                            is ExerciseUiState.Detecting -> Color(0xFF9E9E9E) // Gray
-                            is ExerciseUiState.Error -> Color(0xFFFF9800) // Orange
-                            else -> Color.Gray
+                        onStopSession = { viewModel.stopExerciseSession() },
+                        onToggleCamera = { viewModel.toggleCamera(currentUiState.currentCameraSelector) }
+                    )
+                }
+                is ExerciseScreenUiState.ExerciseSummary -> {
+                    ExerciseSummaryContent(
+                        message = currentUiState.message,
+                        onBackToSelection = { viewModel.loadExercises() }
+                    )
+                }
+                is ExerciseScreenUiState.Error -> {
+                    ErrorScreen(
+                        message = currentUiState.message,
+                        onRetry = {
+                            if (cameraPermissionState.status.isGranted) viewModel.loadExercises()
+                            else cameraPermissionState.launchPermissionRequest()
                         }
                     )
-
-                    Spacer(modifier = Modifier.size(16.dp))
-
-                    Column {
-                        Text(
-                            text = when (exerciseState) {
-                                is ExerciseUiState.Tracking -> {
-                                    when (exerciseState.result.currentState) {
-                                        ExerciseState.UP -> "${exerciseType.name.lowercase().capitalize()} Position: Up"
-                                        ExerciseState.DOWN -> "${exerciseType.name.lowercase().capitalize()} Position: Down"
-                                        else -> "Get Ready"
-                                    }
-                                }
-                                is ExerciseUiState.Invalid -> "Form Needs Improvement"
-                                is ExerciseUiState.Detecting -> "Analyzing Form..."
-                                is ExerciseUiState.Error -> "Detection Error"
-                                else -> ""
-                            },
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        if (exerciseState is ExerciseUiState.Invalid && exerciseState.result.formIssues.isNotEmpty()) {
-                            Spacer(modifier = Modifier.size(4.dp))
-                            Text(
-                                text = exerciseState.result.formIssues.joinToString(", "),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -656,138 +143,390 @@ fun ExerciseFeedbackOverlay(
 }
 
 @Composable
-fun ExerciseStatsPanel(
-    exerciseType: ExerciseType,
-    exerciseState: ExerciseUiState,
-    exerciseStats: ExerciseStats,
-    onStopExercise: () -> Unit
+fun CameraPermissionRequestHandler(onGrantPermission: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(Icons.Filled.PhotoCamera, contentDescription = "Camera Permission", modifier = Modifier.size(64.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("Camera permission is required to analyze your exercises.", textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = onGrantPermission) { Text("Grant Permission") }
+    }
+}
+
+@Composable
+fun ExerciseSelectionContent(
+    exercises: List<Exercise>,
+    onExerciseSelected: (Exercise) -> Unit
 ) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        item {
+            Text(
+                text = "Available Exercises",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+        items(exercises) { exercise ->
+            ExerciseCard(exercise = exercise, onClick = { onExerciseSelected(exercise) })
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+fun ExerciseCard(exercise: Exercise, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp
-        )
+            .clickable(onClick = onClick)
+            .padding(4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Exercise name and rep counter
+        Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = when (exerciseType) {
-                    ExerciseType.SQUAT -> "Squat Counter"
-                    ExerciseType.PUSHUP -> "Push-up Counter"
-                },
-                style = MaterialTheme.typography.titleMedium,
+                text = exercise.name,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Rep counter
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .border(
-                        width = 4.dp,
-                        color = BrandColors.Purple,
-                        shape = CircleShape
-                    )
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "${exerciseStats.repCount}",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = BrandColors.Purple
-                    )
-                    Text(
-                        text = "Reps",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Current state and session time
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = exercise.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                ExerciseStat(
-                    label = "Current State",
-                    value = when (exerciseStats.currentState) {
-                        ExerciseState.UP -> "Up"
-                        ExerciseState.DOWN -> "Down"
-                        ExerciseState.WAITING -> "Ready"
-                        ExerciseState.INVALID -> "Check Form"
-                    }
-                )
-
-                ExerciseStat(
-                    label = "Session Time",
-                    value = formatTime(exerciseStats.sessionDurationMs)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Stop button
-            OutlinedButton(
-                onClick = onStopExercise,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text("End Exercise")
+                exercise.difficulty?.let {
+                    FilterChip(
+                        selected = false,
+                        onClick = { },
+                        label = { Text(it) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = when (it) {
+                                "BEGINNER" -> Color(0xFF4CAF50)
+                                "INTERMEDIATE" -> Color(0xFFFFA000)
+                                "ADVANCED" -> Color(0xFFF44336)
+                                else -> MaterialTheme.colorScheme.primary
+                            }.copy(alpha = 0.1f),
+                            labelColor = when (it) {
+                                "BEGINNER" -> Color(0xFF4CAF50)
+                                "INTERMEDIATE" -> Color(0xFFFFA000)
+                                "ADVANCED" -> Color(0xFFF44336)
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                        )
+                    )
+                }
+                exercise.targetMuscles?.let { muscles ->
+                    Text(
+                        text = muscles.joinToString(", "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun ExerciseStat(
-    label: String,
-    value: String
+fun ExerciseIntroductionContent(
+    exercise: Exercise,
+    onStartSession: () -> Unit,
+    onBackToSelection: () -> Unit
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
+        IconButton(onClick = onBackToSelection) {
+            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+        }
         Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = exercise.name,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(vertical = 16.dp)
         )
-
         Text(
-            text = value,
+            text = exercise.description,
             style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold
+            modifier = Modifier.padding(bottom = 24.dp)
         )
+        Text(
+            text = "Instructions",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        exercise.instructions.forEachIndexed { index, instruction ->
+            Row(
+                modifier = Modifier.padding(vertical = 4.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = "${index + 1}.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = 8.dp, top = 2.dp)
+                )
+                Text(
+                    text = instruction,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Button(
+            onClick = onStartSession,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            Text("Start Exercise")
+        }
     }
 }
 
-// Helper function to format time in mm:ss
-fun formatTime(timeMs: Long): String {
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(timeMs)
-    val seconds = TimeUnit.MILLISECONDS.toSeconds(timeMs) - TimeUnit.MINUTES.toSeconds(minutes)
-    return String.format("%02d:%02d", minutes, seconds)
+@Composable
+fun ExerciseActiveContent(
+    activeState: ExerciseScreenUiState.ExerciseActive,
+    onPoseDetected: (Pose, Int, Int, Boolean, Exercise) -> Unit,
+    onStopSession: () -> Unit,
+    onToggleCamera: () -> Unit
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    
+    // Track current pose for rendering
+    var currentPose by remember { mutableStateOf<Pose?>(null) }
+    var imageWidth by remember { mutableStateOf(0) }
+    var imageHeight by remember { mutableStateOf(0) }
+    val isImageFlipped = activeState.currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Camera Preview in background
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                PreviewView(ctx).apply {
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                }
+            }
+        ) { previewView ->
+            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+            cameraProviderFuture.addListener({
+                val cameraProvider = cameraProviderFuture.get()
+                
+                try {
+                    val preview = CameraXPreview.Builder()
+                        .build()
+                        .also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+
+                    val imageAnalysis = ImageAnalysis.Builder()
+                        .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+                        .setTargetRotation(Surface.ROTATION_0)
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .build()
+
+                    // Create pose analyzer
+                    val poseAnalyzer = PoseAnalyzer(
+                        executor = ContextCompat.getMainExecutor(context),
+                        onPoseDetected = { pose, width, height, flipped ->
+                            // Update local state for rendering
+                            currentPose = pose
+                            imageWidth = width
+                            imageHeight = height
+                            
+                            // Pass to view model for processing
+                            onPoseDetected(pose, width, height, flipped, activeState.selectedExercise)
+                        },
+                        isImageFlipped = isImageFlipped
+                    )
+                    
+                    imageAnalysis.setAnalyzer(
+                        ContextCompat.getMainExecutor(context),
+                        poseAnalyzer
+                    )
+
+                    cameraProvider.unbindAll()
+                    cameraProvider.bindToLifecycle(
+                        lifecycleOwner,
+                        activeState.currentCameraSelector,
+                        preview,
+                        imageAnalysis
+                    )
+                } catch (e: Exception) {
+                    Log.e("ExerciseActiveContent", "Use case binding failed", e)
+                }
+            }, ContextCompat.getMainExecutor(context))
+        }
+
+        // Enhanced Skeleton Overlay with our custom view
+        EnhancedSkeletonOverlay(
+            pose = currentPose,
+            imageWidth = imageWidth,
+            imageHeight = imageHeight,
+            isImageFlipped = isImageFlipped,
+            landmarkColor = AndroidColor.RED,
+            connectionColor = AndroidColor.GREEN
+        )
+
+        // UI controls on top
+        Column(modifier = Modifier.fillMaxSize()) {
+            ExerciseHeader(
+                exerciseName = activeState.selectedExercise.name,
+                timerMs = activeState.sessionTimerMs,
+                onToggleCamera = onToggleCamera,
+                currentCameraSelector = activeState.currentCameraSelector
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            ExerciseFeedbackAndStatsFooter(
+                backendAnalysis = activeState.backendAnalysis,
+                repCount = activeState.repCount,
+                onStopSession = onStopSession
+            )
+        }
+    }
+}
+
+@Composable
+fun ExerciseHeader(exerciseName: String, timerMs: Long, onToggleCamera: () -> Unit, currentCameraSelector: CameraSelector) {
+    Row(
+        modifier = Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.3f)).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(exerciseName, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(formatDuration(timerMs), style = MaterialTheme.typography.titleLarge, color = Color.White)
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = onToggleCamera) {
+                Icon(
+                    imageVector = if (currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) Icons.Filled.Cameraswitch else Icons.Filled.FlipCameraAndroid,
+                    contentDescription = "Toggle Camera",
+                    tint = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ExerciseFeedbackAndStatsFooter(
+    backendAnalysis: BackendPostureAnalysis?,
+    repCount: Int,
+    onStopSession: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.3f))
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Reps: $repCount",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                backendAnalysis?.let {
+                    Text(
+                        text = "Form Score: ${(it.postureScore * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = when {
+                            it.postureScore >= 0.8f -> Color(0xFF4CAF50) // Green
+                            it.postureScore >= 0.6f -> Color(0xFFFFA000) // Orange
+                            else -> Color(0xFFF44336) // Red
+                        }
+                    )
+                }
+            }
+            Button(
+                onClick = onStopSession,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Stop")
+            }
+        }
+    }
+}
+
+@Composable
+fun ExerciseSummaryContent(message: String, onBackToSelection: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(Icons.Filled.CheckCircle, contentDescription = "Session Ended", modifier = Modifier.size(64.dp), tint = Color(0xFF4CAF50))
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(message, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onBackToSelection) {
+            Text("Back to Exercises")
+        }
+    }
+}
+
+@Composable
+fun ErrorScreen(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(Icons.Filled.ErrorOutline, contentDescription = "Error", modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.error)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = onRetry) {
+            Text("Retry")
+        }
+    }
+}
+
+@Composable
+fun LoadingIndicator(message: String = "Loading...") {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        CircularProgressIndicator()
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(message)
+    }
+}
+
+fun formatDuration(milliseconds: Long): String {
+    val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(milliseconds)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }

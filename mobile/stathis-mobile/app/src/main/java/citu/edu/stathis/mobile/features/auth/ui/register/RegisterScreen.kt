@@ -1,12 +1,10 @@
 package citu.edu.stathis.mobile.features.auth.ui.register
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,12 +37,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
+// import androidx.compose.material3.TextFieldDefaults // Not directly used
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateOf // Keep if used for local screen state
 import androidx.compose.runtime.remember
+// import androidx.compose.runtime.setValue // Keep if used for local screen state
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -65,20 +64,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import citu.edu.stathis.mobile.core.theme.appColors // Assuming this provides your custom colors
 import citu.edu.stathis.mobile.features.auth.ui.components.AuthBackground
 import citu.edu.stathis.mobile.features.auth.ui.components.AuthCard
 import citu.edu.stathis.mobile.features.auth.ui.components.BackgroundDecorations
-import citu.edu.stathis.mobile.features.auth.ui.components.GoogleSignInButton
-import citu.edu.stathis.mobile.features.auth.ui.components.MicrosoftSignInButton
+import citu.edu.stathis.mobile.features.auth.ui.components.EmailVerificationDialog
+// Social Button imports removed
+// import citu.edu.stathis.mobile.features.auth.ui.components.GoogleSignInButton
+// import citu.edu.stathis.mobile.features.auth.ui.components.MicrosoftSignInButton
 import citu.edu.stathis.mobile.features.auth.ui.components.PasswordRequirements
 import citu.edu.stathis.mobile.features.auth.ui.components.PasswordStrength
 import citu.edu.stathis.mobile.features.auth.ui.components.PasswordStrengthIndicator
-import citu.edu.stathis.mobile.features.auth.ui.components.EmailVerificationDialog
+// import citu.edu.stathis.mobile.features.auth.ui.components.PasswordStrength // Enum is used via state
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
-import citu.edu.stathis.mobile.core.theme.appColors
 
 @Composable
 fun RegisterScreen(
@@ -99,7 +100,7 @@ fun RegisterScreen(
         spec = LottieCompositionSpec.Url("https://assets9.lottiefiles.com/packages/lf20_z9ed2jna.json")
     )
 
-    LaunchedEffect(key1 = true) {
+    LaunchedEffect(key1 = Unit) {
         viewModel.events.collect { event ->
             when (event) {
                 is RegisterEvent.NavigateToHome -> {
@@ -125,6 +126,7 @@ fun RegisterScreen(
             onDismiss = { showVerificationDialog.value = false },
             onResendEmail = { viewModel.onEvent(RegisterUiEvent.ResendVerificationEmail) },
             onContinue = {
+                showVerificationDialog.value = false
                 onNavigateToLogin()
             },
             isResendingEmail = state.isResendingEmail
@@ -155,23 +157,17 @@ fun RegisterScreen(
                         fontSize = 28.sp
                     )
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
                     text = "Sign up to get started",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         color = Color.White.copy(alpha = 0.8f)
                     )
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Register animation
                 Box(
-                    modifier = Modifier
-                        .size(140.dp)
-                        .padding(8.dp),
+                    modifier = Modifier.size(140.dp).padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     LottieAnimation(
@@ -186,7 +182,6 @@ fun RegisterScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // First Name
                         OutlinedTextField(
                             value = state.firstName,
                             onValueChange = { viewModel.onEvent(RegisterUiEvent.FirstNameChanged(it)) },
@@ -199,12 +194,8 @@ fun RegisterScreen(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -213,10 +204,7 @@ fun RegisterScreen(
                                 cursorColor = colors.textFieldCursor
                             )
                         )
-
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Last Name
                         OutlinedTextField(
                             value = state.lastName,
                             onValueChange = { viewModel.onEvent(RegisterUiEvent.LastNameChanged(it)) },
@@ -229,12 +217,8 @@ fun RegisterScreen(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -243,10 +227,7 @@ fun RegisterScreen(
                                 cursorColor = colors.textFieldCursor
                             )
                         )
-
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Email
                         OutlinedTextField(
                             value = state.email,
                             onValueChange = { viewModel.onEvent(RegisterUiEvent.EmailChanged(it)) },
@@ -259,13 +240,8 @@ fun RegisterScreen(
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Email,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                             singleLine = true,
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -274,52 +250,24 @@ fun RegisterScreen(
                                 cursorColor = colors.textFieldCursor
                             )
                         )
-
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Password
                         OutlinedTextField(
                             value = state.password,
                             onValueChange = { viewModel.onEvent(RegisterUiEvent.PasswordChanged(it)) },
                             label = { Text("Password") },
                             trailingIcon = {
-                                IconButton(
-                                    onClick = { viewModel.onEvent(RegisterUiEvent.TogglePasswordVisibility) }
-                                ) {
+                                IconButton(onClick = { viewModel.onEvent(RegisterUiEvent.TogglePasswordVisibility) }) {
                                     Icon(
-                                        imageVector = if (state.isPasswordVisible) {
-                                            Icons.Default.Visibility
-                                        } else {
-                                            Icons.Default.VisibilityOff
-                                        },
-                                        contentDescription = if (state.isPasswordVisible) {
-                                            "Hide password"
-                                        } else {
-                                            "Show password"
-                                        },
+                                        imageVector = if (state.isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (state.isPasswordVisible) "Hide password" else "Show password",
                                         tint = colors.iconTint
                                     )
                                 }
                             },
-                            visualTransformation = if (state.isPasswordVisible) {
-                                VisualTransformation.None
-                            } else {
-                                PasswordVisualTransformation()
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged {
-                                    if (it.isFocused) {
-                                        viewModel.onEvent(RegisterUiEvent.TogglePasswordRequirements)
-                                    }
-                                },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Next
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                            ),
+                            visualTransformation = if (state.isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) {  viewModel.onEvent(RegisterUiEvent.TogglePasswordRequirements) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
+                            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                             singleLine = true,
                             isError = state.password.isNotEmpty() && state.passwordStrength == PasswordStrength.WEAK,
                             shape = RoundedCornerShape(16.dp),
@@ -330,59 +278,26 @@ fun RegisterScreen(
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
-
-                        PasswordStrengthIndicator(
-                            password = state.password,
-                            strength = state.passwordStrength
-                        )
-
-                        PasswordRequirements(
-                            password = state.password,
-                            isVisible = state.showPasswordRequirements
-                        )
-
+                        PasswordStrengthIndicator(password = state.password, strength = state.passwordStrength)
+                        PasswordRequirements(password = state.password, isVisible = state.showPasswordRequirements)
                         Spacer(modifier = Modifier.height(16.dp))
-
-                        // Confirm Password
                         OutlinedTextField(
                             value = state.confirmPassword,
                             onValueChange = { viewModel.onEvent(RegisterUiEvent.ConfirmPasswordChanged(it)) },
                             label = { Text("Confirm Password") },
                             trailingIcon = {
-                                IconButton(
-                                    onClick = { viewModel.onEvent(RegisterUiEvent.ToggleConfirmPasswordVisibility) }
-                                ) {
+                                IconButton(onClick = { viewModel.onEvent(RegisterUiEvent.ToggleConfirmPasswordVisibility) }) {
                                     Icon(
-                                        imageVector = if (state.isConfirmPasswordVisible) {
-                                            Icons.Default.Visibility
-                                        } else {
-                                            Icons.Default.VisibilityOff
-                                        },
-                                        contentDescription = if (state.isConfirmPasswordVisible) {
-                                            "Hide password"
-                                        } else {
-                                            "Show password"
-                                        },
+                                        imageVector = if (state.isConfirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = if (state.isConfirmPasswordVisible) "Hide password" else "Show password",
                                         tint = colors.iconTint
                                     )
                                 }
                             },
-                            visualTransformation = if (state.isConfirmPasswordVisible) {
-                                VisualTransformation.None
-                            } else {
-                                PasswordVisualTransformation()
-                            },
+                            visualTransformation = if (state.isConfirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    focusManager.clearFocus()
-                                    viewModel.onEvent(RegisterUiEvent.Register)
-                                }
-                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); viewModel.onEvent(RegisterUiEvent.Register) }),
                             singleLine = true,
                             isError = state.confirmPassword.isNotEmpty() && !state.passwordsMatch,
                             shape = RoundedCornerShape(16.dp),
@@ -393,79 +308,28 @@ fun RegisterScreen(
                                 errorBorderColor = MaterialTheme.colorScheme.error
                             )
                         )
-
                         if (state.confirmPassword.isNotEmpty() && !state.passwordsMatch) {
                             Text(
                                 text = "Passwords do not match",
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier
-                                    .align(Alignment.Start)
-                                    .padding(start = 16.dp, top = 4.dp)
+                                modifier = Modifier.align(Alignment.Start).padding(start = 16.dp, top = 4.dp)
                             )
                         }
-
                         Spacer(modifier = Modifier.height(24.dp))
-
                         Button(
                             onClick = { viewModel.onEvent(RegisterUiEvent.Register) },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !state.isLoading,
                             shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF9334EA),
-                                contentColor = Color.White
-                            )
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9334EA), contentColor = Color.White)
                         ) {
                             if (state.isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color.White
-                                )
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color.White)
                             } else {
-                                Text(
-                                    text = "Sign Up",
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
+                                Text(text = "Sign Up", modifier = Modifier.padding(vertical = 8.dp))
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Divider(
-                                modifier = Modifier.weight(1f),
-                                color = Color.LightGray
-                            )
-                            Text(
-                                text = "OR",
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                color = Color.Gray,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Divider(
-                                modifier = Modifier.weight(1f),
-                                color = Color.LightGray
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        GoogleSignInButton(
-                            onClick = { viewModel.onEvent(RegisterUiEvent.GoogleSignIn) },
-                            isLoading = state.isGoogleLoading
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        MicrosoftSignInButton(
-                            onClick = { viewModel.onEvent(RegisterUiEvent.MicrosoftSignIn) },
-                            isLoading = state.isMicrosoftLoading
-                        )
                     }
                 }
 
@@ -474,13 +338,7 @@ fun RegisterScreen(
                 Text(
                     text = buildAnnotatedString {
                         append("Already have an account? ")
-                        withStyle(
-                            style = SpanStyle(
-                                color = Color(0xFF9334EA),
-                                textDecoration = TextDecoration.Underline,
-                                fontWeight = FontWeight.Bold
-                            )
-                        ) {
+                        withStyle(style = SpanStyle(color = Color(0xFF9334EA), textDecoration = TextDecoration.Underline, fontWeight = FontWeight.Bold)) {
                             append("Sign In")
                         }
                     },
@@ -488,7 +346,6 @@ fun RegisterScreen(
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium
                 )
-
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
@@ -499,15 +356,10 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxSize().padding(padding).background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = Color(0xFF9334EA)
-                    )
+                    CircularProgressIndicator(color = Color(0xFF9334EA))
                 }
             }
         }

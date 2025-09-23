@@ -1,0 +1,76 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    # Only deploy on push to main, not on PRs
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via Docker Compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            # Navigate to project directory
+            cd /root/stathis || { echo "Project directory not found"; exit 1; }
+            
+            # Single git pull for entire monorepo
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Build only what changed using Docker build contexts
+            echo "🔨 Building containers from monorepo subfolders..."
+            
+            # Build frontend from nested frontend subfolder
+            docker build -t stathis-frontend:latest ./frontend/frontend
+            
+            # Build backend from nested backend subfolder  
+            docker build -t stathis-backend:latest ./backend/backend
+            
+            # Deploy with compose (no rebuild needed since we built above)
+            docker compose up -d --force-recreate
+            
+            # Wait for services to be ready
+            echo "⏳ Waiting for services to start..."
+            sleep 30
+            
+            # Health checks
+            echo "🔍 Checking service health..."
+            
+            # Check frontend
+            if docker exec stathis-frontend curl -f http://localhost:3000 >/dev/null 2>&1; then
+              echo "✅ Frontend is healthy"
+            else
+              echo "❌ Frontend health check failed"
+              docker logs stathis-frontend --tail 20
+              exit 1
+            fi
+            
+            # Check backend
+            if docker exec stathis-backend curl -f http://localhost:8080 >/dev/null 2>&1; then
+              echo "✅ Backend is healthy"
+            else
+              echo "❌ Backend health check failed"
+              docker logs stathis-backend --tail 20
+              exit 1
+            fi
+            
+            # Clean up old images
+            docker image prune -f
+            
+            echo "🚀 Production deployment successful!"
+            echo "Web: https://stathis.ryne.dev"
+            echo "API: https://api-stathis.ryne.dev"

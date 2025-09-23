@@ -140,6 +140,15 @@ public class ClassroomService {
         classroomRepository.save(classroom);
     }
 
+    @PreAuthorize("hasRole('TEACHER')")
+    @Transactional
+    public void unenrollStudentInClassroom(String classroomPhysicalId, String studentId) {
+        Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
+            .orElseThrow(() -> new RuntimeException("Classroom not found"));
+        classroom.getClassroomStudents().removeIf(cs -> cs.getStudent().getUser().getPhysicalId().equals(studentId));
+        classroomRepository.save(classroom);
+    }
+
     private StudentListResponseDTO buildStudentListResponse(ClassroomStudents classroomStudents) {
         return StudentListResponseDTO.builder()
             .physicalId(classroomStudents.getStudent().getUser().getPhysicalId())
