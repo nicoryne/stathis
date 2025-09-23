@@ -10,6 +10,7 @@ import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalys
 import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseDetectionService
 import citu.edu.stathis.mobile.features.exercise.data.toPoseLandmarksData
 import citu.edu.stathis.mobile.features.exercise.domain.usecase.*
+import citu.edu.stathis.mobile.features.common.domain.Result
 import com.google.mlkit.vision.pose.Pose
 import com.google.mlkit.vision.pose.PoseLandmark
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ import kotlin.math.abs
 class ExerciseViewModel @Inject constructor(
     private val poseDetectionService: PoseDetectionService,
     private val getAvailableExercisesUseCase: GetAvailableExercisesUseCase,
+    private val getAvailableExercisesResultUseCase: GetAvailableExercisesResultUseCase,
     private val analyzePostureWithBackendUseCase: AnalyzePostureWithBackendUseCase,
     private val saveExerciseSessionUseCase: SaveExerciseSessionUseCase,
     private val getCurrentUserIdUseCase: GetCurrentUserIdUseCase
@@ -66,11 +68,13 @@ class ExerciseViewModel @Inject constructor(
     fun loadExercises() {
         viewModelScope.launch {
             _uiState.value = ExerciseScreenUiState.ExerciseSelection(isLoading = true, exercises = emptyList())
-            val response = getAvailableExercisesUseCase()
-            if (response.success && response.data != null) {
-                _uiState.value = ExerciseScreenUiState.ExerciseSelection(isLoading = false, exercises = response.data)
-            } else {
-                _uiState.value = ExerciseScreenUiState.Error(response.message ?: "Failed to load exercises")
+            when (val result = getAvailableExercisesResultUseCase()) {
+                is Result.Success -> {
+                    _uiState.value = ExerciseScreenUiState.ExerciseSelection(isLoading = false, exercises = result.data)
+                }
+                is Result.Error -> {
+                    _uiState.value = ExerciseScreenUiState.Error(result.message)
+                }
             }
         }
     }

@@ -21,4 +21,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "Stathis"
 include(":app")
+include(":core:common")
+include(":feature:classroom")
+include(":feature:exercise")
+include(":feature:vitals")
+include(":feature:tasks")
+include(":feature:progress")
  

@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import citu.edu.stathis.mobile.features.exercise.data.Exercise
-import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
 import citu.edu.stathis.mobile.features.exercise.ui.ExerciseScreenUiState
 import java.util.concurrent.TimeUnit
 
@@ -67,28 +66,6 @@ fun ExerciseHeader(
                 )
             }
         }
-    }
-}
-
-/**
- * Displays a visual representation of the detected pose
- */
-@Composable
-fun PoseSkeletonOverlay(
-    landmarksData: PoseLandmarksData?,
-    isFrontCamera: Boolean = true
-) {
-    if (landmarksData == null) return
-    
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = "Pose detected with ${landmarksData.landmarkPoints.size} landmarks",
-            color = Color.Green,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier
-                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                .padding(8.dp)
-        )
     }
 }
 

@@ -182,6 +182,14 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
     implementation("com.patrykandpatrick.vico:core:1.13.1")
 
+    // Feature modules
+    implementation(project(":core:common"))
+    implementation(project(":feature:classroom"))
+    implementation(project(":feature:exercise"))
+    implementation(project(":feature:vitals"))
+    implementation(project(":feature:tasks"))
+    implementation(project(":feature:progress"))
+
 }
 
 kapt {

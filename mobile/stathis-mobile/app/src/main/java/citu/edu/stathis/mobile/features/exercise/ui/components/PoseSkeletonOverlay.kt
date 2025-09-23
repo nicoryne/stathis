@@ -26,19 +26,26 @@ class PoseSkeletonOverlay @JvmOverloads constructor(
     private var imageWidth = 0
     private var imageHeight = 0
     private var scaleFactor = 1.0f
+    private var xOffsetPx = 0f
+    private var yOffsetPx = 0f
     private var isImageFlipped = false
 
     // Paint objects for drawing
     private val landmarkPaint = Paint().apply {
+        // Default to RED; can be overridden via setSkeletonColors
         color = Color.RED
         style = Paint.Style.FILL
-        strokeWidth = 8f
+        strokeWidth = 10f
+        isAntiAlias = true
     }
 
     private val connectionPaint = Paint().apply {
+        // Default to GREEN; can be overridden via setSkeletonColors
         color = Color.GREEN
         style = Paint.Style.STROKE
-        strokeWidth = 4f
+        strokeWidth = 6f
+        strokeCap = Paint.Cap.ROUND
+        isAntiAlias = true
     }
 
     private val inFramePaint = Paint().apply {
@@ -113,6 +120,16 @@ class PoseSkeletonOverlay @JvmOverloads constructor(
         invalidate() // Request redraw
     }
 
+    /**
+     * Adjusts the overlay position in pixels to fine-tune alignment over the preview.
+     * Positive y moves the skeleton down; positive x moves it to the right.
+     */
+    fun setOffsets(xOffsetPx: Float, yOffsetPx: Float) {
+        this.xOffsetPx = xOffsetPx
+        this.yOffsetPx = yOffsetPx
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
@@ -128,10 +145,18 @@ class PoseSkeletonOverlay @JvmOverloads constructor(
                 // View is wider than the image
                 scaleY = height.toFloat() / imageHeight.toFloat()
                 scaleX = scaleY
+                // Center horizontally
+                val scaledImageWidth = imageWidth * scaleX
+                xOffsetPx = (width - scaledImageWidth) / 2f
+                yOffsetPx = 0f
             } else {
                 // View is taller than the image
                 scaleX = width.toFloat() / imageWidth.toFloat()
                 scaleY = scaleX
+                // Center vertically
+                val scaledImageHeight = imageHeight * scaleY
+                xOffsetPx = 0f
+                yOffsetPx = (height - scaledImageHeight) / 2f
             }
             
             scaleFactor = min(scaleX, scaleY)
@@ -155,20 +180,10 @@ class PoseSkeletonOverlay @JvmOverloads constructor(
                 }
             }
             
-            // Draw landmarks (points)
+            // Draw landmarks (points) using the configured brand color
             for (landmark in pose.allPoseLandmarks) {
                 val point = transformLandmarkPosition(landmark.position)
-                
-                // Adjust point size based on landmark confidence
-                val radius = 8f * landmark.inFrameLikelihood
-                
-                // Color based on likelihood of being in frame
-                landmarkPaint.color = if (landmark.inFrameLikelihood > 0.5f) {
-                    Color.RED
-                } else {
-                    Color.YELLOW
-                }
-                
+                val radius = 8f * landmark.inFrameLikelihood.coerceIn(0.4f, 1.0f)
                 canvas.drawCircle(point.x, point.y, radius, landmarkPaint)
             }
         }
@@ -178,8 +193,8 @@ class PoseSkeletonOverlay @JvmOverloads constructor(
      * Transforms landmark position from the input image coordinates to the view coordinates.
      */
     private fun transformLandmarkPosition(position: PointF): PointF {
-        val scaledX = position.x * scaleFactor
-        val scaledY = position.y * scaleFactor
+        val scaledX = position.x * scaleFactor + xOffsetPx
+        val scaledY = position.y * scaleFactor + yOffsetPx
         
         // Handle horizontal flipping if needed (e.g., for front camera)
         val x = if (isImageFlipped) width - scaledX else scaledX

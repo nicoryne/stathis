@@ -6,9 +6,10 @@ import citu.edu.stathis.mobile.core.data.models.ClientResponse
 import citu.edu.stathis.mobile.core.data.AuthTokenManager
 import citu.edu.stathis.mobile.features.auth.data.models.BiometricState
 import citu.edu.stathis.mobile.features.auth.data.models.LoginResponse
-import citu.edu.stathis.mobile.features.auth.domain.usecase.BiometricAuthUseCase
-import citu.edu.stathis.mobile.features.auth.domain.usecase.LoginUseCase
+import citu.edu.stathis.mobile.features.auth.domain.usecase.BiometricAuthResultUseCase
+import citu.edu.stathis.mobile.features.auth.domain.usecase.LoginResultUseCase
 import citu.edu.stathis.mobile.features.auth.data.enums.UserRoles
+import citu.edu.stathis.mobile.features.common.domain.Result
 import cit.edu.stathis.mobile.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,8 +24,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val loginUseCase: LoginUseCase,
-    private val biometricAuthUseCase: BiometricAuthUseCase,
+    private val loginResultUseCase: LoginResultUseCase,
+    private val biometricAuthResultUseCase: BiometricAuthResultUseCase,
     private val authTokenManager: AuthTokenManager
 ) : ViewModel() {
 
@@ -43,7 +44,7 @@ class LoginViewModel @Inject constructor(
 
     private fun checkBiometricAvailability() {
         viewModelScope.launch {
-            val canPrompt = biometricAuthUseCase.canPromptBiometrics()
+            val canPrompt = biometricAuthResultUseCase.canPromptBiometrics()
             _biometricState.value = if (canPrompt) BiometricState.Available else BiometricState.NotAvailable
         }
     }
@@ -79,15 +80,14 @@ class LoginViewModel @Inject constructor(
     private fun login() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result: ClientResponse<LoginResponse> = loginUseCase(
+            val result: Result<LoginResponse> = loginResultUseCase(
                 email = state.value.email,
                 password = state.value.password
             )
             _state.update { it.copy(isLoading = false) }
-            if (result.success) {
-                _events.emit(LoginEvent.NavigateToHome)
-            } else {
-                _events.emit(LoginEvent.ShowError(result.message))
+            when (result) {
+                is Result.Success -> _events.emit(LoginEvent.NavigateToHome)
+                is Result.Error -> _events.emit(LoginEvent.ShowError(result.message))
             }
         }
     }
@@ -95,14 +95,17 @@ class LoginViewModel @Inject constructor(
     private fun loginWithBiometrics() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            val result: ClientResponse<Unit> = biometricAuthUseCase.authenticateWithBiometrics()
+            val result: Result<Unit> = biometricAuthResultUseCase.authenticate()
             _state.update { it.copy(isLoading = false) }
-            if (result.success) {
-                _events.emit(LoginEvent.NavigateToHome)
-                _biometricState.value = BiometricState.NotChecked
-            } else {
-                _events.emit(LoginEvent.ShowError(result.message))
-                checkBiometricAvailability()
+            when (result) {
+                is Result.Success -> {
+                    _events.emit(LoginEvent.NavigateToHome)
+                    _biometricState.value = BiometricState.NotChecked
+                }
+                is Result.Error -> {
+                    _events.emit(LoginEvent.ShowError(result.message))
+                    checkBiometricAvailability()
+                }
             }
         }
     }

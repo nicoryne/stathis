@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
 import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
-import citu.edu.stathis.mobile.features.classroom.data.repository.ClassroomRepository
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.EnrollInClassroomUseCase
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomDetailsUseCase
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomProgressUseCase
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomTasksUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsResultUseCase
 import citu.edu.stathis.mobile.features.common.domain.Result
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
@@ -23,8 +26,11 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ClassroomViewModel @Inject constructor(
-    private val classroomRepository: ClassroomRepository,
-    private val getStudentClassroomsResult: GetStudentClassroomsResultUseCase
+    private val getStudentClassroomsResult: GetStudentClassroomsResultUseCase,
+    private val enrollInClassroomUseCase: EnrollInClassroomUseCase,
+    private val getClassroomDetailsUseCase: GetClassroomDetailsUseCase,
+    private val getClassroomProgressUseCase: GetClassroomProgressUseCase,
+    private val getClassroomTasksUseCase: GetClassroomTasksUseCase
 ) : ViewModel() {
 
     // UI state for classrooms
@@ -116,7 +122,7 @@ class ClassroomViewModel @Inject constructor(
             _enrollmentState.value = EnrollmentState.Enrolling
             
             try {
-                classroomRepository.enrollInClassroom(classroomCode)
+                enrollInClassroomUseCase(classroomCode)
                     .catch { e ->
                         Timber.e(e, "Error enrolling in classroom")
                         
@@ -168,7 +174,7 @@ class ClassroomViewModel @Inject constructor(
             _tasksState.value = TasksState.Loading
             
             try {
-                classroomRepository.getClassroomTasks(classroomId)
+                getClassroomTasksUseCase(classroomId)
                     .catch { e ->
                         Timber.e(e, "Error loading classroom tasks")
                         _tasksState.value = TasksState.Error(e.message ?: "Unknown error")

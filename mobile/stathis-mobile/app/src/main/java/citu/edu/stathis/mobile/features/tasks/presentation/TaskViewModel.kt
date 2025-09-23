@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
-import citu.edu.stathis.mobile.features.tasks.data.repository.TaskRepository
+import citu.edu.stathis.mobile.features.tasks.domain.usecase.*
+import citu.edu.stathis.mobile.features.common.domain.Result
+import citu.edu.stathis.mobile.features.common.domain.asResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,7 +16,12 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TaskViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val getTasksForClassroomResultUseCase: GetTasksForClassroomResultUseCase,
+    private val getTaskDetailsResultUseCase: GetTaskDetailsResultUseCase,
+    private val getTaskProgressResultUseCase: GetTaskProgressResultUseCase,
+    private val submitQuizScoreResultUseCase: SubmitQuizScoreResultUseCase,
+    private val completeLessonResultUseCase: CompleteLessonResultUseCase,
+    private val completeExerciseResultUseCase: CompleteExerciseResultUseCase
 ) : ViewModel() {
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
@@ -31,70 +38,54 @@ class TaskViewModel @Inject constructor(
 
     fun loadTasksForClassroom(classroomId: String) {
         viewModelScope.launch {
-            taskRepository.getStudentTasksForClassroom(classroomId)
-                .catch { e ->
-                    _error.value = e.message
-                }
-                .collect { tasks ->
-                    _tasks.value = tasks
-                }
+            when (val result = getTasksForClassroomResultUseCase(classroomId)) {
+                is Result.Success -> _tasks.value = result.data
+                is Result.Error -> _error.value = result.message
+            }
         }
     }
 
     fun loadTaskDetails(taskId: String) {
         viewModelScope.launch {
-            taskRepository.getStudentTask(taskId)
-                .catch { e ->
-                    _error.value = e.message
-                }
-                .collect { task ->
-                    _selectedTask.value = task
-                }
+            when (val result = getTaskDetailsResultUseCase(taskId)) {
+                is Result.Success -> _selectedTask.value = result.data
+                is Result.Error -> _error.value = result.message
+            }
         }
     }
 
     fun loadTaskProgress(taskId: String) {
         viewModelScope.launch {
-            taskRepository.getTaskProgress(taskId)
-                .catch { e ->
-                    _error.value = e.message
-                }
-                .collect { progress ->
-                    _taskProgress.value = progress
-                }
+            when (val result = getTaskProgressResultUseCase(taskId)) {
+                is Result.Success -> _taskProgress.value = result.data
+                is Result.Error -> _error.value = result.message
+            }
         }
     }
 
     fun submitQuizScore(taskId: String, quizTemplateId: String, score: Int) {
         viewModelScope.launch {
-            taskRepository.submitQuizScore(taskId, quizTemplateId, score)
-                .catch { e ->
-                    _error.value = e.message
-                }
-                .collect {
-                    loadTaskProgress(taskId)
-                }
+            when (val result = submitQuizScoreResultUseCase(taskId, quizTemplateId, score)) {
+                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Error -> _error.value = result.message
+            }
         }
     }
 
     fun completeLesson(taskId: String, lessonTemplateId: String) {
         viewModelScope.launch {
-            try {
-                taskRepository.completeLesson(taskId, lessonTemplateId)
-                loadTaskProgress(taskId)
-            } catch (e: Exception) {
-                _error.value = e.message
+            when (val result = completeLessonResultUseCase(taskId, lessonTemplateId)) {
+                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Error -> _error.value = result.message
             }
         }
     }
 
     fun completeExercise(taskId: String, exerciseTemplateId: String) {
         viewModelScope.launch {
-            try {
-                taskRepository.completeExercise(taskId, exerciseTemplateId)
-                loadTaskProgress(taskId)
-            } catch (e: Exception) {
-                _error.value = e.message
+            when (val result = completeExerciseResultUseCase(taskId, exerciseTemplateId)) {
+                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Error -> _error.value = result.message
             }
         }
     }

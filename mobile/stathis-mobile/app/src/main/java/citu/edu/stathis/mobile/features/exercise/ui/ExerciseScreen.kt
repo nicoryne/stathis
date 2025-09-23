@@ -35,13 +35,15 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import citu.edu.stathis.mobile.core.theme.BrandColors
+import citu.edu.stathis.mobile.core.theme.Purple
+import citu.edu.stathis.mobile.core.theme.Teal
 import citu.edu.stathis.mobile.features.exercise.data.Exercise
 import citu.edu.stathis.mobile.features.exercise.data.OnDeviceFeedback
 import citu.edu.stathis.mobile.features.exercise.data.PoseLandmarksData
 import citu.edu.stathis.mobile.features.exercise.data.model.BackendPostureAnalysis
 import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseAnalyzer
 import citu.edu.stathis.mobile.features.exercise.ui.components.EnhancedSkeletonOverlay
+import androidx.compose.ui.graphics.toArgb
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -320,6 +322,7 @@ fun ExerciseActiveContent(
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Camera Preview in background
+        var lastBoundSelector by remember { mutableStateOf<CameraSelector?>(null) }
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
@@ -332,42 +335,38 @@ fun ExerciseActiveContent(
                 }
             }
         ) { previewView ->
+            // Bind only when selector changes or first time
+            if (lastBoundSelector == activeState.currentCameraSelector) return@AndroidView
+            lastBoundSelector = activeState.currentCameraSelector
+
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
-                
                 try {
-                    val preview = CameraXPreview.Builder()
-                        .build()
-                        .also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
+                    val preview = CameraXPreview.Builder().build().also {
+                        it.setSurfaceProvider(previewView.surfaceProvider)
+                    }
 
                     val imageAnalysis = ImageAnalysis.Builder()
-                        .setTargetAspectRatio(AspectRatio.RATIO_16_9)
-                        .setTargetRotation(Surface.ROTATION_0)
+                        .setTargetResolution(android.util.Size(640, 360))
+                        .setTargetRotation(previewView.display?.rotation ?: Surface.ROTATION_0)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
-                    // Create pose analyzer
                     val poseAnalyzer = PoseAnalyzer(
                         executor = ContextCompat.getMainExecutor(context),
                         onPoseDetected = { pose, width, height, flipped ->
-                            // Update local state for rendering
                             currentPose = pose
                             imageWidth = width
                             imageHeight = height
-                            
-                            // Pass to view model for processing
                             onPoseDetected(pose, width, height, flipped, activeState.selectedExercise)
                         },
-                        isImageFlipped = isImageFlipped
+                        isImageFlipped = isImageFlipped,
+                        minAnalysisIntervalMs = 100L
                     )
-                    
-                    imageAnalysis.setAnalyzer(
-                        ContextCompat.getMainExecutor(context),
-                        poseAnalyzer
-                    )
+
+                    val analysisExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+                    imageAnalysis.setAnalyzer(analysisExecutor, poseAnalyzer)
 
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(
