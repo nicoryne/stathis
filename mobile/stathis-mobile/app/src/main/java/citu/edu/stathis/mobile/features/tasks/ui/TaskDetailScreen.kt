@@ -253,7 +253,7 @@ fun TaskInfoCard(task: Task) {
             ) {
                 // Task icon based on type
                 val (icon, iconTint) = when {
-                    task.exerciseTemplateId != null -> CustomIcons.Fitness to BrandColors.Green
+                    task.exerciseTemplateId != null -> CustomIcons.Fitness to Color(0xFF4CAF50)
                     task.lessonTemplateId != null -> Icons.Default.MenuBook to BrandColors.Teal
                     task.quizTemplateId != null -> Icons.Default.QuestionAnswer to BrandColors.Purple
                     else -> Icons.Default.Assignment to BrandColors.Purple
@@ -301,7 +301,7 @@ fun TaskInfoCard(task: Task) {
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.Green),
+                            .background(Color(0xFF4CAF50)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -433,7 +433,7 @@ fun ExerciseTaskContent(
             Icon(
                 imageVector = CustomIcons.Fitness,
                 contentDescription = "Exercise",
-                tint = BrandColors.Green,
+                tint = Color(0xFF4CAF50),
                 modifier = Modifier.size(48.dp)
             )
             
@@ -465,7 +465,7 @@ fun ExerciseTaskContent(
                 Text(
                     text = "You have completed this exercise",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Green
+                    color = Color(0xFF4CAF50)
                 )
             } else {
                 Button(
@@ -536,7 +536,7 @@ fun LessonTaskContent(
                 Text(
                     text = "You have completed this lesson",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Green
+                    color = Color(0xFF4CAF50)
                 )
             } else {
                 Button(
@@ -607,7 +607,7 @@ fun QuizTaskContent(
                 Text(
                     text = "You have completed this quiz",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Green
+                    color = Color(0xFF4CAF50)
                 )
             } else {
                 Button(

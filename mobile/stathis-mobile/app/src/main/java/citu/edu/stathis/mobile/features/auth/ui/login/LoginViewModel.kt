@@ -3,10 +3,13 @@ package citu.edu.stathis.mobile.features.auth.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.core.data.models.ClientResponse
+import citu.edu.stathis.mobile.core.data.AuthTokenManager
 import citu.edu.stathis.mobile.features.auth.data.models.BiometricState
 import citu.edu.stathis.mobile.features.auth.data.models.LoginResponse
 import citu.edu.stathis.mobile.features.auth.domain.usecase.BiometricAuthUseCase
 import citu.edu.stathis.mobile.features.auth.domain.usecase.LoginUseCase
+import citu.edu.stathis.mobile.features.auth.data.enums.UserRoles
+import cit.edu.stathis.mobile.BuildConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
-    private val biometricAuthUseCase: BiometricAuthUseCase
+    private val biometricAuthUseCase: BiometricAuthUseCase,
+    private val authTokenManager: AuthTokenManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LoginState())
@@ -34,12 +38,13 @@ class LoginViewModel @Inject constructor(
     val biometricState: StateFlow<BiometricState> = _biometricState.asStateFlow()
 
     init {
-        checkBiometricAvailability()
+        refreshBiometricState()
     }
 
     private fun checkBiometricAvailability() {
         viewModelScope.launch {
-            _biometricState.value = biometricAuthUseCase.checkBiometricAvailability()
+            val canPrompt = biometricAuthUseCase.canPromptBiometrics()
+            _biometricState.value = if (canPrompt) BiometricState.Available else BiometricState.NotAvailable
         }
     }
 
@@ -64,6 +69,9 @@ class LoginViewModel @Inject constructor(
                 viewModelScope.launch {
                     _events.emit(LoginEvent.NavigateToRegister)
                 }
+            }
+            is LoginUiEvent.BypassLogin -> {
+                bypassLogin()
             }
         }
     }
@@ -99,6 +107,24 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    private fun bypassLogin() {
+        viewModelScope.launch {
+            if (!(BuildConfig.BYPASS_AUTH && BuildConfig.APP_ENV == "local")) {
+                _events.emit(LoginEvent.ShowError("Bypass login is disabled"))
+                return@launch
+            }
+            // Save a local debug session so auth gates see a logged-in state
+            authTokenManager.saveSessionTokensAndRole(
+                accessToken = "debug_access",
+                refreshToken = "debug_refresh",
+                role = UserRoles.STUDENT
+            )
+            // Set a test identity for downstream features that rely on physicalId/role
+            authTokenManager.updateUserIdentity(physicalId = "debug_user", role = UserRoles.STUDENT)
+            _events.emit(LoginEvent.NavigateToHome)
+        }
+    }
+
     fun refreshBiometricState() {
         checkBiometricAvailability()
     }
@@ -117,6 +143,7 @@ sealed class LoginUiEvent {
     data object TogglePasswordVisibility : LoginUiEvent()
     data object Login : LoginUiEvent()
     data object BiometricLogin : LoginUiEvent()
+    data object BypassLogin : LoginUiEvent()
     data object NavigateToRegister : LoginUiEvent()
     // Removed: data object NavigateToForgotPassword : LoginUiEvent()
 }

@@ -72,6 +72,7 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
+import cit.edu.stathis.mobile.BuildConfig
 
 @Composable
 fun LoginScreen(
@@ -174,6 +175,23 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        if (BuildConfig.APP_ENV == "local" || BuildConfig.BYPASS_AUTH) {
+                            Button(
+                                onClick = { viewModel.onEvent(LoginUiEvent.BypassLogin) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF22C55E),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(
+                                    text = "Bypass Login (Local)",
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                         OutlinedTextField(
                             value = state.email,
                             onValueChange = { viewModel.onEvent(LoginUiEvent.EmailChanged(it)) },

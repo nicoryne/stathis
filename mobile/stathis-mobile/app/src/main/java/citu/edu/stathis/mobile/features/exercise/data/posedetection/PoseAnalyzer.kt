@@ -23,7 +23,6 @@ class PoseAnalyzer(
     // Configure the pose detector
     private val options = PoseDetectorOptions.Builder()
         .setDetectorMode(PoseDetectorOptions.STREAM_MODE) // For real-time detection
-        .setPerformanceMode(PoseDetectorOptions.PERFORMANCE_MODE_FAST) // Prioritize speed
         .build()
 
     private val poseDetector: PoseDetector = PoseDetection.getClient(options)

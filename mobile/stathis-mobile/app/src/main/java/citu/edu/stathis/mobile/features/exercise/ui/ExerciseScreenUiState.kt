@@ -44,7 +44,8 @@ sealed class ExerciseScreenUiState {
         val repCount: Int = 0,
         val heartRate: Int = 0,
         val backendAnalysis: BackendPostureAnalysis? = null,
-        val poseDetectionStatus: PoseDetectionStatus = PoseDetectionStatus.INITIALIZING
+        val poseDetectionStatus: PoseDetectionStatus = PoseDetectionStatus.INITIALIZING,
+        val sessionTimerMs: Long = 0L
     ) : ExerciseScreenUiState()
     
     /**

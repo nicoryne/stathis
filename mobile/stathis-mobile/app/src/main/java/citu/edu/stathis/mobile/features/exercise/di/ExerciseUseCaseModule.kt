@@ -1,9 +1,8 @@
 package citu.edu.stathis.mobile.features.exercise.di
 
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
-import citu.edu.stathis.mobile.features.exercise.domain.repository.ExerciseRepository
+import citu.edu.stathis.mobile.features.exercise.data.ExerciseRepository
 import citu.edu.stathis.mobile.features.exercise.domain.repository.PerformanceRepository
-import citu.edu.stathis.mobile.features.exercise.domain.usecase.AnalyzePostureUseCase
 import citu.edu.stathis.mobile.features.exercise.domain.usecase.AnalyzePostureWithBackendUseCase
 import citu.edu.stathis.mobile.features.exercise.domain.usecase.GetAvailableExercisesUseCase
 import citu.edu.stathis.mobile.features.exercise.domain.usecase.GetCurrentUserIdUseCase
@@ -50,11 +49,4 @@ object ExerciseUseCaseModule {
         return GetCurrentUserIdUseCase(authRepository)
     }
     
-    @Provides
-    @Singleton
-    fun provideAnalyzePostureUseCase(
-        repository: ExerciseRepository
-    ): AnalyzePostureUseCase {
-        return AnalyzePostureUseCase(repository)
-    }
 }

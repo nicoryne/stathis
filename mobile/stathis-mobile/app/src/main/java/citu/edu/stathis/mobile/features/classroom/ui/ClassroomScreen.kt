@@ -65,7 +65,7 @@ fun ClassroomScreen(
                 .padding(paddingValues)
         ) {
             if (error != null) {
-                ErrorMessage(
+                ErrorMessageItem(
                     message = error!!,
                     onDismiss = viewModel::clearError
                 )
@@ -77,7 +77,7 @@ fun ClassroomScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(classrooms) { classroom ->
-                    ClassroomCard(
+                    ClassroomCardItem(
                         classroom = classroom,
                         onClick = {
                             viewModel.loadClassroomDetails(classroom.physicalId)
@@ -125,7 +125,7 @@ fun ClassroomScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ClassroomCard(
+private fun ClassroomCardItem(
     classroom: Classroom,
     onClick: () -> Unit
 ) {
@@ -215,7 +215,7 @@ private fun ClassroomStat(
 }
 
 @Composable
-private fun ErrorMessage(
+private fun ErrorMessageItem(
     message: String,
     onDismiss: () -> Unit
 ) {

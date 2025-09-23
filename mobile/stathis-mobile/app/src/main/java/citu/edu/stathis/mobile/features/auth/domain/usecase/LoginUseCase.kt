@@ -5,11 +5,15 @@ import citu.edu.stathis.mobile.features.auth.data.models.LoginResponse
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import citu.edu.stathis.mobile.features.auth.ui.utils.EmailValidator
 import javax.inject.Inject
+import cit.edu.stathis.mobile.BuildConfig
 
 class LoginUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
     suspend operator fun invoke(email: String, password: String): ClientResponse<LoginResponse> {
+        if (BuildConfig.BYPASS_AUTH) {
+            return ClientResponse(success = true, message = "Auth bypassed in debug mode", data = LoginResponse(accessToken = "debug", refreshToken = "debug"))
+        }
         if (email.isBlank() || password.isBlank()) {
             return ClientResponse(success = false, message = "Email and password cannot be empty.", data = null)
         }

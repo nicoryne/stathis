@@ -74,6 +74,9 @@ fun ExerciseScreen(
                 is ExerciseViewEvent.NavigateToExerciseSelection -> {
                     viewModel.loadExercises()
                 }
+                is ExerciseViewEvent.ShowLowAccuracyWarning -> {
+                    snackbarHostState.showSnackbar(event.message)
+                }
             }
         }
     }

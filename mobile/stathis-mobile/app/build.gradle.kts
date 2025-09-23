@@ -8,6 +8,19 @@ plugins {
     kotlin("plugin.serialization")
 }
 
+import java.util.Properties
+
+// Load local.properties for developer-only toggles and config
+val localProps = Properties().apply {
+    val lp = rootProject.file("local.properties")
+    if (lp.exists()) {
+        lp.inputStream().use { load(it) }
+    }
+}
+
+fun propBool(key: String, default: String) = localProps.getProperty(key, default)
+fun propStr(key: String, default: String) = localProps.getProperty(key, default)
+
 android {
     namespace = "cit.edu.stathis.mobile"
     compileSdk = 36
@@ -23,12 +36,28 @@ android {
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            // Read from local.properties (defaults shown)
+            val bypassAuth = propBool("BYPASS_AUTH", "true")
+            val appEnv = propStr("APP_ENV", "local")
+            val apiBaseUrl = propStr("API_BASE_URL", "https://api.example.com")
+            buildConfigField("boolean", "BYPASS_AUTH", bypassAuth)
+            buildConfigField("String", "APP_ENV", "\"$appEnv\"")
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            val bypassAuth = propBool("BYPASS_AUTH", "false")
+            val appEnv = propStr("APP_ENV", "prod")
+            val apiBaseUrl = propStr("API_BASE_URL", "https://api.example.com")
+            buildConfigField("boolean", "BYPASS_AUTH", bypassAuth)
+            buildConfigField("String", "APP_ENV", "\"$appEnv\"")
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         }
     }
     buildFeatures {
@@ -144,6 +173,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     implementation("androidx.health.connect:connect-client:1.1.0-rc01")
+
+    // Timber for logging
+    implementation(libs.timber)
 
     // Compose Charts
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
