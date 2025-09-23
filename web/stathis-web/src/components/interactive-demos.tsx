@@ -123,7 +123,7 @@ export function InteractiveDemos({ className = '' }: DemoTabsProps) {
           </div>
           
           <div className="mt-4 text-sm text-muted-foreground">
-            <p>STATHIS uses TensorFlow Lite and OpenCV to analyze joint angles and movement patterns in real-time, providing immediate feedback on exercise form.</p>
+            <p>Stathis uses TensorFlow Lite and OpenCV to analyze joint angles and movement patterns in real-time, providing immediate feedback on exercise form.</p>
           </div>
         </motion.div>
         
@@ -314,7 +314,7 @@ export function InteractiveDemos({ className = '' }: DemoTabsProps) {
             <div className="relative w-48 h-96 bg-muted rounded-xl overflow-hidden border border-border">
               <div className="absolute inset-0 flex flex-col">
                 <div className="bg-primary h-12 flex items-center justify-center text-white text-sm font-medium">
-                  STATHIS App
+                  Stathis App
                 </div>
                 <div className="flex-1 p-4">
                   <div className="text-center mb-4">
@@ -359,7 +359,7 @@ export function InteractiveDemos({ className = '' }: DemoTabsProps) {
           </div>
           
           <div className="mt-4 text-sm text-muted-foreground">
-            <p>STATHIS seamlessly connects with Xiaomi Smart Band 9 Active to stream real-time health data to the teacher dashboard.</p>
+            <p>Stathis seamlessly connects with Xiaomi Smart Band 9 Active to stream real-time health data to the teacher dashboard.</p>
           </div>
         </motion.div>
       </div>

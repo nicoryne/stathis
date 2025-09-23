@@ -62,7 +62,7 @@ export function AnimatedLogo({
       
       {showText && (
         <span className={`font-bold tracking-tight ${sizeMap[size].text}`}>
-          STATHIS
+          Stathis
         </span>
       )}
     </div>

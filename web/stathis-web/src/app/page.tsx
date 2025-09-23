@@ -77,7 +77,7 @@ export default function Home() {
                 </motion.span>
               </h1>
               <p className="text-muted-foreground max-w-xl text-xl">
-                STATHIS combines real-time posture analysis, health monitoring, and gamification to
+                Stathis combines real-time posture analysis, health monitoring, and gamification to
                 create safer, more engaging PE experiences for students and teachers.
               </p>
               <div className="flex flex-col gap-4 pt-6 sm:flex-row">
@@ -217,7 +217,7 @@ export default function Home() {
               Transforming Physical Education with Technology
             </h2>
             <p className="text-muted-foreground text-lg">
-              STATHIS combines cutting-edge AI with health monitoring to create a safer, more
+              Stathis combines cutting-edge AI with health monitoring to create a safer, more
               engaging, and data-driven physical education experience.
             </p>
             <div className="flex flex-wrap justify-center gap-2 mt-4">
@@ -298,10 +298,10 @@ export default function Home() {
               Interactive Demos
             </div>
             <h2 className="mb-4 text-3xl font-bold md:text-4xl lg:text-5xl tracking-tight">
-              Experience STATHIS in Action
+              Experience Stathis in Action
             </h2>
             <p className="text-muted-foreground text-lg">
-              Explore our interactive demonstrations to see how STATHIS transforms physical education.
+              Explore our interactive demonstrations to see how Stathis transforms physical education.
             </p>
           </motion.div>
           
@@ -323,10 +323,10 @@ export default function Home() {
               Benefits
             </div>
             <h2 className="mb-4 text-3xl font-bold md:text-4xl lg:text-5xl tracking-tight">
-              Enhancing the PE Experience for Everyone
+              Enhancing the PE Experience
             </h2>
             <p className="text-muted-foreground text-lg">
-              STATHIS provides unique advantages for students, educators, and institutions alike.
+              Stathis provides unique advantages for students, educators, and institutions alike.
             </p>
           </motion.div>
 
@@ -388,7 +388,7 @@ export default function Home() {
               Transforming Physical Education Outcomes
             </h2>
             <p className="text-muted-foreground">
-              STATHIS delivers measurable improvements in safety, engagement, and educational outcomes.
+              Stathis delivers measurable improvements in safety, engagement, and educational outcomes.
             </p>
           </motion.div>
 
@@ -474,7 +474,7 @@ export default function Home() {
               Making Physical Education Safer and More Engaging
             </h2>
             <p className="text-muted-foreground text-lg mb-4">
-              STATHIS was developed to address the concerning prevalence of exercise-related
+              Stathis was developed to address the concerning prevalence of exercise-related
               injuries and fatalities in school settings. By leveraging AI and innovative
               technologies, we aim to transform physical education into a safer, more interactive,
               and data-driven experience.
@@ -541,7 +541,7 @@ export default function Home() {
               Visit Us at CIT-University
             </h2>
             <p className="text-muted-foreground text-lg">
-              STATHIS is developed at Cebu Institute of Technology - University, a leading institution in technology and innovation.
+              Stathis is developed at Cebu Institute of Technology - University, a leading institution in technology and innovation.
             </p>
           </motion.div>
 
@@ -584,7 +584,7 @@ export default function Home() {
                   </svg>
                   Email
                 </h3>
-                <p className="text-muted-foreground text-sm">stathis@cit.edu</p>
+                <p className="text-muted-foreground text-sm">info@cit.edu</p>
               </div>
             </div>
           </motion.div>
@@ -608,7 +608,7 @@ export default function Home() {
               Simple Journey, Powerful Results
             </h2>
             <p className="text-muted-foreground">
-              See how STATHIS transforms the physical education experience for all users.
+              See how Stathis transforms the physical education experience for all users.
             </p>
           </motion.div>
 
@@ -655,7 +655,7 @@ export default function Home() {
                 <div className="md:w-1/2 md:text-left order-2">
                   <h3 className="text-xl font-bold mb-2">Device Pairing</h3>
                   <p className="text-muted-foreground">
-                    Students connect their smartphones and wearable devices to the STATHIS platform.
+                    Students connect their smartphones and wearable devices to the Stathis platform.
                   </p>
                 </div>
               </motion.div>

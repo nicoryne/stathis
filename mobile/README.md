@@ -1,8 +1,8 @@
-# STATHIS Mobile Application
+# Stathis Mobile Application
 
 ## Overview
 
-The STATHIS mobile application is a key component of the STATHIS system (Smart Tracking and AI-Powered Technology for Health and Instructional Supervision), designed to revolutionize Physical Education through AI-powered posture tracking, health monitoring, and gamified learning. This README compares the features specified in the Software Requirements Specification (SRS) with the current implementation status and provides guidance for implementing missing features.
+The Stathis mobile application is a key component of the Stathis system (Smart Tracking and AI-Powered Technology for Health and Instructional Supervision), designed to revolutionize Physical Education through AI-powered posture tracking, health monitoring, and gamified learning. This README compares the features specified in the Software Requirements Specification (SRS) with the current implementation status and provides guidance for implementing missing features.
 
 ## SRS Features vs. Current Implementation
 
@@ -572,7 +572,7 @@ The task management module allows students to view and complete assigned tasks. 
 
 ## Conclusion
 
-The STATHIS mobile application successfully implements the core features specified in the SRS document, providing a comprehensive solution for AI-powered posture tracking, health monitoring, and gamified learning in Physical Education. The application's modular architecture allows for easy maintenance and future enhancements.
+The Stathis mobile application successfully implements the core features specified in the SRS document, providing a comprehensive solution for AI-powered posture tracking, health monitoring, and gamified learning in Physical Education. The application's modular architecture allows for easy maintenance and future enhancements.
 
 ## Future Enhancements
 
