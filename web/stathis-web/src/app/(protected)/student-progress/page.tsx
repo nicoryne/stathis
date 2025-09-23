@@ -14,6 +14,7 @@ import { exportStudentScoresReport } from '@/lib/utils/export-utils';
 import { getTeacherClassrooms, getClassroomStudents, ClassroomResponseDTO } from '@/services/api-classroom';
 import { DashboardShell } from '@/components/dashboard/dashboard-shell';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { Sidebar } from '@/components/dashboard/sidebar';
 import {
   Table,
   TableBody,
@@ -48,14 +49,17 @@ import {
   BarChart,
   ArrowRight,
   BookOpen,
-  Award
+  Award,
+  Bell
 } from 'lucide-react';
+import { AuthNavbar } from '@/components/auth-navbar';
 
 export default function StudentProgressPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassroom, setSelectedClassroom] = useState('');
+
   
   // Fetch teacher's classrooms from API
   const { data: classroomsData, isLoading: isClassroomsLoading } = useQuery({
@@ -103,10 +107,10 @@ export default function StudentProgressPage() {
       try {
         if (!selectedClassroom || !studentsData?.students.length) return [];
         
-        // Fetch scores for each student in the classroom
-        const scorePromises = studentsData.students.map(student => 
-          getStudentScores(student.physicalId)
-        );
+        // Only fetch scores for verified students to prevent 403 errors
+        const scorePromises = studentsData.students
+          .filter(student => student.verified) // Skip unverified students
+          .map(student => getStudentScores(student.physicalId));
         
         const results = await Promise.allSettled(scorePromises);
         
@@ -130,10 +134,10 @@ export default function StudentProgressPage() {
       try {
         if (!selectedClassroom || !studentsData?.students.length) return [];
         
-        // Fetch badges for each student in the classroom
-        const badgePromises = studentsData.students.map(student => 
-          getStudentBadges(student.physicalId)
-        );
+        // Only fetch badges for verified students to prevent 403 errors
+        const badgePromises = studentsData.students
+          .filter(student => student.verified) // Skip unverified students
+          .map(student => getStudentBadges(student.physicalId));
         
         const results = await Promise.allSettled(badgePromises);
         
@@ -185,22 +189,32 @@ export default function StudentProgressPage() {
   };
 
   return (
-    <DashboardShell>
-      <DashboardHeader heading="Student Progress" text="View and track the progress of all students">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleExportReport}
-            disabled={isStudentsLoading || isScoresLoading || !selectedClassroom || !allScoresData?.length}
-          >
-            <BarChart className="mr-2 h-4 w-4" />
-            Export Report
-          </Button>
-        </div>
-      </DashboardHeader>
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 flex-shrink-0" />
 
-      <div className="grid gap-8">
+      <div className="flex-1">
+        <AuthNavbar />
+        
+        <main className="p-6">
+          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Student Progress</h1>
+              <p className="text-muted-foreground mt-1">View and track the progress of all students</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleExportReport}
+                disabled={isStudentsLoading || isScoresLoading || !selectedClassroom || !allScoresData?.length}
+              >
+                <BarChart className="mr-2 h-4 w-4" />
+                Export Report
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-8">
         {/* Filters and search */}
         <Card>
           <CardHeader>
@@ -298,30 +312,59 @@ export default function StudentProgressPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStudents.map((student) => (
-                    <TableRow key={student.physicalId}>
-                      <TableCell className="font-medium">
-                        {student.firstName} {student.lastName}
-                      </TableCell>
-                      <TableCell>{student.email}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center">
-                          <span className="font-medium text-green-600">85%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">12/15</TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewStudent(student.physicalId)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredStudents.map((student) => {
+                    // Get student's scores if they exist
+                    const studentScores = allScoresData?.filter((score: ScoreResponseDTO) => score.studentId === student.physicalId) || [];
+                    
+                    // Calculate average score if student is verified
+                    const avgScore = student.verified && studentScores.length > 0 ?
+                      Math.round(studentScores.reduce((sum: number, score: ScoreResponseDTO) => sum + score.scoreValue, 0) / studentScores.length) : null;
+                    
+                    // Count completed tasks if student is verified
+                    const completedTasks = student.verified ? studentScores.filter((score: ScoreResponseDTO) => score.isCompleted).length : null;
+                    const totalTasks = studentScores.length;
+                    
+                    return (
+                      <TableRow key={student.physicalId}>
+                        <TableCell className="font-medium">
+                          {/* Show (Unverified) label for unverified students */}
+                          {!student.verified && <span className="text-red-500 font-normal">(Unverified) </span>}
+                          {student.firstName} {student.lastName}
+                        </TableCell>
+                        <TableCell>{student.email}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center">
+                            {student.verified ? (
+                              avgScore !== null ? (
+                                <span className={`font-medium ${avgScore >= 70 ? 'text-green-600' : 'text-amber-600'}`}>
+                                  {avgScore}%
+                                </span>
+                              ) : 'No data'
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {student.verified ? (
+                            totalTasks > 0 ? `${completedTasks || 0}/${totalTasks}` : 'No tasks'
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewStudent(student.physicalId)}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
@@ -420,6 +463,8 @@ export default function StudentProgressPage() {
           </Card>
         </div>
       </div>
-    </DashboardShell>
+          </main>
+      </div>
+    </div>
   );
 }

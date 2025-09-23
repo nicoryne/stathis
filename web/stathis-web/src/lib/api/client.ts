@@ -4,7 +4,7 @@
  * Base API client for making requests to the backend
  */
 // Using string literal as fallback for local development
-export const API_BASE_URL = 'http://localhost:8080/api';
+export const API_BASE_URL = 'https://stathis.onrender.com/api';
 
 export interface ApiResponse<T = any> {
   data?: T;

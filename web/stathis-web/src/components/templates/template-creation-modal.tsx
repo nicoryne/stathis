@@ -23,12 +23,14 @@ interface TemplateCreationModalProps {
   templateType?: 'LESSON' | 'QUIZ' | 'EXERCISE' | null;
   onTemplateCreated: () => void;
   trigger?: React.ReactNode;
+  continueToTask?: boolean; // If true, will keep the modal open for task creation, if false will just close
 }
 
 export function TemplateCreationModal({ 
   templateType = null, 
   onTemplateCreated,
-  trigger 
+  trigger,
+  continueToTask = false // Default to false - just create template and close
 }: TemplateCreationModalProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TemplateType>(
@@ -40,7 +42,15 @@ export function TemplateCreationModal({
 
   const handleSuccess = () => {
     onTemplateCreated();
-    setOpen(false);
+    // Only close the modal if we're not continuing to task creation
+    if (!continueToTask) {
+      setOpen(false);
+      // Make sure we stay on the templates tab
+      if (typeof window !== 'undefined' && !window.location.hash.includes('tasks')) {
+        // Set the hash to 'templates' to ensure we stay on that tab
+        window.location.hash = 'templates';
+      }
+    }
   };
 
   return (
@@ -53,41 +63,45 @@ export function TemplateCreationModal({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[800px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-4 sticky top-0 z-10 bg-background">
           <DialogTitle>Create New Template</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="pb-2">
             Create a new template to use in your tasks
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TemplateType)} className="w-full mt-4">
-          <TabsList className="grid grid-cols-3 mb-6">
-            <TabsTrigger value="lesson">Lesson</TabsTrigger>
-            <TabsTrigger value="quiz">Quiz</TabsTrigger>
-            <TabsTrigger value="exercise">Exercise</TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TemplateType)} className="w-full flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 pb-2 pt-1 sticky z-10 bg-background">
+            <TabsList className="grid grid-cols-3 w-full">
+              <TabsTrigger value="lesson">Lesson</TabsTrigger>
+              <TabsTrigger value="quiz">Quiz</TabsTrigger>
+              <TabsTrigger value="exercise">Exercise</TabsTrigger>
+            </TabsList>
+          </div>
           
-          <TabsContent value="lesson" className="space-y-4">
-            <CreateLessonForm 
-              onSuccess={handleSuccess}
-              onCancel={() => setOpen(false)}
-            />
-          </TabsContent>
-          
-          <TabsContent value="quiz" className="space-y-4">
-            <CreateQuizForm 
-              onSuccess={handleSuccess}
-              onCancel={() => setOpen(false)}
-            />
-          </TabsContent>
-          
-          <TabsContent value="exercise" className="space-y-4">
-            <CreateExerciseForm 
-              onSuccess={handleSuccess}
-              onCancel={() => setOpen(false)}
-            />
-          </TabsContent>
+          <div className="flex-1 overflow-y-auto p-6 pt-4">
+            <TabsContent value="lesson" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <CreateLessonForm 
+                onSuccess={handleSuccess}
+                onCancel={() => setOpen(false)}
+              />
+            </TabsContent>
+            
+            <TabsContent value="quiz" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <CreateQuizForm 
+                onSuccess={handleSuccess}
+                onCancel={() => setOpen(false)}
+              />
+            </TabsContent>
+            
+            <TabsContent value="exercise" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+              <CreateExerciseForm 
+                onSuccess={handleSuccess}
+                onCancel={() => setOpen(false)}
+              />
+            </TabsContent>
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

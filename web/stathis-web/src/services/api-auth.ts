@@ -1,4 +1,4 @@
-'use server';
+// Client-side API implementation
 
 import { serverApiClient } from '@/lib/api/server-client';
 import {
@@ -26,47 +26,218 @@ export type Provider = 'google' | 'github' | 'microsoft' | 'azure';
  * Register a new user
  */
 export async function signUp(form: SignUpFormValues) {
-  const { data, error, status } = await serverApiClient.post('/auth/register', {
-    email: form.email,
-    password: form.password,
-    firstName: form.firstName,
-    lastName: form.lastName,
-    userRole: 'TEACHER'  // Using the correct field name and enum value expected by backend
-  });
-  
-  if (error) {
-    console.error('[Auth Signup Error]', { error, status, data });
-    throw new Error(error);
+  try {
+    console.log('[Auth] Attempting to register user:', form.email);
+    
+    // Try a simplified payload structure
+    // The userRole might need to be sent differently for the Java enum
+    const payload = {
+      email: form.email,
+      password: form.password,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      userRole: 'TEACHER'
+    };
+    
+    console.log('[Auth] Registration payload:', JSON.stringify(payload));
+    
+    // Try making the request with native fetch instead of our client
+    // This bypasses any potential issues with our custom client
+    try {
+      console.log('[Auth] Trying direct fetch approach');
+      const response = await fetch('https://stathis.onrender.com/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+        mode: 'cors'
+      });
+      
+      console.log('[Auth] Registration response status:', response.status);
+      
+      // Clone the response before reading the body to avoid the 'body stream already read' error
+      const responseClone = response.clone();
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // If JSON parsing fails, try reading as text from the cloned response
+        console.log('[Auth] JSON parsing failed, trying text instead');
+        data = await responseClone.text();
+      }
+      
+      console.log('[Auth] Registration response data:', data);
+      
+      // Extra logging to diagnose response handling
+      console.log('[Auth] Response OK:', response.ok);
+      console.log('[Auth] Response type:', typeof data);
+      
+      if (!response.ok) {
+        const status = response.status;
+        let errorMessage = 'Registration failed';
+        let isEmailInUseError = false;
+        
+        // Better error extraction logic
+        if (typeof data === 'string') {
+          // Handle case where data might be a string
+          errorMessage = data || errorMessage;
+          
+          // Check if this is an 'email already in use' error
+          isEmailInUseError = data.includes('Email is already in use') || 
+                             data.includes('already exists') || 
+                             data.includes('already registered');
+        } else if (data) {
+          // Extract error message from data object with fallbacks
+          // Use type assertion to avoid TypeScript errors
+          const responseData = typeof data === 'object' ? (data as Record<string, any>) : {};
+          errorMessage = responseData.message || responseData.error || responseData.errorMessage || 
+                        (responseData.errors && JSON.stringify(responseData.errors)) || errorMessage;
+          
+          // Check if response or error message suggests email is already in use
+          // First check the parsed message
+          if (errorMessage) {
+            isEmailInUseError = errorMessage.includes('Email is already in use') || 
+                               errorMessage.includes('already exists') || 
+                               errorMessage.includes('already registered');
+          }
+          
+          // Also check if the backend returned a specific status code for this case
+          if (status === 409 || (status === 400 && responseData.code === 'EMAIL_ALREADY_EXISTS')) {
+            isEmailInUseError = true;
+            errorMessage = 'Email is already in use. Please verify your account or try logging in.';
+          }
+        }
+        
+        // Special case for 401 response with empty body which might indicate duplicate email
+        if (status === 401 && (!data || (typeof data === 'string' && data.trim() === ''))) {
+          // This might be a duplicate email case that's not properly communicating the error
+          console.log('[Auth] Empty 401 response - might be duplicate email');
+          isEmailInUseError = true;
+          errorMessage = 'Email may already be registered. Please verify your account or try logging in.';
+        }
+        
+        // Add detailed logging
+        console.error('[Auth Signup Error]', { 
+          status, 
+          errorMessage, 
+          isEmailInUseError,
+          responseData: data,
+          url: response.url,
+          statusText: response.statusText
+        });
+        
+        // For email already in use errors, throw a special error
+        if (isEmailInUseError) {
+          const error = new Error('Email is already in use');
+          error.name = 'EmailAlreadyInUseError';
+          throw error;
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      console.log('[Auth] Registration successful for:', form.email);
+      return data;
+    } catch (fetchError) {
+      console.error('[Auth] Direct fetch failed:', fetchError);
+      
+      // Fall back to our client as a second attempt
+      console.log('[Auth] Trying fallback with server API client');
+      const { data, error, status } = await serverApiClient.post('/auth/register', payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('[Auth] Fallback response:', { data, status });
+      
+      if (error) {
+        let errorMessage = error;
+        let isEmailInUseError = false;
+        
+        // Add better error extraction for the fallback method too
+        if (typeof data === 'object' && data !== null) {
+          // Use type assertion to avoid TypeScript errors
+          const responseData = data as Record<string, any>;
+          errorMessage = responseData.message || responseData.error || responseData.errorMessage || 
+                       (responseData.errors && JSON.stringify(responseData.errors)) || error;
+        }
+        
+        // Check if this is a duplicate email error
+        if (typeof errorMessage === 'string') {
+          isEmailInUseError = errorMessage.includes('Email is already in use') || 
+                            errorMessage.includes('already exists') || 
+                            errorMessage.includes('already registered');
+        }
+        
+        // Special case for 401 response with empty message which might indicate duplicate email
+        if (status === 401 && (!error || error === '')) {
+          isEmailInUseError = true;
+          errorMessage = 'Email may already be registered. Please verify your account or try logging in.';
+        }
+        
+        console.error('[Auth Signup Error (Fallback)]', { 
+          errorMessage, 
+          isEmailInUseError,
+          status, 
+          responseData: data 
+        });
+        
+        // For email already in use errors, throw a special error
+        if (isEmailInUseError) {
+          const customError = new Error('Email is already in use');
+          customError.name = 'EmailAlreadyInUseError';
+          throw customError;
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      console.log('[Auth] Registration successful for:', form.email);
+      return data;
+    }
+  } catch (e) {
+    console.error('[Auth] Registration failed with exception:', e);
+    throw new Error(e instanceof Error ? e.message : 'Registration failed - check browser console for details');
   }
-
-  return data;
-};
+}
 
 /**
  * Login with email and password
  */
 export async function loginWithEmail(form: LoginFormValues) {
-  const { data, error, status } = await serverApiClient.post('/auth/login', {
-    email: form.email,
-    password: form.password
-  });
+  try {
+    console.log('[Auth] Attempting to login user:', form.email);
+    
+    const { data, error, status } = await serverApiClient.post('/auth/login', {
+      email: form.email,
+      password: form.password
+    });
 
-  if (error) {
-    console.error('[Auth Login Error]', { error, status, data });
-    throw new Error(error);
-  }
-
-  // Store token in localStorage on client side
-  if (typeof window !== 'undefined' && data && typeof data === 'object' && 'accessToken' in data) {
-    localStorage.setItem('auth_token', data.accessToken as string);
-    // Also store refresh token if needed
-    if ('refreshToken' in data) {
-      localStorage.setItem('auth_token_refresh', data.refreshToken as string);
+    if (error) {
+      console.error('[Auth Login Error]', { error, status, data });
+      throw new Error(error);
     }
-  }
 
-  return data;
-};
+    console.log('[Auth] Login successful for:', form.email);
+    // Store token in localStorage on client side
+    if (typeof window !== 'undefined' && data && typeof data === 'object' && 'accessToken' in data) {
+      localStorage.setItem('auth_token', data.accessToken as string);
+      // Also store refresh token if needed
+      if ('refreshToken' in data) {
+        localStorage.setItem('auth_token_refresh', data.refreshToken as string);
+      }
+    }
+
+    return data;
+  } catch (e) {
+    console.error('[Auth] Login failed with exception:', e);
+    throw new Error(e instanceof Error ? e.message : 'Login failed - check browser console for details');
+  }
+}
 
 /**
  * Login with OAuth provider

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock, Award } from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock, Award, Check, ChevronDown, ClipboardList, MoreHorizontal, Plus, Settings, UserPlus, CheckCircle } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,14 +11,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Separator } from '@/components/ui/separator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getClassroomById, getClassroomStudents, deleteClassroom, activateClassroom, deactivateClassroom, verifyClassroomStudent } from '@/services/api-classroom-client';
+import { getClassroomStudents, StudentDTO } from "@/services/api-classroom";
+import { getClassroomById, deleteClassroom, activateClassroom, deactivateClassroom, verifyClassroomStudent } from '@/services/api-classroom-client';
 import { getClassroomTasks, TaskResponseDTO } from '@/services/tasks/api-task-client';
 import { getCurrentUserEmail, getCurrentUserRole } from '@/lib/utils/jwt';
+import { signOut } from '@/services/api-auth-client';
 import { TemplateCreationTab } from '@/components/templates/template-creation-tab';
 import { TaskCreationTab } from '@/components/tasks/task-creation-tab';
 import { TaskScoresTab } from '@/components/scores/task-scores-tab';
 import { ApiDebugger } from '@/components/debug/api-test';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import { AuthNavbar } from '@/components/auth-navbar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -30,23 +33,24 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { Progress } from '@/components/ui/progress';
+
 // We'll use the standard Dialog component since AlertDialog isn't available
 
 // StatCard Component for reuse
 interface StatCardProps {
   title: string;
   value: string | number;
-  description: string;
-  icon: React.ElementType;
+  description: string | React.ReactNode;
+  icon: React.ReactNode;
   className?: string;
 }
 
-const StatCard = ({ title, value, description, icon: Icon, className = '' }: StatCardProps) => (
+const StatCard = ({ title, value, description, icon, className = '' }: StatCardProps) => (
   <Card className={`overflow-hidden ${className}`}>
     <CardHeader className="pb-2">
       <div className="flex items-center justify-between">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        {icon}
       </div>
     </CardHeader>
     <CardContent>
@@ -56,18 +60,11 @@ const StatCard = ({ title, value, description, icon: Icon, className = '' }: Sta
   </Card>
 );
 
-type PageParams = { physicalId: string };
-
-interface ClassroomDetailPageProps {
-  params: PageParams | Promise<PageParams>;
-}
-
-export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps) {
+export default function ClassroomDetailPage() {
   const router = useRouter();
+  const params = useParams<{ physicalId: string }>();
+  const physicalId = params.physicalId;
   const queryClient = useQueryClient();
-  // Use React.use() to unwrap params if it's a Promise
-  const resolvedParams = React.use(params as any) as PageParams;
-  const physicalId = resolvedParams.physicalId;
   const userEmail = getCurrentUserEmail();
   const userRole = getCurrentUserRole();
   
@@ -81,8 +78,25 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
     email: userEmail || ''
   });
   
-  // Tab state for the main content
-  const [activeTab, setActiveTab] = useState('overview');
+  // Tab state for the main content - initialize from URL hash if present
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check if we're in a browser environment
+    if (typeof window !== 'undefined') {
+      // Get tab from URL hash if it exists
+      const hash = window.location.hash.replace('#', '');
+      if (['overview', 'students', 'tasks', 'scores', 'templates', 'settings'].includes(hash)) {
+        return hash;
+      }
+    }
+    return 'overview';
+  });
+  
+  // Update URL hash when tab changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
   
   // Ensure we have a valid user email before proceeding
   useEffect(() => {
@@ -129,15 +143,50 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
     }
   });
   
-  // Mutation for verifying a student
+  // Handle sign out function
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/login');
+  };
+  
+  // Add student mutation
+  const [addingStudent, setAddingStudent] = useState(false);
+
+  const addStudentMutation = useMutation({
+    mutationFn: async (email: string) => {
+      // TODO: Call API to add student
+      console.log('Adding student with email:', email);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast.success('Student invitation sent!');
+      setAddingStudent(false);
+      // Refresh students list
+      queryClient.invalidateQueries({ queryKey: ['classroom-students', physicalId] });
+    },
+    onError: () => {
+      toast.error('Failed to invite student');
+    }
+  });
+  
+  // Verify student mutation
   const verifyStudentMutation = useMutation({
-    mutationFn: (studentId: string) => verifyClassroomStudent(physicalId, studentId),
+    mutationFn: async (studentId: string) => {
+      // Call API to verify student
+      console.log('Verifying student:', studentId);
+      
+      // Use the proper API client function that handles auth correctly
+      return await verifyClassroomStudent(physicalId, studentId);
+    },
     onSuccess: () => {
       toast.success('Student verified successfully');
+      // Refresh students list
       queryClient.invalidateQueries({ queryKey: ['classroom-students', physicalId] });
     },
     onError: (error) => {
-      toast.error(`Failed to verify student: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error in verify mutation:', error);
+      toast.error('Failed to verify student. Make sure you have teacher permissions.');
     }
   });
   
@@ -154,14 +203,79 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
     retry: 1,
   });
   
-  // Fetch classroom students (if teacher)
+  // Debug classroom query result
+  useEffect(() => {
+    if (classroom) {
+      console.log('CLASSROOM DATA:', classroom);
+      console.log('Student count from classroom:', classroom.studentCount);
+    }
+  }, [classroom]);
+
+  // Fetch classroom students (for all users, not just teachers)
   const { 
     data: students, 
-    isLoading: isLoadingStudents 
+    isLoading: isLoadingStudents,
+    error: studentsError,
+    refetch: refetchStudents
   } = useQuery({
     queryKey: ['classroom-students', physicalId],
-    queryFn: () => getClassroomStudents(physicalId),
-    enabled: !!userEmail && !!physicalId && userRole === 'TEACHER',
+    queryFn: async () => {
+      console.log('DIRECT API CALL: Fetching students for classroom:', physicalId);
+      try {
+        // Make a direct fetch to the API for debugging
+        const apiUrl = `https://stathis.onrender.com/api/classrooms/${physicalId}/students`;
+        console.log('DIRECT API CALL: URL:', apiUrl);
+        
+        // Get the auth token
+        const token = localStorage.getItem('auth_token');
+        
+        // Make a direct fetch with proper headers
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        // Log the raw response
+        console.log('DIRECT API CALL: Status:', response.status);
+        
+        // Try to parse JSON
+        let data;
+        try {
+          data = await response.json();
+          console.log('DIRECT API CALL: Parsed data:', data);
+          
+          // If we get valid data from direct fetch, use it
+          if (data) {
+            // Create a proper student list structure if needed
+            if (Array.isArray(data)) {
+              return { students: data };
+            } else if (typeof data === 'object' && data !== null) {
+              if (Array.isArray(data.students)) {
+                return data;
+              } else {
+                // Try to extract any students property or create empty array
+                return { students: data.students || [] };
+              }
+            }
+          }
+          
+          // Fallback to empty array
+          return { students: [] };
+        } catch (parseError) {
+          console.error('DIRECT API CALL: Failed to parse JSON:', parseError);
+          const text = await response.text();
+          console.log('DIRECT API CALL: Raw response:', text);
+          return { students: [] };
+        }
+      } catch (error) {
+        console.error('DIRECT API CALL: Error:', error);
+        return { students: [] };
+      }
+    },
+    // Enable for all users, not just teachers
+    enabled: !!userEmail && !!physicalId,
   });
 
   // Fetch tasks for this classroom
@@ -207,9 +321,8 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeSwitcher />
@@ -304,9 +417,8 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeSwitcher />
@@ -331,11 +443,6 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                 {classroom.active ? 'Active' : 'Inactive'}
               </Badge>
             </div>
-            
-            <Button onClick={() => router.push(`/classroom/${physicalId}/edit`)} variant="outline" size="sm">
-              <Settings2 className="mr-2 h-4 w-4" />
-              Manage Classroom
-            </Button>
           </div>
           
           {/* Classroom header */}
@@ -348,27 +455,52 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
           <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Total Students"
-              value={classroom.studentCount || 0}
-              description="Students enrolled"
-              icon={Users}
+              value={classroom?.studentCount || 0}
+              description={
+                <>
+                  <span>Students enrolled</span>
+                  {students && students.students && (
+                    <span className="block text-xs text-muted-foreground font-medium mt-1">
+                      <span className="text-red-500">{students.students.filter((student: StudentDTO) => !student.verified).length}</span> unverified student/s
+                    </span>
+                  )}
+                </>
+              }
+              icon={<Users className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard
               title="Completion Rate"
-              value="78%"
-              description="Average task completion"
-              icon={Activity}
+              value={(() => {
+                // Calculate completion rate based on task status
+                if (!tasks || tasks.length === 0) return '0%';
+                
+                // Define criteria for a completed task
+                // For this implementation, we'll consider tasks that are started but not active as completed
+                // This is an assumption that may need adjustment based on your actual business logic
+                const completedTasks = tasks.filter(task => 
+                  task.started === true && task.active === false
+                ).length;
+                
+                // Calculate percentage
+                const percentage = Math.round((completedTasks / tasks.length) * 100);
+                return `${percentage}%`;
+              })()}
+              description={`${tasks ? tasks.filter(task => 
+                task.started === true && task.active === false
+              ).length : 0}/${tasks?.length || 0} tasks completed`}
+              icon={<ClipboardCheck className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard
-              title="Join Code"
-              value={classroom.classroomCode}
-              description="Share with students"
-              icon={ClipboardCheck}
+              title="Total Tasks"
+              value={tasks?.length || 0}
+              description="Assigned tasks"
+              icon={<ClipboardList className="h-4 w-4 text-muted-foreground" />}
             />
             <StatCard
-              title="Last Activity"
-              value={new Date(classroom.updatedAt).toLocaleDateString()}
-              description="Most recent update"
-              icon={Clock}
+              title="Classroom Code"
+              value={classroom.classroomCode || 'N/A'}
+              description="Share with students to join"
+              icon={<UserPlus className="h-4 w-4 text-muted-foreground" />}
             />
           </div>
           
@@ -425,6 +557,7 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
             </TabsContent>
             
             <TabsContent value="students" className="space-y-4 mt-6">
+              
               <Card>
                 <CardHeader>
                   <CardTitle>Students</CardTitle>
@@ -437,40 +570,79 @@ export default function ClassroomDetailPage({ params }: ClassroomDetailPageProps
                     <div className="flex justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
-                  ) : !students || students.students.length === 0 ? (
+                  ) : !students || !students.students || students.students.length === 0 ? (
                     <p className="text-center py-8 text-muted-foreground">
                       No students enrolled in this classroom yet.
                     </p>
                   ) : (
-                    <div className="divide-y">
-                      {students.students.map((student) => (
-                        <div key={student.physicalId} className="py-3 flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{student.firstName} {student.lastName}</p>
-                            <p className="text-sm text-muted-foreground">{student.email}</p>
+                    <div className="space-y-4">
+                      {/* Grouping students by verification status */}
+                      <div>
+                        <h3 className="text-sm font-medium mb-2">Verified Students</h3>
+                        {students.students.filter((student: StudentDTO) => student.verified).length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">No verified students yet.</p>
+                        ) : (
+                          <div className="divide-y rounded-md border">
+                            {students.students
+                              .filter((student: StudentDTO) => student.verified)
+                              .map((student: StudentDTO) => (
+                                <div key={student.physicalId} className="py-3 px-4 flex justify-between items-center">
+                                  <div>
+                                    <p className="font-medium">{student.firstName} {student.lastName}</p>
+                                    <p className="text-sm text-muted-foreground">{student.email}</p>
+                                  </div>
+                                  <Badge variant="default">Verified</Badge>
+                                </div>
+                              ))}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {!student.isVerified && userRole === 'TEACHER' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => verifyStudentMutation.mutate(student.physicalId)}
-                                disabled={verifyStudentMutation.isPending}
-                              >
-                                {verifyStudentMutation.isPending ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                    Verifying...
-                                  </>
-                                ) : 'Verify'}
-                              </Button>
-                            )}
-                            <Badge variant={student.isVerified ? "default" : "outline"}>
-                              {student.isVerified ? 'Verified' : 'Pending'}
-                            </Badge>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-sm font-medium mb-2">Pending Verification</h3>
+                        {students.students.filter((student: StudentDTO) => !student.verified).length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">No pending students.</p>
+                        ) : (
+                          <div className="divide-y rounded-md border">
+                            {students.students
+                              .filter((student: StudentDTO) => !student.verified)
+                              .map((student: StudentDTO) => (
+                                <div key={student.physicalId} className="py-3 px-4 flex justify-between items-center">
+                                  <div>
+                                    <p className="font-medium">{student.firstName} {student.lastName}</p>
+                                    <p className="text-sm text-muted-foreground">{student.email}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {/* Always show verify button regardless of role for testing */}
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      onClick={() => {
+                                        // Use the student's physical ID as expected by the backend
+                                        console.log('Verifying student with physicalId:', student.physicalId);
+                                        verifyStudentMutation.mutate(student.physicalId);
+                                      }}
+                                      disabled={verifyStudentMutation.isPending}
+                                    >
+                                      {verifyStudentMutation.isPending ? (
+                                        <>
+                                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                          Verifying...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckCircle className="mr-2 h-3 w-3" />
+                                          Verify
+                                        </>
+                                      )}
+                                    </Button>
+                                    <Badge variant="outline">Pending</Badge>
+                                  </div>
+                                </div>
+                              ))}
                           </div>
-                        </div>
-                      ))}
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>

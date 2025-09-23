@@ -93,6 +93,12 @@ export interface UpdateTeacherProfileDTO {
   positionTitle?: string;
 }
 
+export interface UpdateStudentProfileDTO {
+  school?: string;
+  course?: string;
+  yearLevel?: number;
+}
+
 /**
  * Get the current user's profile (teacher)
  */
@@ -111,10 +117,29 @@ export async function getTeacherProfile(): Promise<UserProfileDTO> {
 }
 
 /**
+ * This function is no longer needed - using physicalId directly
+ */
+
+/**
+ * Validates if a string is in UUID format
+ */
+function isValidUUID(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+/**
  * Update user's general profile information
  */
-export async function updateUserProfile(profileData: UpdateUserProfileDTO): Promise<UserProfileDTO> {
-  const { data, error, status } = await serverApiClient.put('/users/profile', profileData);
+export async function updateUserProfile(
+  profileData: UpdateUserProfileDTO
+): Promise<UserProfileDTO> {
+  console.log('Updating user profile');
+  
+  // Updated to match new backend implementation that doesn't require user ID
+  const { data, error, status } = await serverApiClient.put(
+    `/users/profile`,
+    profileData
+  );
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
@@ -130,13 +155,46 @@ export async function updateUserProfile(profileData: UpdateUserProfileDTO): Prom
 /**
  * Update teacher-specific profile information
  */
-export async function updateTeacherProfile(profileData: UpdateTeacherProfileDTO): Promise<UserProfileDTO> {
-  const { data, error, status } = await serverApiClient.put('/users/profile/teacher', profileData);
+export async function updateTeacherProfile(
+  profileData: UpdateTeacherProfileDTO
+): Promise<UserProfileDTO> {
+  console.log('Updating teacher profile');
+  
+  // Updated to match new backend implementation that doesn't require user ID
+  const { data, error, status } = await serverApiClient.put(
+    `/users/profile/teacher`,
+    profileData
+  );
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
       ? (error as { message: string }).message
       : `Failed to update teacher profile: ${status}`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+  
+  return data as UserProfileDTO;
+}
+
+/**
+ * Update student-specific profile information
+ */
+export async function updateStudentProfile(
+  profileData: UpdateStudentProfileDTO
+): Promise<UserProfileDTO> {
+  console.log('Updating student profile');
+  
+  // Matching new backend implementation
+  const { data, error, status } = await serverApiClient.put(
+    `/users/profile/student`,
+    profileData
+  );
+  
+  if (error || status >= 400) {
+    const errorMessage = typeof error === 'object' && error !== null && 'message' in error
+      ? (error as { message: string }).message
+      : `Failed to update student profile: ${status}`;
     console.error(errorMessage);
     throw new Error(errorMessage);
   }
