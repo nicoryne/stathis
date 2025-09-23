@@ -7,6 +7,7 @@ import edu.cit.stathis.task.service.StudentTaskService;
 import edu.cit.stathis.auth.service.PhysicalIdService;
 import edu.cit.stathis.task.dto.StudentTaskResponseDTO;
 import edu.cit.stathis.task.dto.TaskProgressDTO;
+import edu.cit.stathis.task.dto.QuizSubmissionDTO;
 import edu.cit.stathis.task.entity.Score;
 import java.util.List;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,6 +51,16 @@ public class StudentTaskController {
         String studentId = physicalIdService.getCurrentUserPhysicalId();
         return ResponseEntity.ok(studentTaskService.submitQuizScore(
             studentId, taskId, quizTemplateId, score));
+    }
+
+    @PostMapping("/{taskId}/quiz/{quizTemplateId}/auto-check")
+    @Operation(summary = "Auto-check quiz answers and create score", description = "Computes score from quiz template JSON content by comparing student's answers to answer keys; stores and returns Score")
+    public ResponseEntity<Score> autoCheckQuiz(
+            @PathVariable String taskId,
+            @PathVariable String quizTemplateId,
+            @RequestBody QuizSubmissionDTO submission) {
+        String studentId = physicalIdService.getCurrentUserPhysicalId();
+        return ResponseEntity.ok(studentTaskService.autoCheckQuiz(studentId, taskId, quizTemplateId, submission));
     }
 
     @PostMapping("/{taskId}/lesson/{lessonTemplateId}/complete")
