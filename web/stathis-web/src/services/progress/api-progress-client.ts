@@ -27,7 +27,10 @@ export interface StudentDTO {
   firstName: string;
   lastName: string;
   email: string;
+  profilePictureUrl?: string;
   isVerified: boolean;
+  verified?: boolean; // Some API responses use verified instead of isVerified
+  joinedAt?: string; // When the student joined the classroom
   createdAt: string;
   updatedAt: string;
 }
@@ -51,6 +54,40 @@ export interface LeaderboardEntryDTO {
   studentName: string;
   score: number;
   change?: number; // position change since last period
+  lastUpdated: string;
+}
+
+/**
+ * Get a single student by ID
+ */
+export async function getStudentById(studentId: string): Promise<StudentDTO | null> {
+  try {
+    // Directly access the API endpoint that we know is working (based on debug output)
+    const { data, error, status } = await serverApiClient.get(`/api/students`);
+    
+    // Log for debugging
+    console.log('[DEBUG] Student API response:', data);
+    
+    if (error || status >= 400) {
+      console.error(`Failed to fetch students list:`, error);
+      return null;
+    }
+    
+    // The endpoint returns an array of students, find the one with matching ID
+    if (Array.isArray(data)) {
+      const student = data.find((s: StudentDTO) => s.physicalId === studentId);
+      if (student) {
+        return student;
+      }
+    }
+    
+    // If we didn't find the student in the array
+    console.error(`Student with ID ${studentId} not found in students list`);
+    return null;
+  } catch (error) {
+    console.error(`Failed to fetch student with ID ${studentId}:`, error);
+    return null;
+  }
 }
 
 /**
@@ -141,7 +178,8 @@ export async function getTaskScores(taskId: string): Promise<ScoreResponseDTO[]>
  * Get all scores for a specific student
  */
 export async function getStudentScores(studentId: string): Promise<ScoreResponseDTO[]> {
-  const { data, error, status } = await serverApiClient.get(`/scores/student/${studentId}`);
+  // Updated to use the correct API endpoint with /v1/ in the path
+  const { data, error, status } = await serverApiClient.get(`/v1/scores/student/${studentId}`);
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
@@ -157,7 +195,8 @@ export async function getStudentScores(studentId: string): Promise<ScoreResponse
  * Get score for a specific student and task
  */
 export async function getStudentTaskScore(studentId: string, taskId: string): Promise<ScoreResponseDTO[]> {
-  const { data, error, status } = await serverApiClient.get(`/scores/student/${studentId}/task/${taskId}`);
+  // Updated to use the correct API endpoint with /v1/ in the path
+  const { data, error, status } = await serverApiClient.get(`/v1/scores/student/${studentId}/task/${taskId}`);
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error

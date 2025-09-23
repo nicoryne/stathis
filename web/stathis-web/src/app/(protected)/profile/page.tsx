@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { Sidebar } from '@/components/dashboard/sidebar';
+import { AuthNavbar } from '@/components/auth-navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
@@ -42,7 +42,9 @@ import {
   getTeacherProfile, 
   updateUserProfile, 
   updateTeacherProfile, 
-  UserProfileDTO 
+  UserProfileDTO,
+  UpdateUserProfileDTO,
+  UpdateTeacherProfileDTO
 } from '@/services/users/api-user-client';
 
 // Define validation schemas for forms
@@ -72,8 +74,26 @@ export default function ProfilePage() {
     error 
   } = useQuery({
     queryKey: ['teacher-profile'],
-    queryFn: getTeacherProfile,
+    queryFn: getTeacherProfile
   });
+
+  // Add debug logging when profile data is loaded
+  useEffect(() => {
+    if (profileData) {
+      console.log('Full profile data:', profileData);
+      console.log('Profile data keys:', Object.keys(profileData));
+      
+      // Check if physicalId exists and if it's in UUID format
+      if (profileData.physicalId) {
+        console.log('PhysicalId:', profileData.physicalId);
+        console.log('PhysicalId type:', typeof profileData.physicalId);
+        console.log('PhysicalId length:', profileData.physicalId.length);
+        console.log('PhysicalId format valid UUID?', /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileData.physicalId));
+      } else {
+        console.log('No physicalId found in profile data');
+      }
+    }
+  }, [profileData]);
   
   // Initialize personal info form
   const personalInfoForm = useForm<z.infer<typeof personalInfoSchema>>({
@@ -116,7 +136,9 @@ export default function ProfilePage() {
   
   // Mutation for updating personal info
   const updatePersonalInfoMutation = useMutation({
-    mutationFn: updateUserProfile,
+    mutationFn: (data: UpdateUserProfileDTO) => {
+      return updateUserProfile(data);
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(['teacher-profile'], data);
       toast({
@@ -135,7 +157,9 @@ export default function ProfilePage() {
   
   // Mutation for updating teacher profile
   const updateTeacherProfileMutation = useMutation({
-    mutationFn: updateTeacherProfile,
+    mutationFn: (data: UpdateTeacherProfileDTO) => {
+      return updateTeacherProfile(data);
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(['teacher-profile'], data);
       toast({
@@ -152,72 +176,119 @@ export default function ProfilePage() {
     },
   });
   
+  // No longer need to validate UUID format as the backend will handle user identification
+
   // Handle form submissions
   const onPersonalInfoSubmit = (values: z.infer<typeof personalInfoSchema>) => {
+    console.log('Updating personal profile');
+    console.log('Form values being submitted:', values);
+    
+    // Backend will get the current user from authentication context
     updatePersonalInfoMutation.mutate(values);
   };
   
   const onTeacherProfileSubmit = (values: z.infer<typeof teacherProfileSchema>) => {
+    console.log('Updating teacher profile');
+    console.log('Form values being submitted:', values);
+    
+    // Backend will get the current user from authentication context
     updateTeacherProfileMutation.mutate(values);
   };
   
   // Handle loading and error states
   if (isLoading) {
     return (
-      <DashboardShell>
-        <DashboardHeader heading="Profile Management" text="Manage your profile information" />
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading your profile...</p>
-          </div>
+      <div className="flex min-h-screen">
+        <Sidebar className="w-64 flex-shrink-0" />
+        <div className="flex-1">
+          <AuthNavbar />
+          <main className="p-6">
+            <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
+                <p className="text-muted-foreground mt-1">Manage your profile information</p>
+              </div>
+            </div>
+            <Card className="mx-auto max-w-lg">
+              <CardHeader>
+                <CardTitle>Loading...</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center p-4">
+                  {/* Replace with proper loading spinner component later */}
+                  <p className="animate-pulse">Loading your profile information...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </main>
         </div>
-      </DashboardShell>
+      </div>
     );
   }
   
   if (isError) {
     return (
-      <DashboardShell>
-        <DashboardHeader heading="Profile Management" text="Manage your profile information" />
-        <Card className="mx-auto max-w-lg">
-          <CardHeader>
-            <CardTitle className="text-red-500">Error Loading Profile</CardTitle>
-            <CardDescription>
-              There was a problem loading your profile information.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : 'Unknown error occurred'}
-            </p>
-            <Button 
-              className="mt-4" 
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </DashboardShell>
+      <div className="flex min-h-screen">
+        <Sidebar className="w-64 flex-shrink-0" />
+        <div className="flex-1">
+          <AuthNavbar />
+          <main className="p-6">
+            <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
+                <p className="text-muted-foreground mt-1">Manage your profile information</p>
+              </div>
+            </div>
+            <Card className="mx-auto max-w-lg">
+              <CardHeader>
+                <CardTitle className="text-red-500">Error Loading Profile</CardTitle>
+                <CardDescription>
+                  There was a problem loading your profile information.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {error instanceof Error ? error.message : 'Unknown error occurred'}
+                </p>
+                <Button 
+                  className="mt-4" 
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
+                >
+                  Try Again
+                </Button>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </div>
     );
   }
   
   return (
-    <DashboardShell>
-      <DashboardHeader heading="Profile Management" text="Manage your profile information">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
-          >
-            Refresh
-          </Button>
-        </div>
-      </DashboardHeader>
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 flex-shrink-0" />
+      
+      <div className="flex-1">
+        <AuthNavbar />
+        
+        <main className="p-6">
+          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
+              <p className="text-muted-foreground mt-1">Manage your profile information</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
 
-      <div className="grid gap-8">
+          <div className="grid gap-8">
         {/* Profile Summary */}
         <Card>
           <CardContent className="p-6">
@@ -464,7 +535,9 @@ export default function ProfilePage() {
             </Card>
           </TabsContent>
         </Tabs>
+          </div>
+        </main>
       </div>
-    </DashboardShell>
+    </div>
   );
 }

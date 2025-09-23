@@ -103,7 +103,7 @@ export default function Home() {
                 <div className="from-primary/20 to-secondary/20 absolute inset-0 rounded-full bg-gradient-to-br blur-3xl" />
                 <div className="bg-card/50 border-border relative overflow-hidden rounded-2xl border shadow-xl backdrop-blur-sm">
                   <Image
-                    src="/placeholder.svg?height=600&width=600"
+                    src="/images/stathis_hero.png"
                     alt="Stathis App Interface"
                     width={600}
                     height={600}

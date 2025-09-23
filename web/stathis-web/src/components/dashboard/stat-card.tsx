@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
+import { ReactNode } from 'react';
 
 interface StatCardProps {
   title: string;
   value: string;
-  description?: string;
+  description?: ReactNode;
   icon: LucideIcon;
   trend?: {
     value: number;
@@ -30,7 +31,7 @@ export function StatCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        {description && <p className="text-muted-foreground text-xs">{description}</p>}
+        {description && <div className="text-muted-foreground text-xs">{description}</div>}
         {trend && (
           <div className="mt-2 flex items-center text-xs">
             <span className={cn('mr-1', trend.positive ? 'text-green-500' : 'text-red-500')}>

@@ -27,15 +27,20 @@ export interface ClassroomResponseDTO {
   studentCount?: number; // Optional field that might be returned
 }
 
+// Student data returned from API
+export interface StudentDTO {
+  physicalId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  profilePictureUrl?: string;
+  verified: boolean; // Note: Backend returns 'verified' not 'isVerified'
+  joinedAt?: string;
+}
+
+// Response structure for classroom students endpoint
 export interface StudentListResponseDTO {
-  students: {
-    physicalId: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    profilePictureUrl?: string;
-    isVerified: boolean;
-  }[];
+  students: StudentDTO[];
 }
 
 /**
@@ -181,29 +186,93 @@ export async function deactivateClassroom(physicalId: string) {
 /**
  * Get students in a classroom
  */
-export async function getClassroomStudents(classroomPhysicalId: string) {
-  const { data, error, status } = await serverApiClient.get(`/classrooms/${classroomPhysicalId}/students`);
+export async function getClassroomStudents(classroomPhysicalId: string): Promise<StudentListResponseDTO> {
+  console.log(`[DEBUG] Fetching students for classroom: ${classroomPhysicalId}`);
   
-  if (error) {
-    console.error('[Classroom Students Get Error]', { error, status });
-    throw new Error(error);
+  try {
+    // Make the API call
+    const response = await serverApiClient.get(`/classrooms/${classroomPhysicalId}/students`);
+    const { data, error, status } = response;
+    
+    if (error) {
+      console.error('[Classroom Students Get Error]', { error, status });
+      throw new Error(error);
+    }
+    
+    // Debug: Log the response to see what we're getting
+    console.log('[DEBUG] Student API response:', JSON.stringify(data, null, 2));
+    
+    // Handle different response formats
+    if (!data) {
+      console.warn('[DEBUG] API returned null/undefined data');
+      return { students: [] };
+    }
+    
+    // Direct API call to endpoint:
+    // The OpenAPI spec says the response is an array of StudentListResponseDTO objects
+    // But based on your schema, we need to explicitly handle different response formats
+    
+    // Case 1: API returns array of students directly
+    if (Array.isArray(data)) {
+      console.log('[DEBUG] API returned students array directly');
+      return { 
+        students: data.map(student => ({
+          ...student,
+          // Ensure the 'verified' property exists (convert from isVerified if needed)
+          verified: 'verified' in student ? student.verified : 
+                   'isVerified' in student ? (student as any).isVerified : false
+        })) 
+      };
+    }
+    
+    // Case 2: API returns { students: [...] } object (matches our DTO)
+    if (typeof data === 'object' && data !== null && 'students' in data && Array.isArray(data.students)) {
+      console.log('[DEBUG] API returned properly structured StudentListResponseDTO');
+      // Ensure all students have the verified property
+      const responseDTO = data as StudentListResponseDTO;
+      responseDTO.students = responseDTO.students.map(student => ({
+        ...student,
+        // Ensure the 'verified' property exists (convert from isVerified if needed)
+        verified: 'verified' in student ? student.verified : 
+                 'isVerified' in student ? (student as any).isVerified : false
+      }));
+      return responseDTO;
+    }
+    
+    // Case 3: Unknown format, log and return empty array
+    console.warn('[DEBUG] API returned unexpected format:', typeof data);
+    return { students: [] };
+  } catch (error) {
+    console.error('[Classroom Students Fetch Error]', error);
+    // Return empty array instead of throwing to prevent UI crashes
+    return { students: [] };
   }
-  
-  return data as StudentListResponseDTO;
 }
 
 /**
  * Verify a student in a classroom
+ * 
+ * Now the backend is correctly expecting a student physical ID like "25-1179-089"
  */
-export async function verifyClassroomStudent(classroomPhysicalId: string, studentId: string) {
-  const { data, error, status } = await serverApiClient.post(`/classrooms/${classroomPhysicalId}/students/${studentId}/verify`);
+export async function verifyClassroomStudent(classroomPhysicalId: string, studentPhysicalId: string) {
+  console.log(`Verifying student ${studentPhysicalId} in classroom ${classroomPhysicalId}`);
+  
+  // Use the serverApiClient for consistency with other API calls
+  const { data, error, status } = await serverApiClient.post(
+    `/classrooms/${classroomPhysicalId}/students/${studentPhysicalId}/verify`
+  );
   
   if (error) {
-    console.error('[Student Verify Error]', { error, status });
+    console.error('[Student Verify Error]', { 
+      error, 
+      status,
+      classroomPhysicalId,
+      studentPhysicalId
+    });
     throw new Error(error);
   }
   
-  return data;
+  return data || { success: true };
 }
 
 /**

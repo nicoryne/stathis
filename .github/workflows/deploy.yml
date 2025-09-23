@@ -3,12 +3,16 @@ name: Deploy to Production
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
+    # Only deploy on push to main, not on PRs
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +24,7 @@ jobs:
           key: ${{ secrets.DO_SSH_KEY }}
           script: |
             # Navigate to project directory
-            cd /opt/stathis || { echo "Project directory not found"; exit 1; }
+            cd /root/stathis || { echo "Project directory not found"; exit 1; }
             
             # Single git pull for entire monorepo
             echo "📥 Pulling latest code..."
@@ -30,11 +34,11 @@ jobs:
             # Build only what changed using Docker build contexts
             echo "🔨 Building containers from monorepo subfolders..."
             
-            # Build frontend from web/stathis-web subfolder
-            docker build -t stathis-frontend:latest ./web/stathis-web
+            # Build frontend from nested frontend subfolder
+            docker build -t stathis-frontend:latest ./frontend/frontend
             
-            # Build backend from backend/stathis subfolder  
-            docker build -t stathis-backend:latest ./backend/stathis
+            # Build backend from nested backend subfolder  
+            docker build -t stathis-backend:latest ./backend/backend
             
             # Deploy with compose (no rebuild needed since we built above)
             docker compose up -d --force-recreate
