@@ -275,3 +275,29 @@ fun AppTheme(
   )
 }
 
+/**
+ * Enhanced theme composable that supports manual theme switching
+ */
+@Composable
+fun StathisTheme(
+    isDarkMode: Boolean,
+    isDynamicColorEnabled: Boolean = true,
+    content: @Composable() () -> Unit
+) {
+  val colorScheme = when {
+      isDynamicColorEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+          val context = LocalContext.current
+          if (isDarkMode) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+      }
+      
+      isDarkMode -> darkScheme
+      else -> lightScheme
+  }
+
+  MaterialTheme(
+    colorScheme = colorScheme,
+    typography = AppTypography,
+    content = content
+  )
+}
+

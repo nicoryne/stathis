@@ -97,6 +97,9 @@ dependencies {
 
     // Material 3
     implementation(libs.androidx.material3)
+    
+    // DataStore for theme preferences
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
     // Android UI
     implementation(libs.androidx.ui.tooling.preview)

@@ -1,46 +1,22 @@
 package citu.edu.stathis.mobile.features.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import citu.edu.stathis.mobile.core.theme.BrandColors
-import citu.edu.stathis.mobile.features.dashboard.ui.DashboardScreen
-import citu.edu.stathis.mobile.features.exercise.ui.ExerciseScreen
+import citu.edu.stathis.mobile.features.dashboard.ui.ModernDashboardScreen
 import citu.edu.stathis.mobile.features.profile.ui.EditProfileScreen
 import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
 import citu.edu.stathis.mobile.features.progress.ui.ProgressScreen
-import citu.edu.stathis.mobile.features.tasks.ui.TasksScreen
-import citu.edu.stathis.mobile.features.vitals.ui.VitalsScreen
 
+/**
+ * Simplified Home Screen with 3-tab navigation
+ * Inspired by Duolingo's clean, focused design
+ */
 @Composable
 fun HomeScreen(
     onNavigateToAuth: () -> Unit,
@@ -54,45 +30,31 @@ fun HomeScreen(
 
     // Hide bottom bar on certain screens
     bottomBarVisible = when (currentRoute) {
-        HomeNavigationItem.EditProfile.route -> false
+        "edit_profile" -> false
         else -> true
     }
 
-    Scaffold(
-        bottomBar = {
-            HomeBottomNavigation(
-                navController = navController,
-                isVisible = bottomBarVisible
-            )
-        }
-    ) { innerPadding ->
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
         NavHost(
             navController = navController,
-            startDestination = HomeNavigationItem.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
+            startDestination = HomeNavigationItem.Learn.route
         ) {
-            composable(HomeNavigationItem.Dashboard.route) {
-                DashboardScreen(
+            // Learn Tab - Main hub with mascot and today's focus
+            composable(HomeNavigationItem.Learn.route) {
+                ModernDashboardScreen(
                     navController = navController,
                     onClassroomSelected = onClassroomSelected
                 )
             }
 
-            composable(HomeNavigationItem.Exercise.route) {
-                ExerciseScreen(navController = navController)
+            // Progress Tab - Achievements, streaks, and health summary
+            composable(HomeNavigationItem.Progress.route) {
+                ProgressScreen(navController = navController)
             }
 
-            composable(HomeNavigationItem.Tasks.route) {
-                TasksScreen(
-                    navController = navController,
-                    onClassroomSelected = onClassroomSelected
-                )
-            }
-
-            composable(HomeNavigationItem.Vitals.route) {
-                VitalsScreen(navController = navController)
-            }
-
+            // Profile Tab - Minimal profile with mascot customization
             composable(HomeNavigationItem.Profile.route) {
                 ProfileScreen(
                     navController = navController,
@@ -100,73 +62,45 @@ fun HomeScreen(
                 )
             }
 
-            // Edit Profile Screen
-            composable(HomeNavigationItem.EditProfile.route) {
+            // Edit Profile Screen (hidden from bottom nav)
+            composable("edit_profile") {
                 EditProfileScreen(navController = navController)
             }
 
-            // Add other nested navigation routes here as needed
-        }
-    }
-}
-
-@Composable
-fun HomeBottomNavigation(
-    navController: NavHostController,
-    isVisible: Boolean = true
-) {
-    val screens = listOf(
-        HomeNavigationItem.Dashboard,
-        HomeNavigationItem.Exercise,
-        HomeNavigationItem.Tasks,
-        HomeNavigationItem.Vitals,
-        HomeNavigationItem.Profile
-    )
-
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
-        NavigationBar(
-            modifier = Modifier.fillMaxWidth(),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
-        ) {
-            screens.forEach { screen ->
-                val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-
-                NavigationBarItem(
-                    selected = selected,
-                    onClick = {
-                        navController.navigate(screen.route) {
-                            popUpTo(navController.graph.findStartDestination().id)
-                            launchSingleTop = true
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
-                            contentDescription = screen.title,
-                            tint = if (selected) BrandColors.Purple else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = screen.title,
-                            color = if (selected) BrandColors.Purple else MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            fontSize = 12.sp
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.colorScheme.surface
-                    )
+            // Legacy screens - redirect to new structure
+            composable("dashboard") {
+                ModernDashboardScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
                 )
             }
+
+            composable("exercise") {
+                // TODO: Integrate exercise into Learn hub or create simplified exercise screen
+                ModernDashboardScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
+                )
+            }
+
+            composable("tasks") {
+                // TODO: Integrate tasks into Learn hub or create simplified task screen
+                ModernDashboardScreen(
+                    navController = navController,
+                    onClassroomSelected = onClassroomSelected
+                )
+            }
+
+            composable("vitals") {
+                // TODO: Integrate vitals into Progress screen
+                ProgressScreen(navController = navController)
+            }
         }
+
+        // Floating Bottom Navigation
+        HomeBottomNavigation(
+            navController = navController,
+            isVisible = bottomBarVisible
+        )
     }
 }

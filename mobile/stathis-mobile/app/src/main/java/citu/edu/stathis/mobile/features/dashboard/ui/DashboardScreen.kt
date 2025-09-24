@@ -1,65 +1,72 @@
 package citu.edu.stathis.mobile.features.dashboard.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Accessibility
-import androidx.compose.material.icons.filled.Assignment
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import citu.edu.stathis.mobile.core.theme.BrandColors
-import citu.edu.stathis.mobile.features.home.HomeNavigationItem
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import citu.edu.stathis.mobile.core.theme.StathisColors
+import citu.edu.stathis.mobile.core.theme.StathisShapes
+import citu.edu.stathis.mobile.core.theme.StathisSpacing
+import citu.edu.stathis.mobile.core.theme.StathisTypography
+import citu.edu.stathis.mobile.core.ui.components.MascotAvatar
+import citu.edu.stathis.mobile.core.ui.components.MascotState
+import citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomViewModel
+import citu.edu.stathis.mobile.features.progress.presentation.viewmodel.ProgressViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
+/**
+ * Learn Hub Screen - Main screen inspired by Duolingo
+ * Features: Mascot greeting, today's focus, classroom selection, quick actions
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     navController: NavHostController,
-    onClassroomSelected: (String) -> Unit
+    onClassroomSelected: (String) -> Unit,
+    classroomViewModel: ClassroomViewModel = hiltViewModel(),
+    progressViewModel: ProgressViewModel = hiltViewModel()
 ) {
-    // Mock classroom data - Replace with actual data from your ViewModel
-    val classrooms = listOf(
-        "classroom1" to "Math Class",
-        "classroom2" to "Science Class",
-        "classroom3" to "History Class"
-    )
+    // Collect data from ViewModels (using actual state properties)
+    val progressState by progressViewModel.progressState.collectAsStateWithLifecycle()
+    val achievements by progressViewModel.achievementsState.collectAsStateWithLifecycle()
+    
+    // Extract data from state (with fallbacks for now)
+    val userLevel = 5 // TODO: Extract from progressState when available
+    val streakCount = 3 // TODO: Extract from progressState when available
+    val hasNewAchievement = achievements.isNotEmpty() // TODO: Check for new achievements
+    val selectedClassroom = "Math Class" // TODO: Extract from classroomViewModel
+    val todayTasks = listOf("Complete Algebra Quiz", "Practice Posture Exercise") // TODO: Extract from classroomViewModel
+    val availableClassrooms = listOf("Math Class", "Science Class", "History Class") // TODO: Extract from classroomViewModel
+    
+    // Determine mascot state based on user progress
+    val mascotState = when {
+        hasNewAchievement -> MascotState.CELEBRATING
+        streakCount >= 7 -> MascotState.HAPPY
+        streakCount >= 3 -> MascotState.ENCOURAGING
+        else -> MascotState.NEUTRAL
+    }
+    
+    val mascotSpeech = when {
+        hasNewAchievement -> "Congratulations! You earned a new achievement!"
+        streakCount >= 7 -> "Amazing streak! You're on fire! 🔥"
+        streakCount >= 3 -> "Great job! Keep the momentum going!"
+        else -> "Welcome back! Ready to learn today?"
+    }
 
     Scaffold(
         topBar = {
@@ -67,14 +74,14 @@ fun DashboardScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Dashboard",
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold
-                            )
+                            text = "Good morning!",
+                            style = StathisTypography.PageTitle,
+                            color = StathisColors.TextPrimary
                         )
                         Text(
                             text = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d")),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = StathisTypography.BodySmall,
+                            color = StathisColors.TextSecondary
                         )
                     }
                 },
@@ -83,13 +90,13 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notifications",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = StathisColors.TextSecondary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = StathisColors.Surface,
+                    titleContentColor = StathisColors.TextPrimary
                 )
             )
         }
@@ -99,126 +106,198 @@ fun DashboardScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(StathisSpacing.ScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(StathisSpacing.LG)
         ) {
-            // User greeting and profile summary
-            UserProfileSummary()
-
-            // Health metrics
-            HealthMetricsCard()
-
-            // Tasks summary
-            TasksSummaryCard(
-                onClick = { navController.navigate(HomeNavigationItem.Tasks.route) }
+            // Mascot Greeting Section
+            MascotGreetingSection(
+                userLevel = userLevel,
+                streakCount = streakCount,
+                hasNewAchievement = hasNewAchievement
             )
 
-            // Classrooms section
-            Text(
-                text = "Your Classrooms",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                modifier = Modifier.padding(top = 8.dp)
+            // Today's Focus Section
+            TodaysFocusSection(
+                tasks = todayTasks,
+                onStartTask = { /* TODO: Navigate to task */ }
             )
 
-            classrooms.forEach { (id, name) ->
-                ClassroomCard(
-                    name = name,
-                    onClick = { onClassroomSelected(id) }
-                )
-            }
+            // Classroom Selection Section
+            ClassroomSelectionSection(
+                classrooms = availableClassrooms,
+                selectedClassroom = selectedClassroom,
+                onClassroomSelected = onClassroomSelected
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Quick Actions Section
+            QuickActionsSection(
+                onExerciseClick = { navController.navigate("exercise") },
+                onTasksClick = { navController.navigate("tasks") }
+            )
+
+            Spacer(modifier = Modifier.height(StathisSpacing.XL))
         }
     }
 }
 
 @Composable
-fun UserProfileSummary() {
+private fun MascotGreetingSection(
+    userLevel: Int,
+    streakCount: Int,
+    hasNewAchievement: Boolean
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        shape = StathisShapes.CardShapeLarge,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = StathisColors.PrimaryLight
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        ),
-        shape = RoundedCornerShape(16.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(StathisSpacing.LG),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Profile image
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                BrandColors.Purple,
-                                BrandColors.Teal
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+            // Mascot
+            MascotAvatar(
+                state = MascotState.NEUTRAL,
+                size = 80,
+                speechText = "Welcome back! Ready to learn today?",
+                showSpeechBubble = true,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Level and Streak Info
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.End
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile",
-                    tint = Color.White,
-                    modifier = Modifier.size(36.dp)
+                Text(
+                    text = "Level $userLevel",
+                    style = StathisTypography.SectionTitle,
+                    color = StathisColors.Primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$streakCount day streak",
+                    style = StathisTypography.BodyMedium,
+                    color = StathisColors.TextSecondary
                 )
             }
+        }
+    }
+}
 
+@Composable
+private fun TodaysFocusSection(
+    tasks: List<String>,
+    onStartTask: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Today's Focus",
+            style = StathisTypography.SectionTitle,
+            color = StathisColors.TextPrimary,
+            modifier = Modifier.padding(bottom = StathisSpacing.MD)
+        )
+
+        Card(
+            shape = StathisShapes.CardShape,
+            colors = CardDefaults.cardColors(
+                containerColor = StathisColors.Surface
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
+                modifier = Modifier.padding(StathisSpacing.CardPadding)
             ) {
                 Text(
-                    text = "Hello, John Doe",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    )
+                    text = tasks.firstOrNull() ?: "No tasks for today",
+                    style = StathisTypography.BodyLarge,
+                    color = StathisColors.TextPrimary,
+                    fontWeight = FontWeight.Medium
                 )
+                
+                if (tasks.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(StathisSpacing.MD))
+                    
+                    Button(
+                        onClick = onStartTask,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = StathisColors.Primary,
+                            contentColor = Color.White
+                        ),
+                        shape = StathisShapes.ButtonShape,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Start Learning",
+                            style = StathisTypography.ButtonLarge
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
-                Text(
-                    text = "Computer Science Student",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+@Composable
+private fun ClassroomSelectionSection(
+    classrooms: List<String>,
+    selectedClassroom: String,
+    onClassroomSelected: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "Your Classrooms",
+            style = StathisTypography.SectionTitle,
+            color = StathisColors.TextPrimary,
+            modifier = Modifier.padding(bottom = StathisSpacing.MD)
+        )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
+        classrooms.forEach { classroom ->
+            Card(
+                shape = StathisShapes.CardShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = if (classroom == selectedClassroom) {
+                        StathisColors.SecondaryLight
+                    } else {
+                        StathisColors.Surface
+                    }
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = StathisSpacing.XS)
+            ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(StathisSpacing.CardPadding),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Level 5",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = BrandColors.Purple
+                        text = classroom,
+                        style = StathisTypography.BodyMedium,
+                        color = StathisColors.TextPrimary
                     )
-
-                    LinearProgressIndicator(
-                        progress = 0.7f,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 8.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
-                        color = BrandColors.Purple,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-
-                    Text(
-                        text = "70%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    
+                    Icon(
+                        imageVector = Icons.Default.School,
+                        contentDescription = "Classroom",
+                        tint = if (classroom == selectedClassroom) {
+                            StathisColors.Secondary
+                        } else {
+                            StathisColors.TextSecondary
+                        }
                     )
                 }
             }
@@ -226,492 +305,86 @@ fun UserProfileSummary() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostureStatusCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = BrandColors.Purple.copy(alpha = 0.1f)
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(BrandColors.Purple.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Accessibility,
-                    contentDescription = "Posture",
-                    tint = BrandColors.Purple,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 16.dp)
-            ) {
-                Text(
-                    text = "Current Posture",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = BrandColors.Purple
-                )
-
-                Text(
-                    text = "Good - Keep it up!",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = "Tap to analyze your posture",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun HealthMetricsCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Text(
-                text = "Health Metrics",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Heart rate
-                HealthMetricItem(
-                    icon = Icons.Default.Favorite,
-                    value = "72",
-                    unit = "BPM",
-                    label = "Heart Rate",
-                    color = Color(0xFFE57373)
-                )
-
-                // Posture time
-                HealthMetricItem(
-                    icon = Icons.Default.Accessibility,
-                    value = "3.5",
-                    unit = "hrs",
-                    label = "Good Posture",
-                    color = BrandColors.Purple
-                )
-
-                // Activity
-                HealthMetricItem(
-                    icon = Icons.Default.EmojiEvents,
-                    value = "85",
-                    unit = "%",
-                    label = "Activity",
-                    color = BrandColors.Teal
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun HealthMetricItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String,
-    unit: String,
-    label: String,
-    color: Color
+private fun QuickActionsSection(
+    onExerciseClick: () -> Unit,
+    onTasksClick: () -> Unit
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = color,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         Text(
-            text = "$value $unit",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold
-            )
+            text = "Quick Actions",
+            style = StathisTypography.SectionTitle,
+            color = StathisColors.TextPrimary,
+            modifier = Modifier.padding(bottom = StathisSpacing.MD)
         )
 
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TasksSummaryCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(StathisSpacing.MD)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Assignment,
-                    contentDescription = "Tasks",
-                    tint = BrandColors.Purple,
-                    modifier = Modifier.size(24.dp)
-                )
-
-                Text(
-                    text = "Today's Tasks",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Text(
-                    text = "5 remaining",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = BrandColors.Teal
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Task progress
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "3/8 completed",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Text(
-                    text = "38%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LinearProgressIndicator(
-                progress = 0.38f,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = BrandColors.Purple,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Task list preview
-            TaskItem(
-                title = "Complete Posture Analysis",
-                isCompleted = true
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TaskItem(
-                title = "Submit Assignment #3",
-                isCompleted = true
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TaskItem(
-                title = "Practice Good Posture (30 min)",
-                isCompleted = true
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            TaskItem(
-                title = "Read Chapter 5",
-                isCompleted = false
-            )
-        }
-    }
-}
-
-@Composable
-fun TaskItem(
-    title: String,
-    isCompleted: Boolean
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(20.dp)
-                .clip(CircleShape)
-                .background(
-                    if (isCompleted) BrandColors.Purple
-                    else MaterialTheme.colorScheme.surfaceVariant
+            // Exercise Button
+            Card(
+                shape = StathisShapes.CardShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = StathisColors.SecondaryLight
                 ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isCompleted) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Completed",
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-        }
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = if (isCompleted) FontWeight.Normal else FontWeight.Medium
-            ),
-            color = if (isCompleted)
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            else
-                MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 12.dp)
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AchievementsCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = Icons.Default.EmojiEvents,
-                    contentDescription = "Achievements",
-                    tint = BrandColors.Purple,
-                    modifier = Modifier.size(24.dp)
-                )
-
-                Text(
-                    text = "Recent Achievements",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    modifier = Modifier.padding(start = 8.dp)
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Text(
-                    text = "View All",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = BrandColors.Teal
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(StathisSpacing.CardPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = "Exercise",
+                        tint = StathisColors.Secondary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(StathisSpacing.SM))
+                    Text(
+                        text = "Exercise",
+                        style = StathisTypography.BodyMedium,
+                        color = StathisColors.TextPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            // Tasks Button
+            Card(
+                shape = StathisShapes.CardShape,
+                colors = CardDefaults.cardColors(
+                    containerColor = StathisColors.PrimaryLight
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.weight(1f)
             ) {
-                // Achievement 1
-                AchievementItem(
-                    icon = Icons.Default.Accessibility,
-                    title = "Posture Pro",
-                    points = "+50 pts"
-                )
-
-                // Achievement 2
-                AchievementItem(
-                    icon = Icons.Default.Assignment,
-                    title = "Task Master",
-                    points = "+30 pts"
-                )
-
-                // Achievement 3
-                AchievementItem(
-                    icon = Icons.Default.Favorite,
-                    title = "Health Guru",
-                    points = "+25 pts"
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(StathisSpacing.CardPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Assignment,
+                        contentDescription = "Tasks",
+                        tint = StathisColors.Primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(StathisSpacing.SM))
+                    Text(
+                        text = "Tasks",
+                        style = StathisTypography.BodyMedium,
+                        color = StathisColors.TextPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
-        }
-    }
-}
-
-@Composable
-fun AchievementItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    points: String
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .clip(CircleShape)
-                .background(BrandColors.Purple.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = title,
-                tint = BrandColors.Purple,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = FontWeight.Medium
-            )
-        )
-
-        Text(
-            text = points,
-            style = MaterialTheme.typography.bodySmall,
-            color = BrandColors.Teal
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ClassroomCard(
-    name: String,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = "View tasks",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.Assignment,
-                contentDescription = "View Tasks",
-                tint = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
