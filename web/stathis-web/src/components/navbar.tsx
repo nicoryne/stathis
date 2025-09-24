@@ -25,9 +25,7 @@ export function Navbar() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`fixed top-0 right-0 left-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-background/80 shadow-md backdrop-blur-md' : 'bg-transparent'
-      }`}
+      className="fixed top-0 right-0 left-0 z-50 bg-background/95 backdrop-blur-sm shadow-sm border-b border-border"
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
@@ -35,17 +33,20 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 md:flex">
-            <a href="#features" className="text-foreground/80 hover:text-primary transition-colors">
-              Features
+            <a href="/" className="text-foreground/80 hover:text-primary transition-colors font-medium">
+              Home
             </a>
-            <a href="#benefits" className="text-foreground/80 hover:text-primary transition-colors">
-              Benefits
-            </a>
-            <a href="#about" className="text-foreground/80 hover:text-primary transition-colors">
+            <a href="#about" className="text-foreground/80 hover:text-primary transition-colors font-medium">
               About
             </a>
-            <Button variant="default">
-              <Link href="/login">Get Started</Link>
+            <a href="#features" className="text-foreground/80 hover:text-primary transition-colors font-medium">
+              Features
+            </a>
+            <a href="#contact" className="text-foreground/80 hover:text-primary transition-colors font-medium">
+              Contact
+            </a>
+            <Button className="cta-button font-medium">
+              <Link href="/sign-up">Get Started</Link>
             </Button>
             <ThemeSwitcher />
           </nav>
@@ -69,28 +70,35 @@ export function Navbar() {
             className="flex flex-col gap-4 pt-4 pb-2 md:hidden"
           >
             <a
+              href="/"
+              className="text-foreground/80 hover:text-primary py-2 transition-colors font-medium"
+              onClick={() => setIsOpen(false)}
+            >
+              Home
+            </a>
+            <a
+              href="#about"
+              className="text-foreground/80 hover:text-primary py-2 transition-colors font-medium"
+              onClick={() => setIsOpen(false)}
+            >
+              About
+            </a>
+            <a
               href="#features"
-              className="text-foreground/80 hover:text-primary py-2 transition-colors"
+              className="text-foreground/80 hover:text-primary py-2 transition-colors font-medium"
               onClick={() => setIsOpen(false)}
             >
               Features
             </a>
             <a
-              href="#benefits"
-              className="text-foreground/80 hover:text-primary py-2 transition-colors"
+              href="#contact"
+              className="text-foreground/80 hover:text-primary py-2 transition-colors font-medium"
               onClick={() => setIsOpen(false)}
             >
-              Benefits
+              Contact
             </a>
-            <a
-              href="#about"
-              className="text-foreground/80 hover:text-primary py-2 transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              About
-            </a>
-            <Button variant="default" className="w-full">
-              Get Started
+            <Button className="cta-button font-medium w-full">
+              <Link href="/sign-up">Get Started</Link>
             </Button>
           </motion.nav>
         )}
