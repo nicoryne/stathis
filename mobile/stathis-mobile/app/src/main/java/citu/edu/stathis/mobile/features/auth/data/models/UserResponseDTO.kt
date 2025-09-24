@@ -14,7 +14,10 @@ data class UserResponseDTO(
     val role: UserRoles,
     val school: String?,
     val course: String?,
-    val yearLevel: String?,
-    val department: String?,
-    val positionTitle: String?
+    val yearLevel: Int?,  // Changed from String to Int to match backend
+    val department: String?,  // Teacher-only field
+    val positionTitle: String?,  // Teacher-only field
+    val heightInMeters: Double?,  // Added missing field
+    val weightInKg: Double?,  // Added missing field
+    val emailVerified: Boolean  // Added missing field
 )

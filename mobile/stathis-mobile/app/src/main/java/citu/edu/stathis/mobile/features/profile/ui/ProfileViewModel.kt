@@ -96,7 +96,7 @@ class ProfileViewModel @Inject constructor(
                     profilePictureUrl = newUrl,
                     school = currentProfile.school,
                     course = currentProfile.course,
-                    yearLevel = currentProfile.yearLevel?.toIntOrNull()
+                    yearLevel = currentProfile.yearLevel
                 )
             } else {
                 _editState.value = EditProfileUiState.Error("User profile not loaded. Cannot update picture.")
@@ -116,7 +116,7 @@ class ProfileViewModel @Inject constructor(
                     profilePictureUrl = null, // Set to null to remove
                     school = currentProfile.school,
                     course = currentProfile.course,
-                    yearLevel = currentProfile.yearLevel?.toIntOrNull()
+                    yearLevel = currentProfile.yearLevel
                 )
             } else {
                 _editState.value = EditProfileUiState.Error("User profile not loaded. Cannot remove picture.")
