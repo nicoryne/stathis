@@ -112,7 +112,7 @@ fun ProgressScreen(
                         Spacer(modifier = Modifier.width(StathisSpacing.XS))
                         Text(
                             text = "$streakCount",
-                            style = StathisTypography.titleMedium,
+                            style = StathisTypography.SectionTitle,
                             color = StathisColors.Secondary,
                             fontWeight = FontWeight.Bold
                         )

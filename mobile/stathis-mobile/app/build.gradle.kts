@@ -98,14 +98,10 @@ dependencies {
     // Material 3
     implementation(libs.androidx.material3)
     
-    // DataStore for theme preferences
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
+    // DataStore for theme preferences (use version catalog alias)
 
     // Android UI
     implementation(libs.androidx.ui.tooling.preview)
-    debugImplementation(libs.androidx.ui.tooling)
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.test.manifest)
 
     // Material Icons
     implementation(libs.androidx.material.icons.extended.android)
@@ -133,7 +129,6 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     // Biometric
-    implementation(libs.androidx.biometric.ktx)
 
     // Bluetooth dependencies
     implementation(libs.androidx.bluetooth)
@@ -155,14 +150,12 @@ dependencies {
     implementation(libs.accompanist.permissions)
 
     // Testing dependencies
-    testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
     testImplementation("com.squareup.okhttp3:mockwebserver")
     testImplementation("com.squareup.okhttp3:okhttp")
     testImplementation("com.squareup.okhttp3:logging-interceptor")
-    androidTestImplementation(libs.androidx.junit.v115)
-    androidTestImplementation(libs.androidx.espresso.core.v351)
+    // Use unified latest AndroidX test artifacts from version catalog
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)

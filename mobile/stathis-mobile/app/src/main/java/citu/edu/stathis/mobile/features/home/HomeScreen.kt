@@ -1,13 +1,18 @@
 package citu.edu.stathis.mobile.features.home
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import citu.edu.stathis.mobile.core.theme.StathisSpacing
 import citu.edu.stathis.mobile.features.dashboard.ui.ModernDashboardScreen
 import citu.edu.stathis.mobile.features.profile.ui.EditProfileScreen
 import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
@@ -37,9 +42,12 @@ fun HomeScreen(
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
+        val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val extraBottomForHostBar = StathisSpacing.XXL
         NavHost(
             navController = navController,
-            startDestination = HomeNavigationItem.Learn.route
+            startDestination = HomeNavigationItem.Learn.route,
+            modifier = Modifier.padding(bottom = bottomInset + extraBottomForHostBar)
         ) {
             // Learn Tab - Main hub with mascot and today's focus
             composable(HomeNavigationItem.Learn.route) {
@@ -98,9 +106,15 @@ fun HomeScreen(
         }
 
         // Floating Bottom Navigation
-        HomeBottomNavigation(
-            navController = navController,
-            isVisible = bottomBarVisible
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+        ) {
+            HomeBottomNavigation(
+                navController = navController,
+                isVisible = bottomBarVisible
+            )
+        }
     }
 }

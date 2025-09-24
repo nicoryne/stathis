@@ -45,10 +45,14 @@ object NetworkModule {
         okHttpClient: OkHttpClient,
         gson: Gson,
     ): Retrofit =
-        Retrofit
-            .Builder()
-            .baseUrl(if (BuildConfig.API_BASE_URL.isNotBlank()) BuildConfig.API_BASE_URL else Constants.BACKEND_URL_PROD)
-            .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
+        run {
+            val raw = if (BuildConfig.API_BASE_URL.isNotBlank()) BuildConfig.API_BASE_URL else Constants.BACKEND_URL_PROD
+            val normalized = raw.trim().let { url -> if (url.endsWith("/")) url else "$url/" }
+            Retrofit
+                .Builder()
+                .baseUrl(normalized)
+                .client(okHttpClient)
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build()
+        }
 }

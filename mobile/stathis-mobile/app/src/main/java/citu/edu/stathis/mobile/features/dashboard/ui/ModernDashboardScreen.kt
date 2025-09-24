@@ -2,6 +2,7 @@ package citu.edu.stathis.mobile.features.dashboard.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -21,11 +22,14 @@ import androidx.navigation.NavHostController
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import citu.edu.stathis.mobile.core.theme.StathisColors
+import citu.edu.stathis.mobile.core.theme.appColors
 import citu.edu.stathis.mobile.core.theme.StathisShapes
 import citu.edu.stathis.mobile.core.theme.StathisSpacing
 import citu.edu.stathis.mobile.core.theme.StathisTypography
 import citu.edu.stathis.mobile.core.ui.components.MascotAvatar
 import citu.edu.stathis.mobile.core.ui.components.MascotState
+import citu.edu.stathis.mobile.features.auth.ui.components.AuthBackground
+import citu.edu.stathis.mobile.features.auth.ui.components.BackgroundDecorations
 import citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomViewModel
 import citu.edu.stathis.mobile.features.progress.presentation.viewmodel.ProgressViewModel
 import java.time.LocalDate
@@ -46,14 +50,19 @@ fun ModernDashboardScreen(
     // Collect data from ViewModels (using actual state properties)
     val progressState by progressViewModel.progressState.collectAsStateWithLifecycle()
     val achievements by progressViewModel.achievementsState.collectAsStateWithLifecycle()
-    
+
+    val classroomsState by classroomViewModel.classroomsState.collectAsStateWithLifecycle()
+    val selectedClassroom by classroomViewModel.selectedClassroom.collectAsStateWithLifecycle()
+    val tasksState by classroomViewModel.tasksState.collectAsStateWithLifecycle()
+
+    val colors = appColors()
+
     // Extract data from state (with fallbacks for now)
     val userName = "Alex" // TODO: Extract from user data
     val userLevel = 5 // TODO: Extract from progressState when available
     val streakCount = 7 // TODO: Extract from progressState when available
     val hasNewAchievement = achievements.isNotEmpty() // TODO: Check for new achievements
     val todayTasks = listOf("Complete Algebra Quiz", "Practice Posture Exercise") // TODO: Extract from classroomViewModel
-    val availableClassrooms = listOf("Math Class", "Science Class", "History Class") // TODO: Extract from classroomViewModel
     
     // Determine mascot state based on user progress
     val mascotState = when {
@@ -70,16 +79,153 @@ fun ModernDashboardScreen(
         else -> "Hello, $userName! Ready to learn today?"
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(StathisColors.Background)
-    ) {
+    LaunchedEffect(Unit) {
+        classroomViewModel.loadStudentClassrooms()
+    }
+
+    LaunchedEffect(classroomsState) {
+        val list = (classroomsState as? citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomsState.Success)?.classrooms
+        if (!list.isNullOrEmpty() && selectedClassroom == null) {
+            classroomViewModel.selectClassroom(list.first())
+        }
+    }
+
+    AuthBackground {
+        BackgroundDecorations()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .padding(StathisSpacing.MD)
         ) {
+            // Classrooms first
+            Text(
+                text = "Your Classrooms",
+                style = StathisTypography.SectionTitle,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = StathisSpacing.SM)
+            )
+
+            when (val state = classroomsState) {
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomsState.Loading -> {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = colors.brandPurple
+                    )
+                }
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomsState.Error -> {
+                    Text(
+                        text = state.message,
+                        style = StathisTypography.BodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomsState.Empty -> {
+                    Text(
+                        text = "No classrooms yet",
+                        style = StathisTypography.BodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                    )
+                }
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomsState.Success -> {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(StathisSpacing.MD),
+                        contentPadding = PaddingValues(horizontal = StathisSpacing.XS)
+                    ) {
+                        items(state.classrooms) { classroom ->
+                            LearningModuleCard(
+                                title = classroom.name,
+                                progress = 0,
+                                onTap = {
+                                    classroomViewModel.selectClassroom(classroom)
+                                    onClassroomSelected(classroom.physicalId)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(StathisSpacing.LG))
+
+            // Pending tasks per selected classroom
+            Text(
+                text = "Pending Tasks",
+                style = StathisTypography.SectionTitle,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = StathisSpacing.SM)
+            )
+
+            when (val tState = tasksState) {
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.TasksState.Loading -> {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = colors.brandTeal
+                    )
+                }
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.TasksState.Error -> {
+                    Text(
+                        text = tState.message,
+                        style = StathisTypography.BodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.TasksState.Empty -> {
+                    Text(
+                        text = "You're all caught up",
+                        style = StathisTypography.BodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                    )
+                }
+                is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.TasksState.Success -> {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(StathisSpacing.SM)
+                    ) {
+                        items(tState.tasks) { task ->
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = StathisColors.Surface
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(StathisSpacing.MD),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            text = task.name,
+                                            style = StathisTypography.BodyMedium,
+                                            color = StathisColors.TextPrimary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = "Due: ${'$'}{task.closingDate}",
+                                            style = StathisTypography.BodySmall,
+                                            color = StathisColors.TextSecondary
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Assignment,
+                                        contentDescription = null,
+                                        tint = StathisColors.Primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(StathisSpacing.XL))
+
             // Top Section with Greeting and Streak
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -91,13 +237,13 @@ fun ModernDashboardScreen(
                     Text(
                         text = "Hello, $userName! 👋",
                         style = StathisTypography.HeroTitle,
-                        color = StathisColors.TextPrimary,
+                        color = MaterialTheme.colorScheme.onBackground,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d")),
                         style = StathisTypography.BodyMedium,
-                        color = StathisColors.TextSecondary
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                 }
 
@@ -105,7 +251,7 @@ fun ModernDashboardScreen(
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = StathisColors.SecondaryLight
+                        containerColor = colors.brandTeal.copy(alpha = 0.15f)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
@@ -116,14 +262,14 @@ fun ModernDashboardScreen(
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = "Streak",
-                            tint = StathisColors.Secondary,
+                            tint = colors.brandTeal,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(StathisSpacing.XS))
                         Text(
                             text = "$streakCount",
-                            style = StathisTypography.titleMedium,
-                            color = StathisColors.Secondary,
+                            style = StathisTypography.SectionTitle,
+                            color = colors.brandTeal,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -151,7 +297,7 @@ fun ModernDashboardScreen(
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = StathisColors.PrimaryLight
+                        containerColor = colors.brandPurple.copy(alpha = 0.12f)
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
@@ -163,12 +309,12 @@ fun ModernDashboardScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(StathisColors.Primary),
+                                .background(colors.brandPurple),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "$userLevel",
-                                style = StathisTypography.titleLarge,
+                                style = StathisTypography.HeroTitle,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
@@ -180,13 +326,13 @@ fun ModernDashboardScreen(
                             Text(
                                 text = "Level $userLevel",
                                 style = StathisTypography.BodyMedium,
-                                color = StathisColors.TextPrimary,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
                                 text = "Keep learning to level up!",
                                 style = StathisTypography.BodySmall,
-                                color = StathisColors.TextSecondary
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                             )
                         }
                     }
@@ -195,29 +341,6 @@ fun ModernDashboardScreen(
 
             Spacer(modifier = Modifier.height(StathisSpacing.XL))
 
-            // Learning Modules Carousel
-            Column {
-                Text(
-                    text = "Today's Learning Modules",
-                    style = StathisTypography.SectionTitle,
-                    color = StathisColors.TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = StathisSpacing.MD)
-                )
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(StathisSpacing.MD),
-                    contentPadding = PaddingValues(horizontal = StathisSpacing.XS)
-                ) {
-                    items(availableClassrooms) { classroom ->
-                        LearningModuleCard(
-                            title = classroom,
-                            progress = 75, // TODO: Extract from actual data
-                            onTap = { onClassroomSelected(classroom) }
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(StathisSpacing.LG))
 
@@ -226,7 +349,7 @@ fun ModernDashboardScreen(
                 Text(
                     text = "Quick Actions",
                     style = StathisTypography.SectionTitle,
-                    color = StathisColors.TextPrimary,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = StathisSpacing.MD)
                 )
@@ -240,7 +363,7 @@ fun ModernDashboardScreen(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = StathisColors.SecondaryLight
+                            containerColor = colors.brandTeal.copy(alpha = 0.15f)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
@@ -253,14 +376,14 @@ fun ModernDashboardScreen(
                             Icon(
                                 imageVector = Icons.Default.FitnessCenter,
                                 contentDescription = "Exercise",
-                                tint = StathisColors.Secondary,
+                                tint = colors.brandTeal,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(StathisSpacing.SM))
                             Text(
                                 text = "Exercise",
                                 style = StathisTypography.BodyMedium,
-                                color = StathisColors.TextPrimary,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -271,7 +394,7 @@ fun ModernDashboardScreen(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = StathisColors.PrimaryLight
+                            containerColor = colors.brandPurple.copy(alpha = 0.12f)
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
@@ -284,14 +407,14 @@ fun ModernDashboardScreen(
                             Icon(
                                 imageVector = Icons.Default.Assignment,
                                 contentDescription = "Tasks",
-                                tint = StathisColors.Primary,
+                                tint = colors.brandPurple,
                                 modifier = Modifier.size(32.dp)
                             )
                             Spacer(modifier = Modifier.height(StathisSpacing.SM))
                             Text(
                                 text = "Tasks",
                                 style = StathisTypography.BodyMedium,
-                                color = StathisColors.TextPrimary,
+                                color = MaterialTheme.colorScheme.onBackground,
                                 fontWeight = FontWeight.Medium
                             )
                         }
