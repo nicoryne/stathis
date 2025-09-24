@@ -81,7 +81,7 @@ export default function Home() {
                 <Button 
                   size="lg" 
                   variant="outline"
-                  className="font-medium text-base h-14 px-8 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-primary transition-all duration-300"
+                  className="font-medium text-base h-14 px-8 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
                   asChild
                 >
                   <Link href="#demo">
@@ -96,17 +96,17 @@ export default function Home() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="relative flex-1 gpu-accelerated"
+              className="relative flex-1 gpu-accelerated flex items-center justify-center"
             >
-              <div className="relative mx-auto w-full max-w-md lg:max-w-lg">
-                {/* Mascot with Glow Effect */}
-                <div className="relative">
-                  <div className="absolute inset-0 pulse-glow-animation rounded-full"></div>
+              <div className="relative w-full max-w-md lg:max-w-lg flex items-center justify-center">
+                {/* Phone with Glow Effect */}
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute inset-0 pulse-glow-animation rounded-full w-80 h-80 -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"></div>
                   <Image
                     src="/images/stathis_phone.png"
-                    alt="STATHIS Statistics Learning Mascot"
-                    width={400}
-                    height={400}
+                    alt="STATHIS Statistics Learning Phone"
+                    width={420}
+                    height={840}
                     className="relative z-10 float-animation"
                     priority
                   />
@@ -118,7 +118,7 @@ export default function Home() {
       </section>
 
       {/* About STATHIS Section */}
-      <section id="about" className="py-20 bg-muted/30 dark:bg-gray-900">
+      <section id="about" className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-start gap-16">
             {/* Left Side - About Description */}
@@ -141,9 +141,9 @@ export default function Home() {
                     accessible. Whether you're a student, educator, or enthusiast, STATHIS helps you learn 
                     through interactive quizzes, performance tracking, and peer competition.
                   </p>
-                </div>
-              </div>
-
+            </div>
+            </div>
+            
               {/* Statistics Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <motion.div
@@ -155,21 +155,21 @@ export default function Home() {
               >
                   <h3 className="text-3xl font-bold text-primary mb-2">10K+</h3>
                   <p className="text-muted-foreground font-medium">Active Learners</p>
-              </motion.div>
-            
-              <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: 0.3 }}
-                viewport={{ once: true }}
+            viewport={{ once: true }}
                   className="bg-card rounded-2xl p-6 shadow-lg border border-border"
               >
                   <h3 className="text-3xl font-bold text-accent mb-2">500+</h3>
                   <p className="text-muted-foreground font-medium">Quiz Questions</p>
               </motion.div>
             </div>
-            </motion.div>
-            
+          </motion.div>
+
             {/* Right Side - Mascot with Stats */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -180,39 +180,41 @@ export default function Home() {
             >
               <div className="relative">
                 {/* Quiz Score Badge */}
-              <motion.div
+          <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
-                viewport={{ once: true }}
+            viewport={{ once: true }}
                   className="absolute -top-4 -right-8 bg-card rounded-2xl p-4 shadow-lg border border-border float-animation"
                   style={{animationDelay: '0.5s'}}
               >
                   <p className="text-sm text-muted-foreground mb-1">Quiz Score</p>
                   <p className="text-2xl font-bold text-primary">95%</p>
-              </motion.div>
-
-                {/* Mascot */}
-                <div className="mx-auto w-80 h-80 flex items-center justify-center">
+          </motion.div>
+          
+                {/* Mascot with Background */}
+                <div className="mx-auto w-80 h-80 flex items-center justify-center relative">
+                  {/* Background circle with glow effect - subtle in light mode, prominent in dark mode */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/10 to-accent/5 dark:from-card dark:to-muted border border-border/20 dark:border-border/30 pulse-glow-animation mascot-glow-animation"></div>
                   <Image
                     src="/images/stathis_mascot.png"
                     alt="STATHIS Mascot"
                     width={280}
                     height={280}
-                    className="float-animation"
+                    className="relative z-10 float-animation"
                     priority
                   />
-            </div>
-            
+                </div>
+
                 {/* Streak Badge */}
-              <motion.div
+          <motion.div
                   initial={{ opacity: 0, scale: 0.8 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.6, delay: 0.8 }}
-                viewport={{ once: true }}
+            viewport={{ once: true }}
                   className="absolute -bottom-4 -left-8 bg-card rounded-2xl p-4 shadow-lg border border-border float-animation"
                   style={{animationDelay: '0.8s'}}
-              >
+          >
                   <p className="text-sm text-muted-foreground mb-1">Streak</p>
                   <p className="text-2xl font-bold text-accent">12 days</p>
               </motion.div>
@@ -253,7 +255,7 @@ export default function Home() {
             >
               <div className="bg-primary/10 rounded-full p-4 w-16 h-16 flex items-center justify-center mb-6">
                 <Play className="h-8 w-8 text-primary" />
-          </div>
+              </div>
               <h3 className="text-xl font-bold mb-4">Interactive Learning</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Engage with statistics through hands-on simulations, interactive visualizations, 
@@ -262,40 +264,40 @@ export default function Home() {
             </motion.div>
 
             {/* Feature 2: Expert Instructors */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-            viewport={{ once: true }}
+              viewport={{ once: true }}
               className="bg-card rounded-xl p-8 card-hover-effect shadow-lg"
-          >
+            >
               <div className="bg-accent/10 rounded-full p-4 w-16 h-16 flex items-center justify-center mb-6">
                 <CheckCircle className="h-8 w-8 text-accent" />
-            </div>
+              </div>
               <h3 className="text-xl font-bold mb-4">Expert Instructors</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Learn from qualified statistics professionals and educators who bring years of 
                 experience and proven teaching methodologies to every lesson.
             </p>
-          </motion.div>
-          
+            </motion.div>
+
             {/* Feature 3: Flexible Schedule */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-            viewport={{ once: true }}
+              viewport={{ once: true }}
               className="bg-card rounded-xl p-8 card-hover-effect shadow-lg"
-          >
+            >
               <div className="bg-secondary/10 rounded-full p-4 w-16 h-16 flex items-center justify-center mb-6">
                 <Clock className="h-8 w-8 text-secondary" />
-            </div>
+              </div>
               <h3 className="text-xl font-bold mb-4">Flexible Schedule</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Study at your own pace with 24/7 access to course materials, allowing you to 
                 balance learning with your personal and professional commitments.
             </p>
-          </motion.div>
+            </motion.div>
 
             {/* Feature 4: Real-world Applications */}
             <motion.div
@@ -307,7 +309,7 @@ export default function Home() {
             >
               <div className="bg-primary/10 rounded-full p-4 w-16 h-16 flex items-center justify-center mb-6">
                 <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
+                </div>
               <h3 className="text-xl font-bold mb-4">Real-world Applications</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Apply statistical concepts to practical scenarios from business, healthcare, 
@@ -317,7 +319,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      
       {/* Location Section */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
@@ -375,8 +377,8 @@ export default function Home() {
                       <div>
                         <p className="text-foreground font-medium">+63 32 411 2000</p>
                       </div>
-                    </div>
-                    
+              </div>
+              
                     <div className="flex items-start gap-3">
                       <Mail className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                       <div>
@@ -384,8 +386,8 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-                </div>
-
+              </div>
+              
                 {/* Right Side - Map */}
                 <div className="bg-gradient-to-br from-primary/5 to-secondary/5 p-4 lg:p-6 flex items-center justify-center">
                   <div className="w-full h-full min-h-[300px] relative">
@@ -397,7 +399,7 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-      
+
       {/* User Journey Section */}
       <section className="py-20 bg-secondary/5">
         <div className="container mx-auto px-4">
@@ -423,54 +425,54 @@ export default function Home() {
             
             <div className="space-y-12">
               {/* Step 1: Discover */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 items-center"
+                viewport={{ once: true }}
+                className="flex flex-col md:flex-row gap-8 items-start md:items-center"
               >
                 <div className="md:w-1/2 md:text-right order-2 md:order-1">
                   <h3 className="text-xl font-bold mb-3 text-foreground">1. Discover</h3>
                   <p className="text-muted-foreground">
                     Explore our comprehensive course catalog and find the perfect statistics program for your learning goals.
                   </p>
-              </div>
-                <div className="relative md:w-1/2 order-1 md:order-2">
-                  <div className="bg-primary/10 text-primary rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto md:mx-0">
+                </div>
+                <div className="relative md:w-1/2 order-1 md:order-2 flex justify-center md:justify-start">
+                  <div className="bg-primary/10 text-primary rounded-full p-4 w-16 h-16 flex items-center justify-center">
                     <Target className="h-8 w-8" />
-              </div>
-            </div>
-          </motion.div>
-
+                  </div>
+                </div>
+              </motion.div>
+              
               {/* Step 2: Assess */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-            viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 items-center"
+                viewport={{ once: true }}
+                className="flex flex-col md:flex-row gap-8 items-start md:items-center"
               >
-                <div className="relative md:w-1/2 order-1">
-                  <div className="bg-accent/10 text-accent rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto md:ml-auto">
+                <div className="relative md:w-1/2 order-1 flex justify-center md:justify-end">
+                  <div className="bg-accent/10 text-accent rounded-full p-4 w-16 h-16 flex items-center justify-center">
                     <BarChart className="h-8 w-8" />
                   </div>
-            </div>
+                </div>
                 <div className="md:w-1/2 md:text-left order-2">
                   <h3 className="text-xl font-bold mb-3 text-foreground">2. Assess</h3>
-            <p className="text-muted-foreground">
+                  <p className="text-muted-foreground">
                     Take our skill assessment to create a personalized learning path tailored to your current knowledge level.
-            </p>
+                  </p>
                 </div>
-          </motion.div>
-
+              </motion.div>
+              
               {/* Step 3: Learn */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.2 }}
                 viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 items-center"
+                className="flex flex-col md:flex-row gap-8 items-start md:items-center"
               >
                 <div className="md:w-1/2 md:text-right order-2 md:order-1">
                   <h3 className="text-xl font-bold mb-3 text-foreground">3. Learn</h3>
@@ -478,8 +480,8 @@ export default function Home() {
                     Engage with interactive lessons, multimedia content, and expert-led tutorials designed for optimal comprehension.
                   </p>
                 </div>
-                <div className="relative md:w-1/2 order-1 md:order-2">
-                  <div className="bg-secondary/10 text-secondary rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto md:mx-0">
+                <div className="relative md:w-1/2 order-1 md:order-2 flex justify-center md:justify-start">
+                  <div className="bg-secondary/10 text-secondary rounded-full p-4 w-16 h-16 flex items-center justify-center">
                     <BookOpen className="h-8 w-8" />
                   </div>
                 </div>
@@ -491,10 +493,10 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.3 }}
                 viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 items-center"
+                className="flex flex-col md:flex-row gap-8 items-start md:items-center"
               >
-                <div className="relative md:w-1/2 order-1">
-                  <div className="bg-primary/10 text-primary rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto md:ml-auto">
+                <div className="relative md:w-1/2 order-1 flex justify-center md:justify-end">
+                  <div className="bg-primary/10 text-primary rounded-full p-4 w-16 h-16 flex items-center justify-center">
                     <Zap className="h-8 w-8" />
                   </div>
                 </div>
@@ -512,7 +514,7 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
                 viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 items-center"
+                className="flex flex-col md:flex-row gap-8 items-start md:items-center"
               >
                 <div className="md:w-1/2 md:text-right order-2 md:order-1">
                   <h3 className="text-xl font-bold mb-3 text-foreground">5. Apply</h3>
@@ -520,8 +522,8 @@ export default function Home() {
                     Work on real-world projects and case studies to apply statistical concepts to practical business and research scenarios.
                   </p>
                 </div>
-                <div className="relative md:w-1/2 order-1 md:order-2">
-                  <div className="bg-accent/10 text-accent rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto md:mx-0">
+                <div className="relative md:w-1/2 order-1 md:order-2 flex justify-center md:justify-start">
+                  <div className="bg-accent/10 text-accent rounded-full p-4 w-16 h-16 flex items-center justify-center">
                     <TrendingUp className="h-8 w-8" />
                   </div>
                 </div>
@@ -533,10 +535,10 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.5 }}
                 viewport={{ once: true }}
-                className="flex flex-col md:flex-row gap-8 items-center"
+                className="flex flex-col md:flex-row gap-8 items-start md:items-center"
               >
-                <div className="relative md:w-1/2 order-1">
-                  <div className="bg-secondary/10 text-secondary rounded-full p-4 w-16 h-16 flex items-center justify-center mx-auto md:ml-auto">
+                <div className="relative md:w-1/2 order-1 flex justify-center md:justify-end">
+                  <div className="bg-secondary/10 text-secondary rounded-full p-4 w-16 h-16 flex items-center justify-center">
                     <Award className="h-8 w-8" />
                   </div>
                 </div>
@@ -553,7 +555,7 @@ export default function Home() {
       </section>
 
       {/* Transform Section (Final CTA) */}
-      <section className="py-20 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 relative overflow-hidden">
+      <section className="py-20 bg-muted relative overflow-hidden">
         <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -681,26 +683,26 @@ export default function Home() {
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button 
-                    size="lg" 
+              <Button 
+                size="lg" 
                     className="cta-button font-medium text-base h-14 px-8 rounded-xl"
-                    asChild
-                  >
-                    <Link href="/sign-up">
+                asChild
+              >
+                <Link href="/sign-up">
                       Start Learning Today
                     </Link>
                   </Button>
                   <Button 
                     size="lg" 
                     variant="outline"
-                    className="font-medium text-base h-14 px-8 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-primary transition-all duration-300"
+                    className="font-medium text-base h-14 px-8 rounded-xl border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
                     asChild
                   >
                     <Link href="#community">
                       Join Our Community
-                    </Link>
-                  </Button>
-                </div>
+                </Link>
+              </Button>
+            </div>
               </motion.div>
             </div>
           </div>

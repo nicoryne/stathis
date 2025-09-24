@@ -47,57 +47,51 @@
 :root {
   --radius: 0.75rem; /* 12px consistent border radius */
   
-  /* STATHIS Custom Design Tokens */
-  --primary-color: #7D3C98; /* Deep purple for main branding */
-  --accent-color: #1ABC9C; /* Teal for highlights and interactive elements */
-  --background-color: #F4F6F8; /* Light gray for page backgrounds */
-  --text-color: #2C3E50; /* Dark blue-gray for body text */
-  --muted-color: #64748B; /* Medium gray for secondary text */
-  --border-color: #E2E8F0; /* Light gray for borders */
+  /* LIGHT MODE COLOR SCHEME - Following STATHIS Design Specifications */
   
-  /* CSS Custom Properties */
-  --background: #F4F6F8;
-  --foreground: #2C3E50;
-  --card: #FFFFFF;
-  --card-foreground: #2C3E50;
-  --popover: #FFFFFF;
-  --popover-foreground: #2C3E50;
-  --primary: #7D3C98;
-  --primary-foreground: #FFFFFF;
-  --secondary: #1ABC9C;
-  --secondary-foreground: #FFFFFF;
-  --muted: #F4F6F8;
-  --muted-foreground: #64748B;
-  --accent: #1ABC9C;
-  --accent-foreground: #FFFFFF;
-  --destructive: #EF4444;
-  --border: #E2E8F0;
-  --input: #E2E8F0;
-  --ring: #7D3C98;
+  /* Background Colors */
+  --background: oklch(0.98 0.01 270); /* Main page background - light purple-tinted */
+  --foreground: oklch(0.25 0.05 240); /* Primary text - dark blue-gray */
+  --card: oklch(1 0 0); /* Card backgrounds - pure white */
+  --card-foreground: oklch(0.25 0.05 240); /* Card text - dark blue-gray */
+  --popover: oklch(1 0 0); /* Popover backgrounds - pure white */
+  --popover-foreground: oklch(0.25 0.05 240); /* Popover text - dark blue-gray */
   
-  /* Section background variations */
-  --section-bg-primary-light: rgba(125, 60, 152, 0.05);
-  --section-bg-primary-medium: rgba(125, 60, 152, 0.1);
-  --section-bg-secondary-light: rgba(26, 188, 156, 0.05);
-  --section-bg-secondary-medium: rgba(26, 188, 156, 0.1);
-  --section-bg-muted-light: rgba(244, 246, 248, 0.8);
+  /* Brand Colors */
+  --primary: oklch(0.55 0.15 300); /* Primary Purple #7D3C98 */
+  --primary-foreground: oklch(1 0 0); /* White text on primary */
+  --secondary: oklch(0.65 0.12 180); /* Secondary/Accent Teal #1ABC9C */
+  --secondary-foreground: oklch(1 0 0); /* White text on secondary */
+  --accent: oklch(0.65 0.12 180); /* Accent Teal - same as secondary */
+  --accent-foreground: oklch(1 0 0); /* White text on accent */
   
-  /* Chart colors */
-  --chart-1: #7D3C98;
-  --chart-2: #1ABC9C;
-  --chart-3: #3498DB;
-  --chart-4: #F39C12;
-  --chart-5: #E74C3C;
+  /* Muted and Interactive */
+  --muted: oklch(0.96 0.01 270); /* Muted sections - light purple-tinted */
+  --muted-foreground: oklch(0.45 0.05 240); /* Secondary text - medium gray */
+  --border: oklch(0.92 0.01 270); /* Borders and inputs - light purple-tinted */
+  --input: oklch(0.92 0.01 270); /* Input backgrounds */
+  --ring: oklch(0.55 0.15 300); /* Focus rings - primary purple */
   
-  /* Sidebar colors */
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #2C3E50;
-  --sidebar-primary: #7D3C98;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1ABC9C;
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: #E2E8F0;
-  --sidebar-ring: #7D3C98;
+  /* Error States */
+  --destructive: oklch(0.577 0.245 27.325); /* Error states - red */
+  --destructive-foreground: oklch(1 0 0); /* White text on destructive */
+  
+  /* Chart Colors for Data Visualization */
+  --chart-1: oklch(0.55 0.15 300); /* Primary purple */
+  --chart-2: oklch(0.65 0.12 180); /* Teal */
+  --chart-3: oklch(0.7 0.1 200); /* Light blue */
+  --chart-4: oklch(0.6 0.13 280); /* Purple variant */
+  --chart-5: oklch(0.5 0.16 320); /* Magenta */
+  
+  /* Sidebar Colors */
+  --sidebar: oklch(1 0 0); /* White sidebar */
+  --sidebar-foreground: oklch(0.25 0.05 240); /* Dark text in sidebar */
+  --sidebar-primary: oklch(0.55 0.15 300); /* Purple sidebar primary */
+  --sidebar-primary-foreground: oklch(1 0 0); /* White text on sidebar primary */
+  --sidebar-accent: oklch(0.65 0.12 180); /* Teal sidebar accent */
+  --sidebar-accent-foreground: oklch(1 0 0); /* White text on sidebar accent */
+  --sidebar-border: oklch(0.92 0.01 270); /* Light purple-tinted borders */
+  --sidebar-ring: oklch(0.55 0.15 300); /* Purple focus ring */
 
   /* Typography */
   --font-heading: var(--font-outfit);
@@ -105,37 +99,51 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.55 0.28 296.8); /* Purple #9334ea */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.65 0.15 180); /* Teal #25aca4 */
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.65 0.15 180); /* Teal #25aca4 */
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.55 0.28 296.8); /* Purple #9334ea */
-  --chart-1: oklch(0.55 0.28 296.8); /* Purple #9334ea */
-  --chart-2: oklch(0.65 0.15 180); /* Teal #25aca4 */
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.55 0.28 296.8); /* Purple #9334ea */
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.65 0.15 180); /* Teal #25aca4 */
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.55 0.28 296.8); /* Purple #9334ea */
+  /* DARK MODE COLOR SCHEME - Following STATHIS Design Specifications */
+  
+  /* Background Colors */
+  --background: oklch(0.12 0.02 270); /* Main page background - dark with purple tint */
+  --foreground: oklch(0.95 0.01 270); /* Primary text - bright with subtle purple tint */
+  --card: oklch(0.16 0.02 270); /* Card backgrounds - dark elevated surface */
+  --card-foreground: oklch(0.95 0.01 270); /* Card text - bright */
+  --popover: oklch(0.16 0.02 270); /* Popover backgrounds - dark elevated surface */
+  --popover-foreground: oklch(0.95 0.01 270); /* Popover text - bright */
+  
+  /* Brand Colors */
+  --primary: oklch(0.68 0.15 300); /* Primary Purple - bright for dark mode */
+  --primary-foreground: oklch(0.95 0.01 270); /* Bright text on primary */
+  --secondary: oklch(0.72 0.12 180); /* Accent Teal - bright for dark mode */
+  --secondary-foreground: oklch(0.95 0.01 270); /* Bright text on secondary */
+  --accent: oklch(0.72 0.12 180); /* Accent Teal - same as secondary */
+  --accent-foreground: oklch(0.95 0.01 270); /* Bright text on accent */
+  
+  /* Muted and Interactive */
+  --muted: oklch(0.2 0.02 270); /* Muted sections - dark purple-tinted */
+  --muted-foreground: oklch(0.7 0.05 240); /* Secondary text - muted bright */
+  --border: oklch(0.24 0.02 270); /* Borders and inputs - darker elevated surface */
+  --input: oklch(0.24 0.02 270); /* Input backgrounds */
+  --ring: oklch(0.68 0.15 300); /* Focus rings - primary purple */
+  
+  /* Error States */
+  --destructive: oklch(0.65 0.2 25); /* Error states - red for dark mode */
+  --destructive-foreground: oklch(0.95 0.01 270); /* Bright text on destructive */
+  
+  /* Chart Colors for Data Visualization */
+  --chart-1: oklch(0.68 0.15 300); /* Primary purple */
+  --chart-2: oklch(0.72 0.12 180); /* Teal */
+  --chart-3: oklch(0.7 0.1 200); /* Light blue */
+  --chart-4: oklch(0.6 0.13 280); /* Purple variant */
+  --chart-5: oklch(0.5 0.16 320); /* Magenta */
+  
+  /* Sidebar Colors */
+  --sidebar: oklch(0.16 0.02 270); /* Dark elevated sidebar */
+  --sidebar-foreground: oklch(0.95 0.01 270); /* Bright text in sidebar */
+  --sidebar-primary: oklch(0.68 0.15 300); /* Purple sidebar primary */
+  --sidebar-primary-foreground: oklch(0.95 0.01 270); /* Bright text on sidebar primary */
+  --sidebar-accent: oklch(0.72 0.12 180); /* Teal sidebar accent */
+  --sidebar-accent-foreground: oklch(0.95 0.01 270); /* Bright text on sidebar accent */
+  --sidebar-border: oklch(0.24 0.02 270); /* Dark purple-tinted borders */
+  --sidebar-ring: oklch(0.68 0.15 300); /* Purple focus ring */
 }
 
 h1,
@@ -191,15 +199,35 @@ input {
 @keyframes particle-float {
   0%, 100% { 
     transform: translateY(0px) translateX(0px); 
-    opacity: 0.3;
+    opacity: 0.1; /* Light mode - subtle particles */
   }
   33% { 
     transform: translateY(-30px) translateX(20px); 
-    opacity: 0.7;
+    opacity: 0.4;
   }
   66% { 
     transform: translateY(-15px) translateX(-15px); 
+    opacity: 0.25;
+  }
+}
+
+/* Dark mode particle animation with enhanced opacity */
+.dark .particle-animation {
+  animation: particle-float-dark 6s ease-in-out infinite;
+}
+
+@keyframes particle-float-dark {
+  0%, 100% { 
+    transform: translateY(0px) translateX(0px); 
+    opacity: 0.15; /* Dark mode - enhanced visibility */
+  }
+  33% { 
+    transform: translateY(-30px) translateX(20px); 
     opacity: 0.5;
+  }
+  66% { 
+    transform: translateY(-15px) translateX(-15px); 
+    opacity: 0.3;
   }
 }
 
@@ -210,11 +238,30 @@ input {
 
 @keyframes pulse-glow {
   0%, 100% { 
-    box-shadow: 0 0 20px rgba(125, 60, 152, 0.3); 
+    box-shadow: 0 0 20px oklch(0.68 0.15 300 / 0.3); /* Purple glow */
   }
   50% { 
-    box-shadow: 0 0 40px rgba(125, 60, 152, 0.6), 0 0 60px rgba(26, 188, 156, 0.3); 
+    box-shadow: 0 0 40px oklch(0.68 0.15 300 / 0.6), 0 0 60px oklch(0.72 0.12 180 / 0.3); /* Purple + Teal glow */
   }
+}
+
+/* Enhanced pulse glow for mascot background in dark mode */
+@keyframes mascot-glow {
+  0%, 100% { 
+    box-shadow: 
+      0 0 30px oklch(0.68 0.15 300 / 0.2),
+      inset 0 0 50px oklch(0.68 0.15 300 / 0.1);
+  }
+  50% { 
+    box-shadow: 
+      0 0 50px oklch(0.68 0.15 300 / 0.4), 
+      0 0 80px oklch(0.72 0.12 180 / 0.2),
+      inset 0 0 80px oklch(0.68 0.15 300 / 0.15);
+  }
+}
+
+.dark .mascot-glow-animation {
+  animation: mascot-glow 3s ease-in-out infinite;
 }
 
 @keyframes counter-up {
@@ -264,20 +311,20 @@ input {
 
 /* Utility Classes */
 .gradient-text {
-  background: linear-gradient(135deg, #7D3C98, #1ABC9C);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   /* Fallback for browsers that don't support background-clip */
-  color: #7D3C98;
+  color: var(--primary);
   font-weight: 800;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.1);
 }
 
 /* Enhanced gradient text with better contrast */
 .gradient-text-enhanced {
   position: relative;
-  color: #7D3C98;
+  color: var(--primary);
   font-weight: 800;
 }
 
@@ -286,7 +333,7 @@ input {
   position: absolute;
   top: 0;
   left: 0;
-  background: linear-gradient(135deg, #7D3C98, #1ABC9C);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -294,14 +341,14 @@ input {
 }
 
 .cta-button {
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+  background: linear-gradient(135deg, var(--primary), var(--accent));
   border: none;
   transition: all 0.3s ease;
 }
 
 .cta-button:hover {
   transform: scale(1.05);
-  box-shadow: 0 10px 25px rgba(125, 60, 152, 0.3);
+  box-shadow: 0 10px 25px oklch(0.68 0.15 300 / 0.3);
 }
 
 .card-hover-effect {
@@ -333,53 +380,53 @@ input {
 
 /* Text readability improvements */
 .text-primary-bold {
-  color: var(--primary-color);
+  color: var(--primary);
   font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.1);
 }
 
 .text-accent-bold {
-  color: var(--accent-color);
+  color: var(--accent);
   font-weight: 700;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px oklch(0 0 0 / 0.1);
 }
 
 /* Hero text with strong shadows for gradient backgrounds */
 .hero-text-shadow {
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.3);
+  text-shadow: 2px 2px 4px oklch(0 0 0 / 0.5), 0 0 10px oklch(0 0 0 / 0.3);
 }
 
 .hero-text-strong-shadow {
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7), 0 0 10px rgba(0, 0, 0, 0.4);
+  text-shadow: 2px 2px 4px oklch(0 0 0 / 0.7), 0 0 10px oklch(0 0 0 / 0.4);
 }
 
 .subtitle-text-shadow {
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5), 0 0 8px rgba(0, 0, 0, 0.2);
+  text-shadow: 1px 1px 3px oklch(0 0 0 / 0.5), 0 0 8px oklch(0 0 0 / 0.2);
 }
 
 /* Badge styling for gradient backgrounds */
 .hero-badge {
-  background: rgba(255, 255, 255, 0.2);
+  background: oklch(1 0 0 / 0.2);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid oklch(1 0 0 / 0.3);
+  box-shadow: 0 4px 6px oklch(0 0 0 / 0.1);
 }
 
 /* Improved gradient with fallback */
 .gradient-text-safe {
-  background: linear-gradient(135deg, #7D3C98 0%, #1ABC9C 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   background-size: 100%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  color: #7D3C98; /* Fallback */
+  color: var(--primary); /* Fallback */
   font-weight: 800;
 }
 
 /* For browsers that don't support background-clip: text */
 @supports not (-webkit-background-clip: text) {
   .gradient-text-safe {
-    color: #7D3C98;
+    color: var(--primary);
     font-weight: 800;
   }
 }
@@ -391,6 +438,7 @@ input {
   .particle-animation,
   .gradient-bg-animation,
   .pulse-glow-animation,
+  .mascot-glow-animation,
   .counter-animation {
     animation: none;
   }
@@ -410,7 +458,7 @@ input {
   .gradient-text-safe {
     background: none;
     -webkit-text-fill-color: initial;
-    color: #7D3C98;
+    color: var(--primary);
     font-weight: 900;
   }
 }
