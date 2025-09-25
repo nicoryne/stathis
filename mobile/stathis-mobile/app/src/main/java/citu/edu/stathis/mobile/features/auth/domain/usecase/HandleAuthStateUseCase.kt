@@ -12,9 +12,6 @@ class HandleAuthStateUseCase @Inject constructor(
     private val tokenValidationUseCase: TokenValidationUseCase
 ) {
     suspend fun execute(): AuthState {
-        if (BuildConfig.BYPASS_AUTH) {
-            return AuthState.AUTHENTICATED
-        }
         val accessToken = authTokenManager.accessTokenFlow.first()
         val refreshToken = authTokenManager.refreshTokenFlow.first()
         

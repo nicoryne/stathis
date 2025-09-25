@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,18 +10,19 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-import java.util.Properties
-
-// Load local.properties for developer-only toggles and config
-val localProps = Properties().apply {
-    val lp = rootProject.file("local.properties")
-    if (lp.exists()) {
-        lp.inputStream().use { load(it) }
+val localProps = gradle.rootProject.file("local.properties").let { file ->
+    Properties().apply {
+        if (file.exists()) file.inputStream().use { load(it) }
     }
 }
 
-fun propBool(key: String, default: String) = localProps.getProperty(key, default)
-fun propStr(key: String, default: String) = localProps.getProperty(key, default)
+// String helper
+fun propStr(key: String, default: String = ""): String =
+    localProps.getProperty(key, default)
+
+// Boolean helper
+fun propBool(key: String, default: String = "false"): String =
+    localProps.getProperty(key, default)
 
 android {
     namespace = "cit.edu.stathis.mobile"
@@ -39,12 +42,13 @@ android {
         debug {
             isMinifyEnabled = false
             // Read from local.properties (defaults shown)
-            val bypassAuth = propBool("BYPASS_AUTH", "true")
             val appEnv = propStr("APP_ENV", "local")
             val apiBaseUrl = propStr("API_BASE_URL", "https://api.example.com")
-            buildConfigField("boolean", "BYPASS_AUTH", bypassAuth)
             buildConfigField("String", "APP_ENV", "\"$appEnv\"")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            // Always show onboarding when APP_ENV=local
+            val alwaysShowOnboarding = if (appEnv == "local") "true" else "false"
+            buildConfigField("boolean", "ALWAYS_SHOW_ONBOARDING", alwaysShowOnboarding)
         }
         release {
             isMinifyEnabled = false
@@ -52,12 +56,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            val bypassAuth = propBool("BYPASS_AUTH", "false")
             val appEnv = propStr("APP_ENV", "prod")
             val apiBaseUrl = propStr("API_BASE_URL", "https://api.example.com")
-            buildConfigField("boolean", "BYPASS_AUTH", bypassAuth)
             buildConfigField("String", "APP_ENV", "\"$appEnv\"")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            buildConfigField("boolean", "ALWAYS_SHOW_ONBOARDING", "false")
         }
     }
     buildFeatures {
@@ -81,6 +84,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.biometric.ktx)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -173,7 +178,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    implementation("androidx.health.connect:connect-client:1.1.0-rc01")
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha01")
 
     // Timber for logging
     implementation(libs.timber)

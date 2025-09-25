@@ -20,7 +20,7 @@ import android.os.SystemClock
  */
 class PoseAnalyzer(
     private val executor: Executor,
-    private val onPoseDetected: (Pose, Int, Int, Boolean) -> Unit,
+    private val onPoseDetected: (Pose, Int, Int, Boolean, Int) -> Unit,
     private val isImageFlipped: Boolean = false,
     private val minAnalysisIntervalMs: Long = 100L // throttle to ~10 FPS by default
 ) : ImageAnalysis.Analyzer {
@@ -45,10 +45,8 @@ class PoseAnalyzer(
         lastAnalysisTimestampMs = now
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
-            val image = InputImage.fromMediaImage(
-                mediaImage,
-                imageProxy.imageInfo.rotationDegrees
-            )
+            val rotation = imageProxy.imageInfo.rotationDegrees
+            val image = InputImage.fromMediaImage(mediaImage, rotation)
 
             // Process the image with ML Kit pose detector
             poseDetector.process(image)
@@ -74,7 +72,8 @@ class PoseAnalyzer(
                         pose,
                         imageProxy.width,
                         imageProxy.height,
-                        isImageFlipped
+                        isImageFlipped,
+                        rotation
                     )
                 }
                 .addOnFailureListener(executor) { e ->

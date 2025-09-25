@@ -35,7 +35,6 @@ class BiometricAuthResultUseCase @Inject constructor(
     }
 
     suspend fun canPromptBiometrics(): Boolean {
-        if (BuildConfig.BYPASS_AUTH) return false
         val availability = checkBiometricAvailability()
         val ok = availability == BiometricState.Available
         val hasToken = hasRefreshToken()

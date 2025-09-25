@@ -37,6 +37,8 @@ uiToolingPreview = "1.7.8"
 biometric = "1.20.0-alpha"
 biometricKtx = "1.4.0-alpha02"
 timber = "5.0.1"
+foundation = "1.9.1"
+foundationVersion = "1.9.2"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
@@ -86,6 +88,8 @@ timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

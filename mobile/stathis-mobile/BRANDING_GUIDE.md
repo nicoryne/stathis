@@ -13,6 +13,13 @@
 - **Warning Orange**: `#FFA000` - Caution states
 - **Error Red**: `#F44336` - Error states
 
+### Source of Truth for Colors (in code)
+- Use Material 3 color schemes defined under:
+  - `app/src/main/java/citu/edu/stathis/mobile/core/theme/Color.kt`
+  - `app/src/main/java/citu/edu/stathis/mobile/core/theme/Theme.kt`
+- Access colors via `MaterialTheme.colorScheme` inside composables.
+- Wrap screens with `StathisTheme` (from `AppThemeWithProvider`) so the correct scheme is provided.
+
 ## 🔤 Typography
 
 ### Font Families
@@ -136,6 +143,13 @@
 - **Button Padding**: 16dp
 - **Mascot Padding**: 24dp
 
+### Insets & System Bars
+- Respect system bars using insets utilities:
+  - Top: `Modifier.windowInsetsPadding(WindowInsets.statusBars)` for top bars
+  - Bottom: `Modifier.windowInsetsPadding(WindowInsets.navigationBars)` for bottom areas
+  - Bottom-only: `WindowInsets.navigationBars.only(sides = WindowInsetsSides.Bottom)`
+  - Combine with content padding from `Scaffold` when using bottom navigation
+
 ## 🔲 Shapes & Corners
 
 ### Corner Radius
@@ -159,20 +173,41 @@
 
 ## 🎨 Component Examples
 
-### Primary Button
+### CTA Buttons
+Use Material 3 `Button` with brand colors from `MaterialTheme.colorScheme`.
+
+Primary CTA (filled):
 ```kotlin
 Button(
     onClick = { },
     colors = ButtonDefaults.buttonColors(
-        containerColor = StathisColors.Primary,
-        contentColor = Color.White
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
     ),
-    shape = StathisShapes.ButtonShape,
-    modifier = Modifier.padding(StathisSpacing.MD)
+    modifier = Modifier
+        .fillMaxWidth()
+        .height(56.dp)
+        .padding(horizontal = 24.dp)
 ) {
     Text(
         text = "Start Learning",
-        style = StathisTypography.ButtonLarge
+        style = MaterialTheme.typography.labelLarge
+    )
+}
+```
+
+Secondary CTA (text/tonal):
+```kotlin
+TextButton(
+    onClick = { },
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 24.dp)
+) {
+    Text(
+        text = "Maybe later",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurface
     )
 }
 ```
@@ -180,25 +215,23 @@ Button(
 ### Achievement Card
 ```kotlin
 Card(
-    shape = StathisShapes.CardShape,
     colors = CardDefaults.cardColors(
-        containerColor = StathisColors.AchievementLight
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ),
-    elevation = CardDefaults.cardElevation(
-        defaultElevation = StathisElevation.Card
-    )
+    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
 ) {
     Column(
-        modifier = Modifier.padding(StathisSpacing.CardPadding)
+        modifier = Modifier.padding(16.dp)
     ) {
         Text(
             text = "Achievement Unlocked!",
-            style = StathisTypography.CardTitle,
-            color = StathisColors.Achievement
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = "Complete your first exercise",
-            style = StathisTypography.CardSubtitle
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -207,31 +240,50 @@ Card(
 ### Mascot Speech Bubble
 ```kotlin
 Card(
-    shape = StathisShapes.MascotContainerShape,
     colors = CardDefaults.cardColors(
-        containerColor = StathisColors.Mascot.SpeechBubbleBackground
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     )
 ) {
     Text(
         text = "Great job! Ready for your next challenge?",
-        style = StathisTypography.MascotSpeech,
-        color = StathisColors.Mascot.SpeechBubbleText,
-        modifier = Modifier.padding(StathisSpacing.MascotPadding)
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(24.dp)
     )
+}
+```
+
+### Insets usage in a screen
+```kotlin
+Scaffold(
+    bottomBar = { /* Bottom nav */ }
+) { innerPadding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (/* has bottom bar */ true) Modifier.padding(innerPadding)
+                else Modifier.windowInsetsPadding(WindowInsets.statusBars)
+            )
+            .windowInsetsPadding(WindowInsets.navigationBars.only(sides = WindowInsetsSides.Bottom))
+            .padding(horizontal = 24.dp)
+    ) {
+        // Content
+    }
 }
 ```
 
 ## 🚀 Implementation Guidelines
 
 ### 1. Color Usage
-- **Always use design system colors** - don't hardcode colors
-- **Purple for primary actions** - buttons, links, highlights
-- **Teal for success states** - achievements, completions, health
-- **Orange for warnings** - caution, attention needed
-- **Red for errors** - failures, critical issues
+- **Use MaterialTheme.colorScheme** - don't hardcode colors
+- **Define/adjust brand palettes** only in `core/theme/Color.kt`
+- **Primary (purple)** for main CTAs and active indicators
+- **Tertiary (teal)** for success/accent states
+- **Orange/Red** for warnings/errors respectively
 
 ### 2. Typography
-- **Use semantic text styles** - don't hardcode font sizes
+- **Use MaterialTheme.typography** - don't hardcode font sizes
 - **Maintain hierarchy** - larger text for more important content
 - **Keep readability** - sufficient contrast, appropriate line height
 
@@ -266,3 +318,66 @@ Card(
 - **Clean, organized layout**
 
 This branding guide ensures consistency across the app while maintaining the Duolingo-inspired simplicity and gamification elements that make learning engaging and fun!
+
+---
+
+## Onboarding Pattern (source of truth)
+
+Use this as the canonical style to keep future screens consistent with the polished onboarding.
+
+- **Theme defaults**: Dark theme by default; dynamic color disabled. Use brand palettes from `Color.kt`.
+- **Background**: `MaterialTheme.colorScheme.surface` (dark navy tone), content on `onSurface` and `onSurfaceVariant`.
+- **Typography**:
+  - Title: `typography.headlineLarge` (Inter Bold)
+  - Body: `typography.bodyLarge` (Outfit Regular)
+  - Buttons/links: `typography.labelLarge` (uppercase when needed)
+- **Spacing**:
+  - Horizontal screen padding: `24.dp`
+  - Vertical rhythm: `12.dp` between title and body; `16.dp` around CTA areas
+  - Respect system bars: `WindowInsets.navigationBars.only(Bottom)` padding for bottom actions
+- **Mascot usage**:
+  - Placement: centered in top half
+  - Scale: full width, fixed height ≈ `320.dp`, `ContentScale.Fit`
+  - Single illustration per page; keep background uncluttered
+- **CTA**:
+  - Primary button: full width, height `56.dp`, pill-ish radius (Material 3 default), container = `colorScheme.primary`, content = `onPrimary`
+  - Secondary link: uppercase, centered, uses `onSurface`
+- **Pager**:
+  - Horizontal pager with 3 slides
+  - Dots indicator: 3 circular dots; active = `primary`; inactive = `onSurfaceVariant` 50% alpha; size `8.dp` (active `+2.dp`)
+- **Copy style**:
+  - Short headline (3–4 words)
+  - One-sentence body; positive, action-oriented
+- **Color usage**:
+  - Primary: brand purple for CTAs and active indicators
+  - Tertiary: teal for success accents (not used on onboarding buttons)
+  - Error: red reserved for validation only
+
+### Theme Selection Screen (pattern)
+
+- **Purpose**: Let users preview and choose Light or Dark theme before continuing.
+- **Layout**: Vertically centered column; large title; two option cards; helper text; confirm button.
+- **Option cards**:
+  - Container: `colorScheme.surfaceVariant`
+  - Content: emoji (🌞/🌙) + label; text uses `onSurface`
+  - Selected state: higher contrast border or elevation; keep background `surfaceVariant`
+- **Live preview**: On tap, call `themeViewModel.setThemeMode(...)` and DO NOT navigate; reveal a "Confirm" button so colors visibly change.
+- **Confirm CTA**: Full-width 56dp button; `containerColor = colorScheme.primary`; `contentColor = onPrimary`.
+- **Background**: `colorScheme.surface` on the root container.
+- **Insets**: `WindowInsets.navigationBars.only(Bottom)` padding.
+- **Typography**: Title `headlineLarge` (Inter Bold), helper `bodyMedium` (Outfit Regular).
+
+### Height Layout Pattern (two-column)
+
+- **Goal**: Keep mascot/title/body centered while anchoring CTAs at the bottom.
+- **Structure**:
+  - Root `Column` uses `Modifier.fillMaxSize()`.
+  - A first inner `Column` with `Modifier.weight(1f).fillMaxWidth()` contains the visual content (mascot, title, body). This column expands to take remaining height.
+  - Below it, place the bottom interaction block (dots/CTA/secondary link). It stays at the bottom and "squishes" only if space is tight.
+- **Why**: Guarantees consistent bottom-aligned actions across devices, while keeping the hero area vertically balanced.
+
+Code references to mirror:
+- Image: `modifier = Modifier.fillMaxWidth().height(320.dp), contentScale = ContentScale.Fit`
+- Pager padding: `Modifier.padding(horizontal = 24.dp)` and bottom `navigationBars` insets
+- Text styles: `headlineLarge`, `bodyLarge`, `labelLarge`
+- Button: `Modifier.fillMaxWidth().height(56.dp)`, `ButtonDefaults.buttonColors(containerColor = colorScheme.primary)`

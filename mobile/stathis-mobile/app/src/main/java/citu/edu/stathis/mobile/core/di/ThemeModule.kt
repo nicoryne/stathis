@@ -1,7 +1,9 @@
 package citu.edu.stathis.mobile.core.di
 
+import android.app.Application
 import android.content.Context
 import citu.edu.stathis.mobile.core.theme.ThemePreferences
+import citu.edu.stathis.mobile.core.theme.ThemeViewModel
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

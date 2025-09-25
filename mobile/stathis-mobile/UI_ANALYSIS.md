@@ -1,4 +1,29 @@
-# Stathis Mobile App - UI Analysis & Redesign Plan
+# Stathis Mobile App - UI Analysis & Patterns (Current)
+
+## Current Snapshot (authoritative)
+
+- Navigation
+  - 3 tabs: Learn (`learn`), Practice (`practice` - start destination), Profile (`profile`)
+  - Implemented in `features/home/AppShell.kt`, `HomeBottomNavigation.kt`, `HomeNavHost.kt`, `HomeNavigationItem.kt`
+  - Secondary routes: `settings`, `help`, `terms`, `privacy`, `exercise_test`
+- Theme
+  - Use `core/theme/AppThemeWithProvider.kt` to provide `MaterialTheme`
+  - Colors from `core/theme/Color.kt` via `MaterialTheme.colorScheme`
+  - Typography from `core/theme/Type.kt` via `MaterialTheme.typography`
+  - ViewModel: `core/theme/ThemeViewModel.kt` controls theme mode
+- Insets & Layout
+  - Use `Scaffold` content `innerPadding` when bottom bar is visible
+  - Otherwise apply `Modifier.windowInsetsPadding(WindowInsets.statusBars)` for top bars
+  - Always respect bottom safe area: `WindowInsets.navigationBars.only(sides = WindowInsetsSides.Bottom)`
+  - Default screen horizontal padding: 24.dp
+- CTA Buttons
+  - Primary: full width, 56.dp height, `containerColor = colorScheme.primary`, `contentColor = onPrimary`, text `typography.labelLarge`
+  - Secondary: text button style using `onSurface`
+- Onboarding patterns
+  - Two-column height layout: hero area (mascot/title/body) + bottom actions (dots/CTA/link)
+  - Pager dots: active = `primary`, inactive = `onSurfaceVariant` at 50% alpha
+- Mascot
+  - See `HOW-TO-ADD-MASCOT.md` for PNG/WebP, vector XML, and Lottie JSON guidance
 
 ## Current App Structure Analysis
 
@@ -383,6 +408,53 @@ The new UI is fully implemented and ready to test. The app now has:
 - ✅ Gamified learning experience
 
 ## Next Steps (Optional Enhancements)
+---
+
+## Onboarding Polished Patterns (what to imitate)
+
+1) Layout
+- Horizontal padding: 24dp
+- Bottom safe area: `WindowInsets.navigationBars.only(Bottom)`
+- Structure per page (two-column height):
+  - Top content `Column(weight = 1f)`: Mascot (top) → Title → Body
+  - Bottom actions: Dots → CTA → Secondary link (anchored at bottom)
+
+2) Mascot
+- Full width, height ~320dp, `ContentScale.Fit`
+- Single focal illustration; avoid busy backgrounds
+
+3) Typography
+- Title uses `headlineLarge` (Inter Bold)
+- Body uses `bodyLarge` (Outfit Regular)
+- Buttons/links use `labelLarge`
+
+4) Colors
+- Background from `colorScheme.surface` (dark), text from `onSurface`/`onSurfaceVariant`
+- CTA button uses `colorScheme.primary`/`onPrimary`; dot indicator active `primary`, inactive `onSurfaceVariant` 50% alpha
+- Dynamic color disabled; rely on brand palette from `Color.kt`
+
+5) Components & Tokens
+- Primary button height: 56dp; full width
+- Dots indicator size: 8dp (active +2dp)
+- Spacing: 12dp between title/body; 16dp around actions
+
+6) Interaction
+- HorizontalPager with 3 steps
+- Button advances page; last page continues flow
+
+These rules should be reused for future screens (marketing slides, simple intros, success screens) to maintain visual consistency.
+
+### Theme Selection Screen Analysis
+
+- Problem solved: Immediate visual feedback when choosing theme by staying on the screen and applying theme live.
+- Interaction: Tapping a card calls `themeViewModel.setThemeMode(LIGHT|DARK)`; screen shows updated colors instantly; "Confirm" advances.
+- Layout tokens:
+  - Root: `Modifier.fillMaxSize().background(colorScheme.surface).padding(horizontal = 24.dp)` with bottom `navigationBars` insets
+  - Title: `headlineLarge` (Inter Bold), `onSurface` color
+  - Options: `surfaceVariant` background, emoji + label row, `onSurface` text
+  - Helper text: `bodyMedium`, `onSurfaceVariant`
+  - Confirm button: full width, 56dp height, `primary/onPrimary`
+- Visual consistency: Same paddings, spacers, and button shape as onboarding pages.
 1. Add actual mascot images/animations (Lottie)
 2. Implement real data integration
 3. Add celebration animations

@@ -67,7 +67,7 @@ cp .env.example .env
 ## 🎨 UI & Architecture
 
 - **Language:** Kotlin
-- **UI Toolkit:** XML Layouts
+- **UI Toolkit:** Jetpack Compose
 - **Architecture:** MVVM with Single-Activity Architecture
 - **Navigation:** Jetpack Navigation Component
 - **Dependency Injection:** Dagger-Hilt
@@ -90,6 +90,34 @@ Run JVM unit tests:
 
 ```sh
 ./gradlew test
+```
+
+## 📁 Feature Package Structure (Mobile)
+
+```
+app/src/main/java/citu/edu/stathis/mobile/
+  core/
+    theme/
+  features/
+    home/
+      navigation/   # HomeNavHost, HomeBottomNavigation, HomeNavigationItem
+      ui/           # AppShell, LearnScreen, PracticeScreen
+    profile/
+      ui/           # ProfileScreen
+    exercise/
+      data/
+      domain/
+      di/
+      ui/
+        components/ # PoseSkeletonOverlayView (test/debug)
+        screens/    # ExerciseTestScreen (test/debug)
+      recording/    # ScreenRecordService
+    settings/
+      ui/           # SettingsScreen
+    support/
+      ui/           # HelpScreen
+    legal/
+      ui/           # TermsScreen, PrivacyScreen
 ```
 
 Optional: real backend smoke test (opt-in via env vars). If not set, the test skips.

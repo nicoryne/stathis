@@ -17,16 +17,26 @@ class AuthInterceptor @Inject constructor(
     ) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val originalRequest = chain.request()
+            val url = originalRequest.url
+            val path = url.encodedPath
 
-            val token =
+            // Do not attach Authorization for public auth endpoints
+            val isPublicAuthEndpoint = path.startsWith("/api/auth/") && (
+                path.contains("/login") ||
+                path.contains("/register") ||
+                path.contains("/refresh")
+            )
+
+            val token = if (!isPublicAuthEndpoint) {
                 runBlocking {
                     try {
-                        if (BuildConfig.BYPASS_AUTH) "debug" else authTokenManager.accessTokenFlow.first()
+                        authTokenManager.accessTokenFlow.first()
                     } catch (e: Exception) {
                         Log.e("AuthInterceptor", "Error getting auth token", e)
                         null
                     }
                 }
+            } else null
 
             val newRequestBuilder = originalRequest.newBuilder()
 
@@ -35,9 +45,6 @@ class AuthInterceptor @Inject constructor(
                 Log.d("AuthInterceptor", "Added Bearer token auth to request: ${originalRequest.url}")
             }
 
-            if (BuildConfig.BYPASS_AUTH) {
-                newRequestBuilder.header("X-Bypass-Auth", "true")
-            }
             val newRequest = newRequestBuilder.build()
 
             return chain.proceed(newRequest)

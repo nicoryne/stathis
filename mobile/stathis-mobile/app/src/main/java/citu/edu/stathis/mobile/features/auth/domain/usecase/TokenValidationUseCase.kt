@@ -7,7 +7,6 @@ import cit.edu.stathis.mobile.BuildConfig
 
 class TokenValidationUseCase @Inject constructor() {
     fun isTokenExpired(token: String?): Boolean {
-        if (BuildConfig.BYPASS_AUTH) return false
         if (token.isNullOrBlank()) return true
         return try {
             val jwt = JWT(token)

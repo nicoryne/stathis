@@ -16,6 +16,18 @@ app/src/main/res/drawable/
 └── mascot_neutral.png        # Default neutral state
 ```
 
+### Vector Drawables (XML)
+Recommended for scalable, tintable icons/illustrations when possible.
+```
+app/src/main/res/drawable/
+├── mascot_happy.xml          # Vector version (if available)
+├── mascot_celebrate.xml      # Example: /app/src/main/res/drawable/mascot_celebrate.xml
+├── mascot_encouraging.xml
+├── mascot_concerned.xml
+├── mascot_sleeping.xml
+└── mascot_neutral.xml
+```
+
 ### Animated Content (Lottie JSON)
 ```
 app/src/main/res/raw/
@@ -40,7 +52,8 @@ app/src/main/res/values/strings.xml
 ## 🖼️ Static Image Specifications
 
 ### Recommended Formats
-- **Primary**: PNG (lossless, supports transparency)
+- **Primary**: Vector XML (scale without quality loss, supports tint)
+- **Secondary**: PNG (lossless, supports transparency)
 - **Alternative**: WebP (smaller file size, good compression)
 - **Avoid**: JPEG (no transparency support)
 
@@ -61,6 +74,23 @@ app/src/main/res/values/strings.xml
 mascot_[state].png
 ```
 States: `happy`, `celebrating`, `encouraging`, `concerned`, `sleeping`, `neutral`
+
+## 🧩 Vector Drawable Specifications (XML)
+
+### Why vectors?
+- Scale cleanly across densities, small file size, can be tinted via theme.
+
+### Guidelines
+- **Viewport**: Prefer 512x512 or 256x256 for consistency
+- **Path count**: Keep minimal for performance
+- **Colors**: Use solid fills; avoid overly complex gradients
+- **Theming**: Prefer using `android:tint` at usage site for theme colors
+
+### Naming
+```
+mascot_[state].xml
+```
+Example: `app/src/main/res/drawable/mascot_celebrate.xml`
 
 ## 🎬 Animated Content (Lottie)
 
@@ -111,7 +141,7 @@ Lottie is a library that renders After Effects animations natively on mobile dev
 ### Step 1: Add Static Images
 1. **Prepare Images**: Ensure all 6 states are ready
 2. **Optimize**: Compress images while maintaining quality
-3. **Place Files**: Copy to `app/src/main/res/drawable/`
+3. **Place Files**: Copy PNG/WebP to `app/src/main/res/drawable/`; add vector XMLs when available
 4. **Test**: Verify images display correctly
 
 ### Step 2: Add Lottie Animations

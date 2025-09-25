@@ -11,7 +11,6 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import citu.edu.stathis.mobile.features.exercise.ui.ExerciseViewModel
 import timber.log.Timber
 import java.util.concurrent.Executor
 
@@ -22,7 +21,6 @@ import java.util.concurrent.Executor
 fun CameraPreview(
     lifecycleOwner: LifecycleOwner = LocalLifecycleOwner.current,
     cameraSelector: CameraSelector,
-    viewModel: ExerciseViewModel,
     modifier: Modifier = Modifier
 ) {
     AndroidView(
@@ -40,7 +38,7 @@ fun CameraPreview(
 
             // Get the executor
             val executor = ContextCompat.getMainExecutor(context)
-            
+
             // Setup camera
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
             cameraProviderFuture.addListener({
@@ -50,11 +48,10 @@ fun CameraPreview(
                     previewView = previewView,
                     cameraProvider = cameraProvider,
                     cameraSelector = cameraSelector,
-                    viewModel = viewModel,
                     executor = executor
                 )
             }, executor)
-            
+
             previewView
         },
         update = { previewView ->
@@ -63,17 +60,16 @@ fun CameraPreview(
             val cameraProviderFuture = ProcessCameraProvider.getInstance(previewView.context)
             cameraProviderFuture.addListener({
                 val cameraProvider = cameraProviderFuture.get()
-                
+
                 // Unbind all use cases before binding again
                 cameraProvider.unbindAll()
-                
+
                 // Re-bind with the new camera selector
                 bindCameraPreview(
                     lifecycleOwner = lifecycleOwner,
                     previewView = previewView,
                     cameraProvider = cameraProvider,
                     cameraSelector = cameraSelector,
-                    viewModel = viewModel,
                     executor = executor
                 )
             }, executor)
@@ -86,21 +82,17 @@ private fun bindCameraPreview(
     previewView: PreviewView,
     cameraProvider: ProcessCameraProvider,
     cameraSelector: CameraSelector,
-    viewModel: ExerciseViewModel,
     executor: Executor
 ) {
     try {
         // Unbind all use cases
         cameraProvider.unbindAll()
-        
+
         // Create Preview use case
         val preview = Preview.Builder()
             .build()
             .also { it.setSurfaceProvider(previewView.surfaceProvider) }
-        
-        // Setup image analysis is handled in ExerciseActiveContent
-        // This CameraPreview component is not used in the current implementation
-        
+
         // Bind use cases to camera
         cameraProvider.bindToLifecycle(
             lifecycleOwner,
@@ -111,3 +103,5 @@ private fun bindCameraPreview(
         Timber.e(e, "Failed to bind camera use cases")
     }
 }
+
+

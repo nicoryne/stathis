@@ -16,6 +16,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import coil3.compose.AsyncImage
+import citu.edu.stathis.mobile.features.tasks.presentation.components.LessonContent
+import citu.edu.stathis.mobile.features.tasks.presentation.components.LessonPage
+import citu.edu.stathis.mobile.features.tasks.presentation.components.LessonView
+import citu.edu.stathis.mobile.features.tasks.presentation.components.QuizContent
+import citu.edu.stathis.mobile.features.tasks.presentation.components.QuizQuestion
+import citu.edu.stathis.mobile.features.tasks.presentation.components.QuizView
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
@@ -198,6 +204,18 @@ private fun TaskProgressSection(
                 isCompleted = task.lessonTemplateId in progress.completedLessons,
                 onClick = { onLessonComplete(task.physicalId, task.lessonTemplateId) }
             )
+            Spacer(Modifier.height(8.dp))
+            // Placeholder lesson UI using expected JSON structure
+            val demoLesson = LessonContent(
+                physicalId = task.lessonTemplateId,
+                title = "Lesson",
+                description = "Read the pages and mark complete",
+                pages = listOf(
+                    LessonPage("p1", 1, "Intro", "Welcome to the lesson."),
+                    LessonPage("p2", 2, "Concepts", "Core concepts explained.")
+                )
+            )
+            LessonView(lesson = demoLesson)
         }
 
         if (!task.exerciseTemplateId.isNullOrEmpty()) {
@@ -215,6 +233,24 @@ private fun TaskProgressSection(
                 maxAttempts = task.maxAttempts,
                 onSubmit = { score ->
                     onQuizSubmit(task.physicalId, task.quizTemplateId, score)
+                }
+            )
+            Spacer(Modifier.height(8.dp))
+            // Placeholder quiz UI based on expected JSON structure
+            val demoQuiz = QuizContent(
+                physicalId = task.quizTemplateId,
+                title = "Quick Quiz",
+                instruction = "Choose the best answer.",
+                maxScore = 10,
+                questions = listOf(
+                    QuizQuestion("q1", 1, "Test 1", listOf("1","2","3"), 0),
+                    QuizQuestion("q2", 2, "Test 2", listOf("1","2","3"), 1)
+                )
+            )
+            QuizView(
+                quiz = demoQuiz,
+                onSubmitScore = { score ->
+                    onQuizSubmit(task.physicalId, task.quizTemplateId!!, score)
                 }
             )
         }

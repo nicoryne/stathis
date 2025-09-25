@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">Stathis</string>
+    
+    <!-- Mascot speech content -->
+    <string name="mascot_login_welcome">Welcome back! Ready to learn today?</string>
+    <string name="mascot_login_encouraging">Let\'s get started on your learning journey!</string>
+    <string name="mascot_login_celebrating">Great to see you again!</string>
+    <string name="mascot_login_concerned">Take your time, I\'m here to help!</string>
+    <string name="mascot_login_neutral">Ready when you are!</string>
+    
+    <!-- Login screen text -->
+    <string name="login_title">Welcome Back</string>
+    <string name="login_subtitle">Sign in to continue your learning journey</string>
+    <string name="login_email_hint">Email</string>
+    <string name="login_password_hint">Password</string>
+    <string name="login_button">Sign In</string>
+    <string name="login_forgot_password">Forgot Password?</string>
+    <string name="login_no_account">Don\'t have an account?</string>
+    <string name="login_sign_up">Sign Up</string>
 </resources>
