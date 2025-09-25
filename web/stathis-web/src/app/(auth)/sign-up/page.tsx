@@ -126,127 +126,74 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      {/* Left Panel - Brand Section */}
-      <div className="from-primary/90 to-secondary/90 relative hidden overflow-hidden bg-gradient-to-br p-8 text-white md:flex md:w-1/2">
-        {/* Animated background elements */}
-        <div className="absolute top-0 left-0 h-full w-full overflow-hidden">
-          <motion.div
-            className="absolute top-10 left-10 h-64 w-64 rounded-full bg-white/10"
-            animate={{
-              scale: [1, 1.2, 1],
-              x: [0, 30, 0],
-              y: [0, 50, 0]
-            }}
-            transition={{
-              duration: 15,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: 'reverse'
-            }}
-          />
-          <motion.div
-            className="absolute right-10 bottom-20 h-80 w-80 rounded-full bg-white/5"
-            animate={{
-              scale: [1, 1.1, 1],
-              x: [0, -20, 0],
-              y: [0, -30, 0]
-            }}
-            transition={{
-              duration: 20,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: 'reverse'
-            }}
-          />
-        </div>
-
-        <div className="relative z-10 flex h-full flex-col">
-          <div className="mb-12 flex items-center gap-2">
-            <HeartPulse className="h-8 w-8 text-white" />
-            <span className="text-2xl font-bold tracking-tight">Stathis</span>
-          </div>
-
-          <div className="my-auto">
-            <motion.h1
-              className="mb-6 text-3xl font-bold"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              Join Stathis Today
-            </motion.h1>
-            <motion.p
-              className="mb-12 max-w-md text-lg text-white/90"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              Create your account and start monitoring physical education with AI-powered safety
-              tools
-            </motion.p>
-
-            <div className="space-y-6">
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Comprehensive Dashboard</h3>
-                  <p className="text-sm text-white/80">
-                    Monitor all your students from a single interface
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Data Security</h3>
-                  <p className="text-sm text-white/80">
-                    Your students' health data is encrypted and protected
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Team Collaboration</h3>
-                <p className="text-sm text-white/80">
-                    Invite colleagues to collaborate on student monitoring
-                  </p>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
-          <div className="mt-auto text-sm text-white/70">
-            &copy; {new Date().getFullYear()} Stathis. All rights reserved.
-          </div>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
+      {/* Animated Particles */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={{ y: [0, -10, 0] }} transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
       </div>
 
-      {/* Right Panel - Sign Up Form */}
-      <div className="flex w-full items-center justify-center p-8 md:w-1/2">
-        <div className="w-full max-w-md">
+      <div className="relative mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-12 p-6 lg:grid-cols-2 lg:p-12">
+        {/* Left Column - Mascot & Welcome */}
+        <div className="flex flex-col items-center justify-center gap-8 text-center lg:items-start lg:text-left">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <Activity className="h-5 w-5 text-primary" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">STATHIS</span>
+          </div>
+
+          {/* Mascot */}
+          <div className="relative">
+            <div className="absolute -inset-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
+            <motion.img
+              src="/images/stathis_mascot.png"
+              alt="STATHIS Mascot"
+              className="relative h-[220px] w-[220px] drop-shadow-2xl"
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+            />
+          </div>
+
+          {/* Welcome Text */}
+          <div className="space-y-3">
+            <h1 className="text-balance text-4xl font-bold sm:text-5xl">Create your STATHIS account</h1>
+            <p className="mx-auto max-w-md text-pretty text-lg text-muted-foreground">Join thousands learning statistics with interactive lessons, real-world examples, and personalized paths.</p>
+          </div>
+
+          {/* Feature list */}
+          <div className="grid w-full max-w-md grid-cols-1 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Shield className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm text-foreground">Secure, privacy-first platform</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/10">
+                <Users className="h-4 w-4 text-secondary" />
+              </div>
+              <span className="text-sm text-foreground">Collaborative classroom tools</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Activity className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm text-foreground">Interactive, engaging learning</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Form Card */}
+        <div className="flex w-full items-center justify-center p-2">
+          <div className="w-full max-w-lg rounded-3xl border border-border/50 bg-card/80 p-8 shadow-2xl backdrop-blur-xl">
+            {/* Back link */}
+            <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+              <ArrowLeft className="h-4 w-4" /> Back to Home
+            </Link>
           {/* Mobile Logo - Only visible on mobile */}
           <div className="mb-8 flex items-center justify-center md:hidden">
             <div className="flex items-center gap-2">
@@ -255,21 +202,21 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-8"
-          >
-            <h1 className="mb-2 text-2xl font-bold">Create an account</h1>
-            <p className="text-muted-foreground">Sign up for Stathis to get started</p>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="mb-8 text-center"
+            >
+              <h2 className="mb-2 text-3xl font-bold">Create Account</h2>
+              <p className="text-muted-foreground">Sign up to begin your learning journey</p>
+            </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -403,14 +350,14 @@ export default function SignUpPage() {
                   )}
                 />
 
-                <Button type="submit" className="h-11 w-full" disabled={signUpMutation.isPending}>
+                <Button type="submit" className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-lg hover:shadow-xl transition-shadow" disabled={signUpMutation.isPending}>
                   {signUpMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Signing Up...
                     </>
                   ) : (
-                    'Sign Up'
+                    'Create Account'
                   )}
                 </Button>
               </form>
@@ -432,7 +379,7 @@ export default function SignUpPage() {
             <div className="grid grid-cols-2 gap-4">
               <Button
                 variant="outline"
-                className="h-11 font-normal"
+                className="h-12 rounded-xl font-normal bg-background/50"
                 disabled={signUpMutation.isPending}
                 onClick={() => {
                   toast.info('Microsoft login is not implemented in this demo');
@@ -443,7 +390,7 @@ export default function SignUpPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-11 font-normal"
+                className="h-12 rounded-xl font-normal bg-background/50"
                 disabled={signUpMutation.isPending}
                 onClick={() => {
                   toast.info('Google login is not implemented in this demo');
@@ -481,6 +428,7 @@ export default function SignUpPage() {
         onOpenChange={setShowVerificationModal}
         email={signedUpEmail}
       />
+    </div>
     </div>
   );
 }

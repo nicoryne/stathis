@@ -204,7 +204,7 @@ export default function Home() {
                     className="relative z-10 float-animation"
                     priority
                   />
-                </div>
+        </div>
 
                 {/* Streak Badge */}
           <motion.div
