@@ -1,10 +1,8 @@
-name: Deploy to Production
+name: Deploy Dev to Production
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [dev]
   workflow_dispatch:
 
 jobs:
@@ -29,7 +27,7 @@ jobs:
             # Single git pull for entire monorepo
             echo "📥 Pulling latest code..."
             git fetch origin
-            git reset --hard origin/main
+            git reset --hard origin/dev
             
             # Build only what changed using Docker build contexts
             echo "🔨 Building containers from monorepo subfolders..."
