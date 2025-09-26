@@ -11,5 +11,5 @@ import lombok.Setter;
 @AllArgsConstructor
 public class PostureResponse {
   private String exerciseName;
-  private float postureScore;
+  private float confidence; 
 }
