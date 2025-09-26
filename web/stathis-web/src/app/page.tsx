@@ -197,7 +197,7 @@ export default function Home() {
                   {/* Background circle with glow effect - subtle in light mode, prominent in dark mode */}
                   <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/10 to-accent/5 dark:from-card dark:to-muted border border-border/20 dark:border-border/30 pulse-glow-animation mascot-glow-animation"></div>
                   <Image
-                    src="/images/stathis_mascot.png"
+                    src="/images/mascots/mascot_sleep.png"
                     alt="STATHIS Mascot"
                     width={280}
                     height={280}
@@ -660,7 +660,7 @@ export default function Home() {
               >
                 <div className="relative mx-auto w-96 h-96 bg-gradient-to-br from-primary/10 to-accent/10 rounded-[3rem] flex items-center justify-center border border-border/20">
                   <Image
-                    src="/images/stathis_mascot.png"
+                    src="/images/mascots/mascot_cheer.png"
                     alt="STATHIS Statistics Learning Mascot"
                     width={320}
                     height={320}

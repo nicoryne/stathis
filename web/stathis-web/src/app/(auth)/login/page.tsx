@@ -109,287 +109,179 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      {/* Left Panel - Brand Section */}
-      <div className="from-primary/90 to-secondary/90 relative hidden overflow-hidden bg-gradient-to-br p-8 text-white md:flex md:w-1/2">
-        {/* Animated background elements */}
-        <div className="absolute top-0 left-0 h-full w-full overflow-hidden">
-          <motion.div
-            className="absolute top-10 left-10 h-64 w-64 rounded-full bg-white/10"
-            animate={{
-              scale: [1, 1.2, 1],
-              x: [0, 30, 0],
-              y: [0, 50, 0]
-            }}
-            transition={{
-              duration: 15,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: 'reverse'
-            }}
-          />
-          <motion.div
-            className="absolute right-10 bottom-20 h-80 w-80 rounded-full bg-white/5"
-            animate={{
-              scale: [1, 1.1, 1],
-              x: [0, -20, 0],
-              y: [0, -30, 0]
-            }}
-            transition={{
-              duration: 20,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: 'reverse'
-            }}
-          />
-        </div>
-
-        <div className="relative z-10 flex h-full flex-col">
-          <div className="mb-12 flex items-center gap-2">
-            <HeartPulse className="h-8 w-8 text-white" />
-            <span className="text-2xl font-bold tracking-tight">Stathis</span>
-          </div>
-
-          <div className="my-auto">
-            <motion.h1
-              className="mb-6 text-3xl font-bold"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              Welcome to Stathis
-            </motion.h1>
-            <motion.p
-              className="mb-12 max-w-md text-lg text-white/90"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              AI-Powered Posture and Vitals Monitoring for Safe Physical Education
-            </motion.p>
-
-            <div className="space-y-6">
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Real-time Monitoring</h3>
-                  <p className="text-sm text-white/80">
-                    Track posture and vital signs during physical activities
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Enhanced Safety</h3>
-                  <p className="text-sm text-white/80">
-                    Prevent injuries with early detection and alerts
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Personalized Insights</h3>
-                  <p className="text-sm text-white/80">
-                    Tailored feedback and analytics for each student
-                  </p>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
-          <div className="mt-auto text-sm text-white/70">
-            &copy; {new Date().getFullYear()} Stathis. All rights reserved.
-          </div>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Animated Particles */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <motion.div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={{ y: [0, -10, 0] }} transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
       </div>
 
-      {/* Right Panel - Login Form */}
-      <div className="flex w-full items-center justify-center p-8 md:w-1/2">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo - Only visible on mobile */}
-          <div className="mb-8 flex items-center justify-center md:hidden">
-            <div className="flex items-center gap-2">
-              <HeartPulse className="text-primary h-8 w-8" />
-              <span className="text-2xl font-bold tracking-tight">Stathis</span>
-            </div>
+      <div className="mx-auto grid min-h-screen max-w-6xl grid-cols-1 gap-8 p-4 lg:grid-cols-2">
+        {/* Left Column - Mascot & Welcome */}
+        <div className="flex flex-col items-center justify-center gap-8 p-8 text-center lg:items-center lg:text-center">
+          {/* Logo section removed as requested */}
+
+          {/* Mascot with glow */}
+          <div className="relative self-center">
+            <div className="absolute -inset-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
+            <motion.img
+              src="/images/mascots/mascot_teacher.png"
+              alt="STATHIS Mascot"
+              className="relative mx-auto h-[200px] w-[200px] drop-shadow-2xl"
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+            />
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-8"
-          >
-            <h1 className="mb-2 text-2xl font-bold">Sign in to your account</h1>
-            <p className="text-muted-foreground">Enter your credentials to access your dashboard</p>
-          </motion.div>
+          {/* Welcome text */}
+          <div className="space-y-4">
+            <h1 className="text-balance text-4xl font-bold sm:text-5xl">Welcome Back!</h1>
+            <p className="mx-auto max-w-md text-pretty text-lg text-muted-foreground">
+              Continue your statistics learning journey with AI-powered insights and personalized progress tracking.
+            </p>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="name@example.com"
-                          type="email"
-                          className="h-11"
-                          disabled={loginEmailMutation.isPending}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-6 justify-items-center">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">10K+</div>
+              <div className="text-sm text-muted-foreground">Students</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-secondary">95%</div>
+              <div className="text-sm text-muted-foreground">Success Rate</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">50+</div>
+              <div className="text-sm text-muted-foreground">Courses</div>
+            </div>
+          </div>
+        </div>
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="mb-1.5 flex items-center justify-between">
-                        <FormLabel className="mb-0">Password</FormLabel>
-                        <Link
-                          href="/forgot-password"
-                          className="text-muted-foreground hover:text-primary text-xs transition-colors"
-                        >
-                          Forgot password?
-                        </Link>
-                      </div>
-                      <FormControl>
-                        <PasswordInput
-                          placeholder="••••••••"
-                          className="h-11"
-                          disabled={loginEmailMutation.isPending}
-                          autoComplete="false"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        {/* Right Column - Form Card */}
+        <div className="flex w-full items-center justify-center">
+          <div className="w-full max-w-md rounded-3xl border border-border/50 bg-card/80 p-8 shadow-2xl backdrop-blur-xl">
+            {/* Back link */}
+            <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+              <ArrowLeft className="h-4 w-4" /> Back to Home
+            </Link>
 
-                <FormField
-                  control={form.control}
-                  name="rememberMe"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-y-0 space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={loginEmailMutation.isPending}
-                        />
-                      </FormControl>
-                      <FormLabel className="cursor-pointer text-xs font-normal">
-                        Remember me for 30 days
-                      </FormLabel>
-                    </FormItem>
-                  )}
-                />
+            {/* Form header */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8 text-center">
+              <h2 className="mb-2 text-3xl font-bold">Sign In</h2>
+              <p className="text-muted-foreground">Enter your credentials to access your dashboard</p>
+            </motion.div>
 
-                <Button
-                  type="submit"
-                  className="h-11 w-full"
-                  disabled={loginEmailMutation.isPending}
-                >
-                  {loginEmailMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
-                    </>
-                  ) : (
-                    'Sign in'
-                  )}
-                </Button>
-              </form>
-            </Form>
+            {/* Form */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }}>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmitEmail)} className="space-y-4">
+                  {/* Email */}
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="name@example.com"
+                            type="email"
+                            className="h-12 bg-background/50 border-border/50"
+                            disabled={loginEmailMutation.isPending}
+                            required
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-            <div className="mt-8 mb-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <Separator />
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-background text-muted-foreground px-2 text-xs">
-                    Or continue with
-                  </span>
+                  {/* Password */}
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <FormLabel className="text-sm font-medium">Password</FormLabel>
+                          <Link href="/forgot-password" className="text-muted-foreground hover:text-primary text-xs transition-colors">Forgot password?</Link>
+                        </div>
+                        <FormControl>
+                          <PasswordInput
+                            placeholder="••••••••"
+                            className="h-12 pr-10"
+                            disabled={loginEmailMutation.isPending}
+                            required
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Remember me */}
+                  <FormField
+                    control={form.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center space-y-0 space-x-2">
+                        <FormControl>
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} disabled={loginEmailMutation.isPending} />
+                        </FormControl>
+                        <FormLabel className="cursor-pointer text-sm font-medium">Remember me for 30 days</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Submit */}
+                  <Button type="submit" className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-lg transition-shadow hover:shadow-xl font-medium" disabled={loginEmailMutation.isPending}>
+                    {loginEmailMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                </form>
+              </Form>
+
+              {/* Divider */}
+              <div className="mt-8 mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-background text-muted-foreground px-2 text-xs">Or continue with</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                className="h-11 font-normal"
-                disabled={loginOAuthMutation.isPending}
-                onClick={() => onSubmitOAuth('azure')}
-              >
-                <Microsoft className="mr-2 h-4 w-4" />
-                Microsoft
-              </Button>
-              <Button
-                variant="outline"
-                className="h-11 font-normal"
-                disabled={loginOAuthMutation.isPending}
-                onClick={() => onSubmitOAuth('google')}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                Google
-              </Button>
-            </div>
+              {/* Social buttons */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="h-12 rounded-xl bg-background/50 font-normal" disabled={loginOAuthMutation.isPending} onClick={() => onSubmitOAuth('google')}>
+                  <Mail className="mr-2 h-4 w-4" /> Google
+                </Button>
+                <Button variant="outline" className="h-12 rounded-xl bg-background/50 font-normal" disabled={loginOAuthMutation.isPending} onClick={() => onSubmitOAuth('azure')}>
+                  <Microsoft className="mr-2 h-4 w-4" /> Microsoft
+                </Button>
+              </div>
 
-            <div className="mt-8 space-y-2 text-center">
-              <Link
-                href="/sign-up"
-                className="text-muted-foreground hover:text-primary text-sm transition-colors"
-              >
-                Don't have an account? <span className="text-primary font-medium">Sign up</span>
-              </Link>
-              <div>
-                <Link
-                  href="/"
-                  className="text-muted-foreground hover:text-primary mt-4 flex items-center justify-center gap-1 text-xs transition-colors"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                  Back to Home
+              {/* Footer link */}
+              <div className="mt-8 space-y-2 text-center">
+                <Link href="/sign-up" className="text-muted-foreground hover:text-primary text-sm transition-colors">
+                  Don't have an account? <span className="text-primary font-medium">Sign up</span>
                 </Link>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>

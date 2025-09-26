@@ -137,52 +137,46 @@ export default function SignUpPage() {
 
       <div className="relative mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-12 p-6 lg:grid-cols-2 lg:p-12">
         {/* Left Column - Mascot & Welcome */}
-        <div className="flex flex-col items-center justify-center gap-8 text-center lg:items-start lg:text-left">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Activity className="h-5 w-5 text-primary" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight">STATHIS</span>
-          </div>
+        <div className="flex flex-col items-center justify-center gap-8 text-center lg:items-center lg:text-center">
+          {/* Logo removed as requested */}
 
           {/* Mascot */}
-          <div className="relative">
+          <div className="relative self-center">
             <div className="absolute -inset-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
             <motion.img
-              src="/images/stathis_mascot.png"
+              src="/images/mascots/mascot_celebrate.png"
               alt="STATHIS Mascot"
-              className="relative h-[220px] w-[220px] drop-shadow-2xl"
+              className="relative mx-auto h-[220px] w-[220px] drop-shadow-2xl"
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
             />
           </div>
 
           {/* Welcome Text */}
-          <div className="space-y-3">
+          <div className="space-y-3 max-w-2xl mx-auto text-center">
             <h1 className="text-balance text-4xl font-bold sm:text-5xl">Create your STATHIS account</h1>
             <p className="mx-auto max-w-md text-pretty text-lg text-muted-foreground">Join thousands learning statistics with interactive lessons, real-world examples, and personalized paths.</p>
           </div>
 
           {/* Feature list */}
-          <div className="grid w-full max-w-md grid-cols-1 gap-4">
-            <div className="flex items-center gap-3">
+          <div className="grid w-full max-w-md grid-cols-1 gap-4 mx-auto justify-items-center">
+            <div className="flex items-center gap-3 justify-center">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <Shield className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm text-foreground">Secure, privacy-first platform</span>
+              <span className="text-sm text-foreground text-center">Secure, privacy-first platform</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 justify-center">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/10">
                 <Users className="h-4 w-4 text-secondary" />
               </div>
-              <span className="text-sm text-foreground">Collaborative classroom tools</span>
+              <span className="text-sm text-foreground text-center">Collaborative classroom tools</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 justify-center">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                 <Activity className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm text-foreground">Interactive, engaging learning</span>
+              <span className="text-sm text-foreground text-center">Interactive, engaging learning</span>
             </div>
           </div>
         </div>
@@ -408,15 +402,6 @@ export default function SignUpPage() {
               >
                 Already have an account? <span className="text-primary font-medium">Sign in</span>
               </Link>
-              <div>
-                <Link
-                  href="/"
-                  className="text-muted-foreground hover:text-primary mt-4 flex items-center justify-center gap-1 text-xs transition-colors"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                  Back to Home
-                </Link>
-              </div>
             </div>
           </motion.div>
         </div>
