@@ -18,6 +18,7 @@ import edu.cit.stathis.task.dto.ScoreDTO;
 import edu.cit.stathis.task.repository.LessonTemplateRepository;
 import edu.cit.stathis.task.repository.QuizTemplateRepository;
 import edu.cit.stathis.task.repository.ExerciseTemplateRepository;
+import edu.cit.stathis.task.dto.QuizSubmissionDTO;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Random;
@@ -114,6 +115,80 @@ public class StudentTaskService {
         }
 
         existingScore.setScore(score);
+        existingScore.setAttempts(existingScore.getAttempts() + 1);
+        existingScore.setCompleted(true);
+        existingScore.setCompletedAt(OffsetDateTime.now());
+
+        Score savedScore = scoreRepository.save(existingScore);
+        updateTaskCompletion(studentId, taskId, "quiz", true);
+        return savedScore;
+    }
+
+    @Transactional
+    public Score autoCheckQuiz(String studentId, String taskId, String quizTemplateId, QuizSubmissionDTO submission) {
+        // Load quiz template JSON
+        var quizTemplate = quizTemplateRepository.findByPhysicalId(quizTemplateId)
+            .orElseThrow(() -> new EntityNotFoundException("Quiz template not found with ID: " + quizTemplateId));
+
+        // Expecting structure per user's provided JSON
+        // { "quiz": { "content": { "questions": [ { "answer": <index> }, ... ] }, "maxScore": n } }
+        int computedScore = 0;
+        int maxScore = 0;
+        try {
+            Object quizNode = quizTemplate.getContent().get("quiz");
+            if (quizNode instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                var quizMap = (java.util.Map<String, Object>) quizNode;
+                Object contentNode = quizMap.get("content");
+                if (contentNode instanceof java.util.Map) {
+                    @SuppressWarnings("unchecked")
+                    var contentMap = (java.util.Map<String, Object>) contentNode;
+                    Object questionsNode = contentMap.get("questions");
+                    if (questionsNode instanceof java.util.List) {
+                        @SuppressWarnings("unchecked")
+                        var questions = (java.util.List<Object>) questionsNode;
+                        maxScore = questions.size();
+                        for (int i = 0; i < questions.size(); i++) {
+                            Object qNode = questions.get(i);
+                            if (!(qNode instanceof java.util.Map)) continue;
+                            @SuppressWarnings("unchecked")
+                            var qMap = (java.util.Map<String, Object>) qNode;
+                            Object answerObj = qMap.get("answer");
+                            if (answerObj instanceof Number) {
+                                int correctIndex = ((Number) answerObj).intValue();
+                                int studentIndex = (submission.getAnswers() != null && submission.getAnswers().size() > i)
+                                    ? submission.getAnswers().get(i)
+                                    : -1;
+                                if (studentIndex == correctIndex) {
+                                    computedScore += 1; // one point per question
+                                }
+                            }
+                        }
+                    }
+                }
+                Object maxScoreNode = quizMap.get("maxScore");
+                if (maxScoreNode instanceof Number) {
+                    maxScore = ((Number) maxScoreNode).intValue();
+                }
+            }
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to compute quiz score from template content", ex);
+        }
+
+        // Persist using existing flow
+        Score existingScore = scoreRepository.findQuizScore(studentId, taskId, quizTemplateId).orElse(null);
+        if (existingScore == null) {
+            existingScore = new Score();
+            existingScore.setPhysicalId(provideUniquePhysicalId());
+            existingScore.setStudentId(studentId);
+            existingScore.setTaskId(taskId);
+            existingScore.setQuizTemplateId(quizTemplateId);
+            existingScore.setAttempts(0);
+        }
+
+        existingScore.setScore(computedScore);
+        // If template carries maxScore, set it; else fall back to question count
+        existingScore.setMaxScore(maxScore);
         existingScore.setAttempts(existingScore.getAttempts() + 1);
         existingScore.setCompleted(true);
         existingScore.setCompletedAt(OffsetDateTime.now());

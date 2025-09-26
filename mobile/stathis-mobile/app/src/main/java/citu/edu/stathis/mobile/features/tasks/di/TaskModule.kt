@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.features.tasks.di
 import citu.edu.stathis.mobile.features.tasks.data.api.TaskService
 import citu.edu.stathis.mobile.features.tasks.data.repository.TaskRepository
 import citu.edu.stathis.mobile.features.tasks.data.repository.TaskRepositoryImpl
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -12,17 +13,17 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object TaskModule {
+abstract class TaskModule {
 
-    @Provides
+    @Binds
     @Singleton
-    fun provideTaskService(retrofit: Retrofit): TaskService {
-        return retrofit.create(TaskService::class.java)
-    }
+    abstract fun bindTaskRepository(impl: TaskRepositoryImpl): TaskRepository
 
-    @Provides
-    @Singleton
-    fun provideTaskRepository(taskService: TaskService): TaskRepository {
-        return TaskRepositoryImpl(taskService)
+    companion object {
+        @Provides
+        @Singleton
+        fun provideTaskService(retrofit: Retrofit): TaskService {
+            return retrofit.create(TaskService::class.java)
+        }
     }
-} 
+}

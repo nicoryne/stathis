@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
 import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.EnrollInClassroomUseCase
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomDetailsUseCase
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomProgressUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomTasksUseCase
-import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsUseCase
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsResultUseCase
+import citu.edu.stathis.mobile.features.common.domain.Result
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,8 +26,10 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ClassroomViewModel @Inject constructor(
-    private val getStudentClassroomsUseCase: GetStudentClassroomsUseCase,
+    private val getStudentClassroomsResult: GetStudentClassroomsResultUseCase,
     private val enrollInClassroomUseCase: EnrollInClassroomUseCase,
+    private val getClassroomDetailsUseCase: GetClassroomDetailsUseCase,
+    private val getClassroomProgressUseCase: GetClassroomProgressUseCase,
     private val getClassroomTasksUseCase: GetClassroomTasksUseCase
 ) : ViewModel() {
 
@@ -52,7 +57,7 @@ class ClassroomViewModel @Inject constructor(
             _classroomsState.value = ClassroomsState.Loading
             
             try {
-                getStudentClassroomsUseCase()
+                getStudentClassroomsResult()
                     .catch { e ->
                         Timber.e(e, "Error loading student classrooms")
                         
@@ -72,11 +77,19 @@ class ClassroomViewModel @Inject constructor(
                             _classroomsState.value = ClassroomsState.Error(errorMessage)
                         }
                     }
-                    .collectLatest { classrooms ->
-                        if (classrooms.isEmpty()) {
-                            _classroomsState.value = ClassroomsState.Empty
-                        } else {
-                            _classroomsState.value = ClassroomsState.Success(classrooms)
+                    .collectLatest { result ->
+                        when (result) {
+                            is Result.Success -> {
+                                val classrooms = result.data
+                                if (classrooms.isEmpty()) {
+                                    _classroomsState.value = ClassroomsState.Empty
+                                } else {
+                                    _classroomsState.value = ClassroomsState.Success(classrooms)
+                                }
+                            }
+                            is Result.Error -> {
+                                _classroomsState.value = ClassroomsState.Error(result.message)
+                            }
                         }
                     }
             } catch (e: Exception) {
@@ -130,7 +143,6 @@ class ClassroomViewModel @Inject constructor(
                     }
                     .collectLatest { classroom ->
                         _enrollmentState.value = EnrollmentState.Success(classroom)
-                        // Refresh classrooms list
                         loadStudentClassrooms()
                     }
             } catch (e: Exception) {

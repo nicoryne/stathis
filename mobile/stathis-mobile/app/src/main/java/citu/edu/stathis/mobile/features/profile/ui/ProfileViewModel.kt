@@ -1,155 +1,137 @@
 package citu.edu.stathis.mobile.features.profile.ui
 
-import android.net.Uri // Keep for now, but usage will change
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import citu.edu.stathis.mobile.features.auth.data.models.UserResponseDTO // Changed
-import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository // Added
-import citu.edu.stathis.mobile.features.profile.data.repository.ProfileRepository // Changed
+import citu.edu.stathis.mobile.core.data.models.ClientResponse
+import citu.edu.stathis.mobile.features.auth.data.models.UserResponseDTO
+import citu.edu.stathis.mobile.core.data.AuthTokenManager
+import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsUseCase
+import citu.edu.stathis.mobile.features.progress.domain.repository.ProgressRepository
+import citu.edu.stathis.mobile.features.progress.data.api.ProgressService
+import citu.edu.stathis.mobile.features.profile.data.repository.ProfileRepository
+import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
-    private val authRepository: AuthRepository
+    private val getStudentClassroomsUseCase: GetStudentClassroomsUseCase,
+    private val progressRepository: ProgressRepository,
+    private val progressService: ProgressService,
+    private val authRepository: AuthRepository,
+    private val authTokenManager: AuthTokenManager
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
-    val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+    data class UiState(
+        val isLoading: Boolean = true,
+        val errorMessage: String? = null,
+        val profile: UserResponseDTO? = null,
+        val classroomCount: Int = 0,
+        val achievementsCount: Int = 0,
+        val certificatesCount: Int = 0,
+        val recentActivities: List<String> = emptyList()
+    )
 
-    private val _editState = MutableStateFlow<EditProfileUiState>(EditProfileUiState.Idle)
-    val editState: StateFlow<EditProfileUiState> = _editState.asStateFlow()
+    private val _state = MutableStateFlow(UiState())
+    val state: StateFlow<UiState> = _state
 
     init {
-        loadUserProfile()
-    }
-
-    fun loadUserProfile() {
+        refresh()
+        // Observe token changes to auto-refresh profile when logging in/out
         viewModelScope.launch {
-            _uiState.value = ProfileUiState.Loading
-            val response = profileRepository.getUserProfile()
-            if (response.success && response.data != null) {
-                _uiState.value = ProfileUiState.Success(response.data)
-            } else {
-                _uiState.value = ProfileUiState.Error(response.message ?: "Failed to load profile")
+            authTokenManager.accessTokenFlow.collect { _ ->
+                // Any token change should re-fetch profile so UI reflects latest auth state
+                refresh()
+            }
+        }
+        // Also observe isLoggedIn, in case tokens are same but flag changes
+        viewModelScope.launch {
+            authTokenManager.isLoggedInFlow.collect { _ ->
+                refresh()
             }
         }
     }
 
-    fun updateFullProfile(
-        firstName: String,
-        lastName: String,
-        birthdate: String?,
-        profilePictureUrl: String?,
-        school: String?,
-        course: String?,
-        yearLevel: Int?
-    ) {
+    fun refresh() {
+        _state.value = _state.value.copy(isLoading = true, errorMessage = null)
         viewModelScope.launch {
-            _editState.value = EditProfileUiState.Loading
-
-            val generalProfileResponse = profileRepository.updateUserProfile(
-                firstName = firstName,
-                lastName = lastName,
-                birthdate = birthdate,
-                profilePictureUrl = profilePictureUrl
-            )
-
-            if (!generalProfileResponse.success) {
-                _editState.value = EditProfileUiState.Error(generalProfileResponse.message ?: "Failed to update general profile.")
-                return@launch
+            // Fetch profile
+            val profileResp: ClientResponse<UserResponseDTO> = profileRepository.getUserProfile()
+            if (profileResp.success && profileResp.data != null) {
+                _state.value = _state.value.copy(profile = profileResp.data, isLoading = false)
+            } else {
+                _state.value = _state.value.copy(isLoading = false, errorMessage = profileResp.message ?: "Failed to load profile")
             }
 
-            if (school != null || course != null || yearLevel != null) {
-                val studentProfileResponse = profileRepository.updateStudentProfile(
-                    school = school,
-                    course = course,
-                    yearLevel = yearLevel
-                )
+            // Fetch classrooms count
+            try {
+                getStudentClassroomsUseCase()
+                    .catch { _ -> }
+                    .collect { list ->
+                        _state.value = _state.value.copy(classroomCount = list.size)
+                    }
+            } catch (_: Exception) {
+                // ignore classroom errors for now
+            }
 
-                if (!studentProfileResponse.success) {
-                    _editState.value = EditProfileUiState.Error(studentProfileResponse.message ?: "Failed to update student specific profile.")
-                    return@launch
+            // Fetch badges by student; map counts (certificates by badgeType = "CERTIFICATE")
+            try {
+                val physicalId = profileResp.data?.physicalId
+                if (!physicalId.isNullOrBlank()) {
+                    val badgesResp = progressService.getBadgesByStudent(studentId = physicalId)
+                    if (badgesResp.isSuccessful) {
+                        val badges = badgesResp.body().orEmpty()
+                        val achievementsCount = badges.size
+                        val certificatesCount = badges.count { (it.badgeType ?: "").equals("CERTIFICATE", ignoreCase = true) }
+                        val recentActivities = badges.sortedByDescending { it.earnedAt ?: "" }
+                            .take(3)
+                            .map { it.description ?: "Earned a badge" }
+                        _state.value = _state.value.copy(
+                            achievementsCount = achievementsCount,
+                            certificatesCount = certificatesCount,
+                            recentActivities = recentActivities
+                        )
+                    }
+
+                    val lbResp = progressService.getLeaderboardByStudent(studentId = physicalId)
+                    if (lbResp.isSuccessful) {
+                        // We only need to know empty vs non-empty to show empty trophy card; counts not displayed here
+                        val anyTrophies = lbResp.body().orEmpty().isNotEmpty()
+                        if (!anyTrophies && _state.value.recentActivities.isEmpty()) {
+                            // keep the empty state message we already render
+                        }
+                    }
                 }
-            }
+            } catch (_: Exception) {}
 
-            _editState.value = EditProfileUiState.Success
-            loadUserProfile()
+            // Recent activities (names only) - fallback/source of truth if available
+            try {
+                progressRepository.getRecentActivities(limit = 3, offset = 0, type = null)
+                    .catch { _ -> }
+                    .collect { resp ->
+                        val names = (resp.data ?: emptyList()).map { (it.title ?: it.type ?: "Activity").toString() }
+                        if (names.isNotEmpty()) {
+                            _state.value = _state.value.copy(recentActivities = names)
+                        }
+                    }
+            } catch (_: Exception) {}
         }
     }
 
-    fun updateProfilePictureUrl(newUrl: String) {
+    fun logout(onDone: () -> Unit) {
         viewModelScope.launch {
-            val currentState = uiState.value
-            if (currentState is ProfileUiState.Success) {
-                val currentProfile = currentState.profile
-                updateFullProfile(
-                    firstName = currentProfile.firstName,
-                    lastName = currentProfile.lastName,
-                    birthdate = currentProfile.birthdate,
-                    profilePictureUrl = newUrl,
-                    school = currentProfile.school,
-                    course = currentProfile.course,
-                    yearLevel = currentProfile.yearLevel?.toIntOrNull()
-                )
-            } else {
-                _editState.value = EditProfileUiState.Error("User profile not loaded. Cannot update picture.")
-            }
+            try {
+                authRepository.logout()
+            } catch (_: Exception) {}
+            onDone()
         }
-    }
-
-    fun removeProfilePicture() {
-        viewModelScope.launch {
-            val currentState = uiState.value
-            if (currentState is ProfileUiState.Success) {
-                val currentProfile = currentState.profile
-                updateFullProfile(
-                    firstName = currentProfile.firstName,
-                    lastName = currentProfile.lastName,
-                    birthdate = currentProfile.birthdate,
-                    profilePictureUrl = null, // Set to null to remove
-                    school = currentProfile.school,
-                    course = currentProfile.course,
-                    yearLevel = currentProfile.yearLevel?.toIntOrNull()
-                )
-            } else {
-                _editState.value = EditProfileUiState.Error("User profile not loaded. Cannot remove picture.")
-            }
-        }
-    }
-
-
-    fun signOut(onSignedOut: () -> Unit) {
-        viewModelScope.launch {
-            val response = authRepository.logout()
-            if (response.success) {
-                onSignedOut()
-            } else {
-                _editState.value = EditProfileUiState.Error(response.message ?: "Logout failed.")
-            }
-        }
-    }
-
-    fun resetEditState() {
-        _editState.value = EditProfileUiState.Idle
     }
 }
 
-sealed class ProfileUiState {
-    data object Loading : ProfileUiState()
-    data class Success(val profile: UserResponseDTO) : ProfileUiState()
-    data class Error(val message: String) : ProfileUiState()
-}
 
-sealed class EditProfileUiState {
-    data object Idle : EditProfileUiState()
-    data object Loading : EditProfileUiState()
-    data object Success : EditProfileUiState()
-    data class Error(val message: String) : EditProfileUiState()
-}

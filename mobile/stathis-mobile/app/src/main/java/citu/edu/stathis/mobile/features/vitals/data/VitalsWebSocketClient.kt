@@ -165,7 +165,7 @@ class VitalsWebSocketClient @Inject constructor(
             while (isActive) {
                 try {
                     // Fetch current vitals from health connect
-                    healthConnectManager.fetchLatestVitals(healthConnectManager.getUserId())
+                    healthConnectManager.fetchLatestVitals()
                     // Get vitals from the flow
                     val vitals = healthConnectManager.vitalSigns.value
                     // Send vitals data via WebSocket

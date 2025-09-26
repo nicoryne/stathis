@@ -9,6 +9,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
+import cit.edu.stathis.mobile.BuildConfig
 
 @Singleton
 class AuthInterceptor @Inject constructor(
@@ -16,8 +17,17 @@ class AuthInterceptor @Inject constructor(
     ) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val originalRequest = chain.request()
+            val url = originalRequest.url
+            val path = url.encodedPath
 
-            val token =
+            // Do not attach Authorization for public auth endpoints
+            val isPublicAuthEndpoint = path.startsWith("/api/auth/") && (
+                path.contains("/login") ||
+                path.contains("/register") ||
+                path.contains("/refresh")
+            )
+
+            val token = if (!isPublicAuthEndpoint) {
                 runBlocking {
                     try {
                         authTokenManager.accessTokenFlow.first()
@@ -26,6 +36,7 @@ class AuthInterceptor @Inject constructor(
                         null
                     }
                 }
+            } else null
 
             val newRequestBuilder = originalRequest.newBuilder()
 

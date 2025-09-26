@@ -14,11 +14,10 @@ public class VitalSignsController {
     @Autowired
     private VitalSignsService vitalSignsService;
 
-    @Operation(summary = "Send vital signs", description = "Send vital signs")
+    @Operation(summary = "Send vital signs", description = "Send vital signs for classroom broadcasting only")
     @MessageMapping("/vitals/send")
-    @SendTo("/topic/vitals")
-    public VitalSignsDTO handleVitalSigns(VitalSignsDTO vitalSignsDTO) {
+    public void handleVitalSigns(VitalSignsDTO vitalSignsDTO) {
+        // The service will publish to /topic/classroom/{classroomId}/vitals explicitly
         vitalSignsService.processVitalSigns(vitalSignsDTO);
-        return vitalSignsDTO;
     }
 } 
