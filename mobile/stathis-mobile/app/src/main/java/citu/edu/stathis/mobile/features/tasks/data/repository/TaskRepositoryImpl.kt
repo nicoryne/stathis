@@ -4,6 +4,8 @@ import citu.edu.stathis.mobile.features.tasks.data.api.TaskService
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.ScoreResponse
+import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -28,6 +30,20 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun getTaskProgress(taskId: String): Flow<TaskProgressResponse> = flow {
         val response = taskService.getTaskProgress(taskId)
+        if (response.isSuccessful) {
+            response.body()?.let { emit(it) }
+        }
+    }
+
+    override suspend fun getLessonTemplate(lessonTemplateId: String): Flow<LessonTemplate> = flow {
+        val response = taskService.getLessonTemplate(lessonTemplateId)
+        if (response.isSuccessful) {
+            response.body()?.let { emit(it) }
+        }
+    }
+
+    override suspend fun getQuizTemplate(quizTemplateId: String): Flow<QuizTemplate> = flow {
+        val response = taskService.getQuizTemplate(quizTemplateId)
         if (response.isSuccessful) {
             response.body()?.let { emit(it) }
         }

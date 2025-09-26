@@ -2,11 +2,19 @@ package citu.edu.stathis.mobile.features.profile.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Edit
@@ -27,9 +35,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -79,9 +89,14 @@ private fun StatCard(label: String, value: String, icon: @Composable () -> Unit,
 }
 
 @Composable
-private fun ProfileAvatar(initials: String, imageUri: Uri?) {
+private fun ProfileAvatar(
+    initials: String, 
+    imageUri: Uri?, 
+    onEditClick: () -> Unit
+) {
     val context = LocalContext.current
     val bitmapState = remember { mutableStateOf(createBitmap(1, 1)) }
+    val isPressed = remember { mutableStateOf(false) }
 
     LaunchedEffect(imageUri) {
         if (imageUri != null) {
@@ -102,9 +117,35 @@ private fun ProfileAvatar(initials: String, imageUri: Uri?) {
                 }
             }
         }
-        // Edit icon only (no label)
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(4.dp)) {
-            Icon(imageVector = Icons.Filled.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.padding(6.dp))
+        
+        // Enhanced Edit button with better visibility and proper positioning
+        Surface(
+            shape = CircleShape,
+            color = if (isPressed.value) 
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f) 
+            else 
+                MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .size(36.dp)
+                .offset(x = 8.dp, y = 8.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onEditClick
+                ),
+            shadowElevation = if (isPressed.value) 8.dp else 4.dp
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit, 
+                    contentDescription = "Edit Profile Picture", 
+                    tint = MaterialTheme.colorScheme.onPrimary, 
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -155,7 +196,7 @@ fun ProfileScreen(navController: NavHostController, viewModel: ProfileViewModel 
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(innerPadding)
                 .padding(horizontal = 24.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars.only(sides = WindowInsetsSides.Bottom))
+                .padding(bottom = 80.dp) // Add bottom padding to prevent nav bar overlap
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -226,7 +267,11 @@ fun ProfileScreen(navController: NavHostController, viewModel: ProfileViewModel 
             val initials = (uiState.value.profile?.firstName?.firstOrNull()?.toString() ?: "E")
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Surface(shape = CircleShape, color = Color.Transparent) {
-                    ProfileAvatar(initials = initials, imageUri = imageUriState.value)
+                    ProfileAvatar(
+                        initials = initials, 
+                        imageUri = imageUriState.value,
+                        onEditClick = { picker.launch("image/*") }
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))

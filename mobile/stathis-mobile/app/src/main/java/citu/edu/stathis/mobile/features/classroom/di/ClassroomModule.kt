@@ -7,7 +7,6 @@ import citu.edu.stathis.mobile.features.classroom.data.adapter.ClassroomReposito
 import citu.edu.stathis.mobile.features.classroom.domain.repository.ClassroomRepository as DomainClassroomRepository
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.EnrollInClassroomUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomDetailsUseCase
-import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomProgressUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomTasksUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsResultUseCase
 import dagger.Binds
@@ -58,12 +57,6 @@ abstract class ClassroomModule {
         fun provideGetClassroomDetailsUseCase(
             classroomRepository: DomainClassroomRepository
         ): GetClassroomDetailsUseCase = GetClassroomDetailsUseCase(classroomRepository)
-
-        @Provides
-        @Singleton
-        fun provideGetClassroomProgressUseCase(
-            classroomRepository: DomainClassroomRepository
-        ): GetClassroomProgressUseCase = GetClassroomProgressUseCase(classroomRepository)
 
         @Provides
         @Singleton

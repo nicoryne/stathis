@@ -3,6 +3,8 @@ package citu.edu.stathis.mobile.features.tasks.data.api
 import citu.edu.stathis.mobile.features.tasks.data.model.ScoreResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
+import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -21,6 +23,16 @@ interface TaskService {
     suspend fun getTaskProgress(
         @Path("taskId") taskId: String
     ): Response<TaskProgressResponse>
+
+    @GET("api/templates/lessons/{lessonTemplateId}")
+    suspend fun getLessonTemplate(
+        @Path("lessonTemplateId") lessonTemplateId: String
+    ): Response<LessonTemplate>
+
+    @GET("api/templates/quizzes/{quizTemplateId}")
+    suspend fun getQuizTemplate(
+        @Path("quizTemplateId") quizTemplateId: String
+    ): Response<QuizTemplate>
 
     @POST("api/student/tasks/{taskId}/quiz/{quizTemplateId}/score")
     suspend fun submitQuizScore(

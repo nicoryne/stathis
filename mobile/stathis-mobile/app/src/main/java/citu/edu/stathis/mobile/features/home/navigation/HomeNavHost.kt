@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,11 +28,25 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import citu.edu.stathis.mobile.features.auth.ui.LoginScreen
 import citu.edu.stathis.mobile.features.vitals.ui.HealthConnectScreen
+import citu.edu.stathis.mobile.features.tasks.presentation.TaskDetailScreen
+import citu.edu.stathis.mobile.features.tasks.presentation.TaskListScreen
+import citu.edu.stathis.mobile.core.data.AuthTokenManager
+import citu.edu.stathis.mobile.features.auth.domain.usecase.TokenValidationUseCase
+import citu.edu.stathis.mobile.features.auth.data.enums.UserRoles
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
 
 @Composable
 fun HomeNavHost(navController: NavHostController) {
+    val context = LocalContext.current
+    val authManager = remember { AuthTokenManager(context, TokenValidationUseCase()) }
+    val userRole by authManager.userRoleFlow.collectAsState(initial = null)
+    val isStudent = userRole == UserRoles.STUDENT
+
     NavHost(navController = navController, startDestination = HomeNavigationItem.Practice.route) {
-        composable(HomeNavigationItem.Learn.route) { LearnScreen(navController) }
+        composable(HomeNavigationItem.Learn.route) {
+            if (isStudent) LearnScreen(navController) else PracticeScreen(navController)
+        }
         composable(HomeNavigationItem.Practice.route) { PracticeScreen(navController) }
         composable(
             route = "practice_exercises"
@@ -136,6 +152,39 @@ fun HomeNavHost(navController: NavHostController) {
             exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
             popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
         ) { HealthConnectScreen(navController) }
+        composable(
+            route = "task_list/{classroomId}",
+            arguments = listOf(navArgument("classroomId") { type = NavType.StringType }),
+            enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) },
+            exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
+        ) { backStackEntry ->
+            val classroomId = backStackEntry.arguments?.getString("classroomId") ?: return@composable
+            TaskListScreen(
+                classroomId = classroomId,
+                onTaskClick = { taskId ->
+                    navController.navigate("task_detail/$taskId")
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(
+            route = "task_detail/{taskId}",
+            arguments = listOf(navArgument("taskId") { type = NavType.StringType }),
+            enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) },
+            exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+            TaskDetailScreen(
+                taskId = taskId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }
 

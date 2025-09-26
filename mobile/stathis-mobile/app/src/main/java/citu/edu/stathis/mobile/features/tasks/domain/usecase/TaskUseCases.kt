@@ -5,6 +5,8 @@ import citu.edu.stathis.mobile.features.common.domain.safeCall
 import citu.edu.stathis.mobile.features.tasks.data.model.ScoreResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
+import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
 import citu.edu.stathis.mobile.features.tasks.data.repository.TaskRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -31,6 +33,20 @@ class GetTaskProgressUseCase @Inject constructor(
         repository.getTaskProgress(taskId)
 }
 
+class GetLessonTemplateUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(lessonTemplateId: String): Flow<LessonTemplate> =
+        repository.getLessonTemplate(lessonTemplateId)
+}
+
+class GetQuizTemplateUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(quizTemplateId: String): Flow<QuizTemplate> =
+        repository.getQuizTemplate(quizTemplateId)
+}
+
 // Result-wrapped variants for UI simplicity and consistency across features
 class GetTasksForClassroomResultUseCase @Inject constructor(
     private val repository: TaskRepository
@@ -51,6 +67,20 @@ class GetTaskProgressResultUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(taskId: String): Result<TaskProgressResponse> =
         safeCall { repository.getTaskProgress(taskId).first() }
+}
+
+class GetLessonTemplateResultUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(lessonTemplateId: String): Result<LessonTemplate> =
+        safeCall { repository.getLessonTemplate(lessonTemplateId).first() }
+}
+
+class GetQuizTemplateResultUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(quizTemplateId: String): Result<QuizTemplate> =
+        safeCall { repository.getQuizTemplate(quizTemplateId).first() }
 }
 
 class SubmitQuizScoreUseCase @Inject constructor(

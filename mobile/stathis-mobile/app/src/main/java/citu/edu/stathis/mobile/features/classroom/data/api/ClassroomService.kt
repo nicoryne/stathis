@@ -7,26 +7,31 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface ClassroomService {
-    @GET("api/student/classrooms")
+    // Matches swagger: /api/classrooms/student
+    @GET("api/classrooms/student")
     suspend fun getStudentClassrooms(): Response<List<Classroom>>
 
-    @GET("api/student/classrooms/{classroomId}")
+    // Matches swagger: /api/classrooms/{physicalId}
+    @GET("api/classrooms/{classroomId}")
     suspend fun getStudentClassroom(
         @Path("classroomId") classroomId: String
     ): Response<Classroom>
 
-    @POST("api/student/classrooms/enroll")
+    // Matches swagger: /api/classrooms/enroll (body is a map of strings)
+    @POST("api/classrooms/enroll")
     suspend fun enrollInClassroom(
-        @Body classroomCode: String
-    ): Response<Classroom>
+        @Body classroomCode: Map<String, String>
+    ): Response<Unit>
 
-    @GET("api/student/classrooms/{classroomId}/tasks")
+    // Matches swagger: /api/tasks/classroom/{classroomId}
+    @GET("api/tasks/classroom/{classroomId}")
     suspend fun getClassroomTasks(
         @Path("classroomId") classroomId: String
     ): Response<List<Task>>
 
-    @GET("api/student/classrooms/{classroomId}/progress")
+    // No direct progress endpoint in swagger per classroom for student; keep placeholder if used elsewhere
+    @GET("api/classrooms/{classroomId}")
     suspend fun getClassroomProgress(
         @Path("classroomId") classroomId: String
     ): Response<ClassroomProgress>
-} 
+}

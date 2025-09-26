@@ -7,24 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-data class LessonPage(
-    val id: String,
-    val pageNumber: Int,
-    val subtitle: String,
-    val paragraph: String
-)
-
-data class LessonContent(
-    val physicalId: String,
-    val title: String,
-    val description: String,
-    val pages: List<LessonPage>
-)
+import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.LessonPage
 
 @Composable
 fun LessonView(
-    lesson: LessonContent,
+    lesson: LessonTemplate,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(16.dp)) {

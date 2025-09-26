@@ -3,10 +3,8 @@ package citu.edu.stathis.mobile.features.classroom.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
-import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.EnrollInClassroomUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomDetailsUseCase
-import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomProgressUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomTasksUseCase
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsResultUseCase
 import citu.edu.stathis.mobile.features.common.domain.Result
@@ -29,7 +27,6 @@ class ClassroomViewModel @Inject constructor(
     private val getStudentClassroomsResult: GetStudentClassroomsResultUseCase,
     private val enrollInClassroomUseCase: EnrollInClassroomUseCase,
     private val getClassroomDetailsUseCase: GetClassroomDetailsUseCase,
-    private val getClassroomProgressUseCase: GetClassroomProgressUseCase,
     private val getClassroomTasksUseCase: GetClassroomTasksUseCase
 ) : ViewModel() {
 
@@ -132,10 +129,17 @@ class ClassroomViewModel @Inject constructor(
                                 "You don't have permission to join this classroom. Please check the code or contact your teacher."
                             e.message?.contains("404") == true || 
                             e.message?.contains("invalid") == true || 
-                            e.message?.contains("not found") == true -> 
+                            e.message?.contains("not found") == true || 
+                            e.message?.contains("Classroom not found") == true -> 
                                 "Classroom not found. Please check the code and try again."
-                            e.message?.contains("already enrolled") == true -> 
+                            e.message?.contains("already enrolled") == true || 
+                            e.message?.contains("Student is already enrolled") == true -> 
                                 "You are already enrolled in this classroom."
+                            e.message?.contains("not active") == true || 
+                            e.message?.contains("Classroom is not active") == true -> 
+                                "This classroom is not currently active. Please contact your teacher."
+                            e.message?.contains("Enrollment failed") == true -> 
+                                "Enrollment failed. Please check your internet connection and try again."
                             else -> e.message ?: "Failed to enroll in classroom. Please try again."
                         }
                         
@@ -154,10 +158,17 @@ class ClassroomViewModel @Inject constructor(
                         "You don't have permission to join this classroom. Please check the code or contact your teacher."
                     e.message?.contains("404") == true || 
                     e.message?.contains("invalid") == true || 
-                    e.message?.contains("not found") == true -> 
+                    e.message?.contains("not found") == true || 
+                    e.message?.contains("Classroom not found") == true -> 
                         "Classroom not found. Please check the code and try again."
-                    e.message?.contains("already enrolled") == true -> 
+                    e.message?.contains("already enrolled") == true || 
+                    e.message?.contains("Student is already enrolled") == true -> 
                         "You are already enrolled in this classroom."
+                    e.message?.contains("not active") == true || 
+                    e.message?.contains("Classroom is not active") == true -> 
+                        "This classroom is not currently active. Please contact your teacher."
+                    e.message?.contains("Enrollment failed") == true -> 
+                        "Enrollment failed. Please check your internet connection and try again."
                     else -> e.message ?: "Failed to enroll in classroom. Please try again."
                 }
                 

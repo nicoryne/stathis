@@ -5,26 +5,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
-data class QuizQuestion(
-    val id: String,
-    val questionNumber: Int,
-    val question: String,
-    val options: List<String>,
-    val answer: Int
-)
-
-data class QuizContent(
-    val physicalId: String,
-    val title: String,
-    val instruction: String,
-    val maxScore: Int,
-    val questions: List<QuizQuestion>
-)
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizQuestion
 
 @Composable
 fun QuizView(
-    quiz: QuizContent,
+    quiz: QuizTemplate,
     onSubmitScore: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
