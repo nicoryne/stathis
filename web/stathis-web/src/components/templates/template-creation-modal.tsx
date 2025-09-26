@@ -41,15 +41,16 @@ export function TemplateCreationModal({
   );
 
   const handleSuccess = () => {
+    // Call the onTemplateCreated callback to notify parent component
     onTemplateCreated();
-    // Only close the modal if we're not continuing to task creation
-    if (!continueToTask) {
-      setOpen(false);
-      // Make sure we stay on the templates tab
-      if (typeof window !== 'undefined' && !window.location.hash.includes('tasks')) {
-        // Set the hash to 'templates' to ensure we stay on that tab
-        window.location.hash = 'templates';
-      }
+    
+    // Always close the modal after successful template creation
+    setOpen(false);
+    
+    // Make sure we stay on the templates tab if we're not in a task context
+    if (typeof window !== 'undefined' && !window.location.hash.includes('tasks')) {
+      // Set the hash to 'templates' to ensure we stay on that tab
+      window.location.hash = 'templates';
     }
   };
 
