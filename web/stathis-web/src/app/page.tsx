@@ -60,12 +60,11 @@ export default function Home() {
               </div>
               
               <h1 className="text-hero text-white leading-tight hero-text-shadow">
-                Transform <span className="text-white font-extrabold hero-text-strong-shadow">Statistics Learning</span>
+                Revolutionizing <span className="text-white font-extrabold hero-text-strong-shadow">Physical Education</span> with AI
               </h1>
               
               <p className="text-white/90 max-w-2xl text-xl leading-relaxed subtitle-text-shadow">
-                Master statistics with interactive lessons, real-world examples, and personalized learning paths. 
-                Join thousands of students already excelling with STATHIS.
+              Stathis combines motion recognition, real-time health tracking, and gamification to create a safer and more engaging physical education experience.
               </p>
               
               <div className="flex flex-col gap-4 pt-4 sm:flex-row justify-center lg:justify-start">
@@ -104,7 +103,7 @@ export default function Home() {
                   <div className="absolute inset-0 pulse-glow-animation rounded-full w-80 h-80 -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2"></div>
                   <Image
                     src="/images/stathis_phone.png"
-                    alt="STATHIS Statistics Learning Phone"
+                    alt="Stathis Statistics Learning Phone"
                     width={420}
                     height={840}
                     className="relative z-10 float-animation"
@@ -117,7 +116,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* About STATHIS Section */}
+      {/* About Stathis Section */}
       <section id="about" className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-start gap-16">
@@ -131,14 +130,14 @@ export default function Home() {
             >
               <div>
                 <h2 className="text-4xl md:text-5xl font-bold mb-6 text-foreground">
-                  About <span className="text-primary">STATHIS</span>
+                  About <span className="text-primary">Stathis</span>
                 </h2>
                 
                 <div className="mb-8">
                   <h3 className="text-xl font-semibold mb-4 text-foreground/80">What It Is</h3>
                   <p className="text-muted-foreground leading-relaxed text-lg">
-                    STATHIS is a web-based learning platform designed to make statistics engaging and 
-                    accessible. Whether you're a student, educator, or enthusiast, STATHIS helps you learn 
+                    Stathis is a web-based learning platform designed to make statistics engaging and 
+                    accessible. Whether you're a student, educator, or enthusiast, Stathis helps you learn 
                     through interactive quizzes, performance tracking, and peer competition.
                   </p>
             </div>
@@ -198,7 +197,7 @@ export default function Home() {
                   <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/10 to-accent/5 dark:from-card dark:to-muted border border-border/20 dark:border-border/30 pulse-glow-animation mascot-glow-animation"></div>
                   <Image
                     src="/images/mascots/mascot_sleep.png"
-                    alt="STATHIS Mascot"
+                    alt="Stathis Mascot"
                     width={280}
                     height={280}
                     className="relative z-10 float-animation"
@@ -235,11 +234,11 @@ export default function Home() {
             className="text-center mb-16"
           >
             <div className="bg-secondary/10 text-secondary mb-6 inline-block rounded-full px-4 py-2 text-sm font-medium">
-              Why Choose STATHIS?
+              Why Choose Stathis?
             </div>
             <h2 className="text-section-title mb-6 text-foreground">Powerful Features for Effective Learning</h2>
             <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
-              STATHIS combines innovative technology with proven educational methods to deliver 
+              Stathis combines innovative technology with proven educational methods to deliver 
               an unparalleled statistics learning experience.
             </p>
           </motion.div>
@@ -321,7 +320,7 @@ export default function Home() {
       </section>
       
       {/* Location Section */}
-      <section className="py-20 bg-background">
+      <section id="contact" className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -334,7 +333,7 @@ export default function Home() {
               Where Innovation Meets Education
             </h2>
             <p className="text-muted-foreground text-lg font-medium">
-              STATHIS HQ
+              Stathis HQ
             </p>
           </motion.div>
 
@@ -360,7 +359,7 @@ export default function Home() {
                   </div>
                   
                   <p className="text-muted-foreground leading-relaxed mb-8">
-                    STATHIS is proudly based at CIT-University, Cebu City—an institution 
+                    Stathis is proudly based at CIT-University, Cebu City—an institution 
                     known for cultivating forward-thinking minds and technological excellence.
                   </p>
                   
@@ -415,7 +414,7 @@ export default function Home() {
             </div>
             <h2 className="text-section-title mb-6 text-foreground">Simple Steps, Powerful Results</h2>
             <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
-              Follow our proven 6-step learning path to master statistics and achieve your educational goals.
+              Follow our proven 6-step learning path to achieve your fitness goals.
             </p>
           </motion.div>
 
@@ -543,9 +542,9 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="md:w-1/2 md:text-left order-2">
-                  <h3 className="text-xl font-bold mb-3 text-foreground">6. Master</h3>
+                  <h3 className="text-xl font-bold mb-3 text-foreground">6. Badges</h3>
                   <p className="text-muted-foreground">
-                    Earn your certification and continue your learning journey with advanced topics and specialized statistical methods.
+                    Earn your badges and continue your learning journey with advanced topics and specialized methods.
                   </p>
                 </div>
               </motion.div>
@@ -569,7 +568,7 @@ export default function Home() {
             </h2>
             <p className="text-muted-foreground text-lg max-w-3xl mx-auto leading-relaxed">
               Join thousands of educators and students who are revolutionizing how statistics is 
-              taught and learned. Experience the future of education with STATHIS.
+              taught and learned. Experience the future of education with Stathis.
             </p>
           </motion.div>
 
@@ -661,7 +660,7 @@ export default function Home() {
                 <div className="relative mx-auto w-96 h-96 bg-gradient-to-br from-primary/10 to-accent/10 rounded-[3rem] flex items-center justify-center border border-border/20">
                   <Image
                     src="/images/mascots/mascot_cheer.png"
-                    alt="STATHIS Statistics Learning Mascot"
+                    alt="Stathis Statistics Learning Mascot"
                     width={320}
                     height={320}
                     className="float-animation"
@@ -677,7 +676,7 @@ export default function Home() {
                 viewport={{ once: true }}
                 className="mb-8"
               >
-                <h3 className="text-2xl font-bold text-foreground mb-4">Join the STATHIS Revolution</h3>
+                <h3 className="text-2xl font-bold text-foreground mb-4">Join the Stathis Revolution</h3>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Be part of a community that's making statistics accessible, engaging, and fun for everyone.
                 </p>

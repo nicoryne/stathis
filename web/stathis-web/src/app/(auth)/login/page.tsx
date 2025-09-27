@@ -128,7 +128,7 @@ export default function LoginPage() {
             <div className="absolute -inset-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
             <motion.img
               src="/images/mascots/mascot_teacher.png"
-              alt="STATHIS Mascot"
+              alt="Stathis Mascot"
               className="relative mx-auto h-[200px] w-[200px] drop-shadow-2xl"
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}

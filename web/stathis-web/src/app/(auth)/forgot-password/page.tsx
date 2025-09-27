@@ -56,228 +56,163 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      {/* Left Panel - Brand Section */}
-      <div className="from-primary/90 to-secondary/90 relative hidden overflow-hidden bg-gradient-to-br p-8 text-white md:flex md:w-1/2">
-        {/* Animated background elements */}
-        <div className="absolute top-0 left-0 h-full w-full overflow-hidden">
-          <motion.div
-            className="absolute top-10 left-10 h-64 w-64 rounded-full bg-white/10"
-            animate={{
-              scale: [1, 1.2, 1],
-              x: [0, 30, 0],
-              y: [0, 50, 0]
-            }}
-            transition={{
-              duration: 15,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: 'reverse'
-            }}
-          />
-          <motion.div
-            className="absolute right-10 bottom-20 h-80 w-80 rounded-full bg-white/5"
-            animate={{
-              scale: [1, 1.1, 1],
-              x: [0, -20, 0],
-              y: [0, -30, 0]
-            }}
-            transition={{
-              duration: 20,
-              repeat: Number.POSITIVE_INFINITY,
-              repeatType: 'reverse'
-            }}
-          />
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
+      {/* Animated Particles */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={{ y: [0, -10, 0] }} transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+      </div>
 
-        <div className="relative z-10 flex h-full flex-col">
-          <div className="mb-12 flex items-center gap-2">
-            <HeartPulse className="h-8 w-8 text-white" />
-            <span className="text-2xl font-bold tracking-tight">Stathis</span>
+      <div className="relative mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-12 p-6 lg:grid-cols-2 lg:p-12">
+        {/* Left Column - Mascot & Welcome */}
+        <div className="flex flex-col items-center justify-center gap-8 text-center lg:items-center lg:text-center">
+          {/* Mascot */}
+          <div className="relative self-center">
+            <div className="absolute -inset-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
+            <motion.img
+              src="/images/mascots/mascot_error.png"
+              alt="STATHIS Mascot"
+              className="relative mx-auto h-[220px] w-[220px] drop-shadow-2xl"
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+            />
           </div>
 
-          <div className="my-auto">
-            <motion.h1
-              className="mb-6 text-3xl font-bold"
+          {/* Welcome Text */}
+          <div className="space-y-3 max-w-2xl mx-auto text-center">
+            <h1 className="text-balance text-4xl font-bold sm:text-5xl">Reset your password</h1>
+            <p className="mx-auto max-w-md text-pretty text-lg text-muted-foreground">Don't worry, we'll help you get back to monitoring your students' safety in no time.</p>
+          </div>
+
+          {/* Feature list */}
+          <div className="grid w-full max-w-md grid-cols-1 gap-4 mx-auto justify-items-center">
+            <div className="flex items-center gap-3 justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Activity className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm text-foreground text-center">Simple recovery process</span>
+            </div>
+            <div className="flex items-center gap-3 justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/10">
+                <Shield className="h-4 w-4 text-secondary" />
+              </div>
+              <span className="text-sm text-foreground text-center">Secure password reset</span>
+            </div>
+            <div className="flex items-center gap-3 justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm text-foreground text-center">Support available if needed</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Form Card */}
+        <div className="flex w-full items-center justify-center p-2">
+          <div className="w-full max-w-lg rounded-3xl border border-border/50 bg-card/80 p-8 shadow-2xl backdrop-blur-xl">
+            {/* Back link */}
+            <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary">
+              <ArrowLeft className="h-4 w-4" /> Back to Home
+            </Link>
+            
+            {/* Mobile Logo - Only visible on mobile */}
+            <div className="mb-8 flex items-center justify-center md:hidden">
+              <div className="flex items-center gap-2">
+                <HeartPulse className="text-primary h-8 w-8" />
+                <span className="text-2xl font-bold tracking-tight">Stathis</span>
+              </div>
+            </div>
+
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
+              className="mb-8 text-center"
             >
-              Account Recovery
-            </motion.h1>
-            <motion.p
-              className="mb-12 max-w-md text-lg text-white/90"
+              <h2 className="mb-2 text-3xl font-bold">Reset Password</h2>
+              <p className="text-muted-foreground">Enter your email to receive a reset link</p>
+            </motion.div>
+
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              We'll help you reset your password and get back to monitoring your students' safety
-            </motion.p>
+              {!isSubmitted ? (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="name@example.com"
+                              type="email"
+                              className="h-11"
+                              disabled={forgotPasswordMutation.isPending}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-            <div className="space-y-6">
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Activity className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Simple Recovery</h3>
-                  <p className="text-sm text-white/80">
-                    Reset your password with just a few clicks
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Secure Process</h3>
-                  <p className="text-sm text-white/80">Your account security is our top priority</p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-start gap-4"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                <div className="rounded-full bg-white/20 p-2">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="mb-1 font-medium">Support Available</h3>
-                  <p className="text-sm text-white/80">
-                    Our team is ready to help if you need assistance
-                  </p>
-                </div>
-              </motion.div>
-            </div>
-          </div>
-
-          <div className="mt-auto text-sm text-white/70">
-            &copy; {new Date().getFullYear()} Stathis. All rights reserved.
-          </div>
-        </div>
-      </div>
-
-      {/* Right Panel - Forgot Password Form */}
-      <div className="flex w-full items-center justify-center p-8 md:w-1/2">
-        <div className="w-full max-w-md">
-          {/* Mobile Logo - Only visible on mobile */}
-          <div className="mb-8 flex items-center justify-center md:hidden">
-            <div className="flex items-center gap-2">
-              <HeartPulse className="text-primary h-8 w-8" />
-              <span className="text-2xl font-bold tracking-tight">Stathis</span>
-            </div>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-8"
-          >
-            <h1 className="mb-2 text-2xl font-bold">Reset your password</h1>
-            <p className="text-muted-foreground">
-              Enter your email to receive a password reset link
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-card border-border/40 rounded-lg border p-6"
-          >
-            {!isSubmitted ? (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="name@example.com"
-                            type="email"
-                            className="h-11"
-                            disabled={forgotPasswordMutation.isPending}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button
-                    type="submit"
-                    className="h-11 w-full"
-                    disabled={forgotPasswordMutation.isPending}
-                  >
-                    {forgotPasswordMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending link...
-                      </>
-                    ) : (
-                      'Send reset link'
-                    )}
-                  </Button>
-                </form>
-              </Form>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="py-4 text-center"
-              >
-                <div className="mb-4 flex justify-center">
-                  <CheckCircle2 className="text-primary h-12 w-12" />
-                </div>
-                <h3 className="mb-2 text-lg font-medium">Check your email</h3>
-                <p className="text-muted-foreground mb-4">
-                  We've sent a password reset link to{' '}
-                  <span className="text-foreground font-medium">{submittedEmail}</span>
-                </p>
-                <Button
-                  variant="outline"
-                  className="h-11 w-full"
-                  onClick={() => setIsSubmitted(false)}
+                    <Button
+                      type="submit"
+                      className="h-12 w-full rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-lg hover:shadow-xl transition-shadow"
+                      disabled={forgotPasswordMutation.isPending}
+                    >
+                      {forgotPasswordMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending Reset Link...
+                        </>
+                      ) : (
+                        'Send Reset Link'
+                      )}
+                    </Button>
+                  </form>
+                </Form>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="py-8 text-center"
                 >
-                  Back to reset password
-                </Button>
-              </motion.div>
-            )}
-          </motion.div>
+                  <div className="mb-6 flex justify-center">
+                    <div className="relative">
+                      <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 blur-xl" />
+                      <CheckCircle2 className="relative text-green-600 h-16 w-16" />
+                    </div>
+                  </div>
+                  <h3 className="mb-3 text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Check your email</h3>
+                  <p className="text-muted-foreground mb-6">
+                    We've sent a password reset link to{' '}
+                    <span className="text-foreground font-semibold">{submittedEmail}</span>
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="h-12 rounded-xl font-normal bg-background/50 backdrop-blur-sm border-border/50 hover:bg-muted/50 transition-all duration-200"
+                    onClick={() => setIsSubmitted(false)}
+                  >
+                    Back to Reset Password
+                  </Button>
+                </motion.div>
+              )}
+            </motion.div>
 
-          <div className="mt-8 space-y-2 text-center">
-            <Link
-              href="/login"
-              className="text-muted-foreground hover:text-primary text-sm transition-colors"
-            >
-              Back to login
-            </Link>
-            <div>
+            <div className="mt-8 space-y-2 text-center">
               <Link
-                href="/"
-                className="text-muted-foreground hover:text-primary mt-4 flex items-center justify-center gap-1 text-xs transition-colors"
+                href="/login"
+                className="text-muted-foreground hover:text-primary text-sm transition-colors"
               >
-                <ArrowLeft className="h-3 w-3" />
-                Back to Home
+                Remember your password? <span className="text-primary font-medium">Sign in</span>
               </Link>
             </div>
           </div>

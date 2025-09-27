@@ -145,7 +145,7 @@ export default function SignUpPage() {
             <div className="absolute -inset-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-3xl" />
             <motion.img
               src="/images/mascots/mascot_celebrate.png"
-              alt="STATHIS Mascot"
+              alt="Stathis Mascot"
               className="relative mx-auto h-[220px] w-[220px] drop-shadow-2xl"
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
@@ -154,7 +154,7 @@ export default function SignUpPage() {
 
           {/* Welcome Text */}
           <div className="space-y-3 max-w-2xl mx-auto text-center">
-            <h1 className="text-balance text-4xl font-bold sm:text-5xl">Create your STATHIS account</h1>
+            <h1 className="text-balance text-4xl font-bold sm:text-5xl">Create your Stathis account</h1>
             <p className="mx-auto max-w-md text-pretty text-lg text-muted-foreground">Join thousands learning statistics with interactive lessons, real-world examples, and personalized paths.</p>
           </div>
 

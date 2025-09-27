@@ -47,7 +47,7 @@
 :root {
   --radius: 0.75rem; /* 12px consistent border radius */
   
-  /* LIGHT MODE COLOR SCHEME - Following STATHIS Design Specifications */
+  /* LIGHT MODE COLOR SCHEME - Following Stathis Design Specifications */
   
   /* Background Colors */
   --background: oklch(0.98 0.01 270); /* Main page background - light purple-tinted */
@@ -99,7 +99,7 @@
 }
 
 .dark {
-  /* DARK MODE COLOR SCHEME - Following STATHIS Design Specifications */
+  /* DARK MODE COLOR SCHEME - Following Stathis Design Specifications */
   
   /* Background Colors */
   --background: oklch(0.12 0.02 270); /* Main page background - dark with purple tint */
@@ -172,7 +172,7 @@ input {
   }
 }
 
-/* STATHIS Animation System */
+/* Stathis Animation System */
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-20px); }

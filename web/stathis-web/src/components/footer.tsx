@@ -90,7 +90,7 @@ export function Footer() {
 
         <div className="border-t border-border mt-12 flex flex-col items-center justify-between pt-8 md:flex-row">
           <p className="text-muted-foreground text-sm">
-            &copy; {new Date().getFullYear()} STATHIS. All rights reserved. Developed at CIT-University.
+            &copy; {new Date().getFullYear()} Stathis. All rights reserved. Developed at CIT-University.
           </p>
           <div className="mt-4 flex gap-6 md:mt-0">
             <a href="#" className="text-muted-foreground hover:text-primary text-sm transition-colors">

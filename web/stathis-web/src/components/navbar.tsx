@@ -33,9 +33,6 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 md:flex">
-            <a href="/" className="text-foreground/80 hover:text-primary transition-colors font-medium">
-              Home
-            </a>
             <a href="#about" className="text-foreground/80 hover:text-primary transition-colors font-medium">
               About
             </a>
@@ -46,7 +43,7 @@ export function Navbar() {
               Contact
             </a>
             <Button className="cta-button font-medium">
-              <Link href="/sign-up">Get Started</Link>
+              <Link href="/login">Get Started</Link>
             </Button>
             <ThemeSwitcher />
           </nav>
@@ -70,13 +67,6 @@ export function Navbar() {
             className="flex flex-col gap-4 pt-4 pb-2 md:hidden"
           >
             <a
-              href="/"
-              className="text-foreground/80 hover:text-primary py-2 transition-colors font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Home
-            </a>
-            <a
               href="#about"
               className="text-foreground/80 hover:text-primary py-2 transition-colors font-medium"
               onClick={() => setIsOpen(false)}
@@ -98,7 +88,7 @@ export function Navbar() {
               Contact
             </a>
             <Button className="cta-button font-medium w-full">
-              <Link href="/sign-up">Get Started</Link>
+              <Link href="/login">Get Started</Link>
             </Button>
           </motion.nav>
         )}
