@@ -64,7 +64,7 @@ export default function SignUpPage() {
       
       // Always set the email and show verification modal
       setSignedUpEmail(userEmail);
-      setShowVerificationModal(false);
+      setShowVerificationModal(true);
       
       // Extra logging to confirm verification modal should be shown
       console.log('[Sign Up] Showing verification modal for:', userEmail);
