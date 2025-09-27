@@ -25,6 +25,15 @@ public class PostureController {
       if (request.getLandmarks() == null) {
         return ResponseEntity.badRequest().body(Map.of("error", "Landmarks data is missing."));
       }
+      
+      // Validate landmark format
+      if (request.getLandmarks().length != 33 || request.getLandmarks()[0].length != 2) {
+        return ResponseEntity.badRequest().body(Map.of(
+          "error", 
+          "Landmarks must be of shape [33][2] (33 landmarks with x,y coordinates)"
+        ));
+      }
+      
       PostureResponse response = postureService.predict(request.getLandmarks());
       return ResponseEntity.ok(response);
     } catch (IllegalArgumentException e) {
