@@ -30,7 +30,7 @@ export interface UserResponseDTO {
  * Register a new user
  */
 export async function registerUser(userData: CreateUserDTO): Promise<UserResponseDTO> {
-  const { data, error, status } = await serverApiClient.post('/api/auth/register', userData);
+  const { data, error, status } = await serverApiClient.post('/auth/register', userData);
   
   if (error || status >= 400) {
     const errorMessage = typeof error === 'object' && error !== null && 'message' in error
@@ -80,11 +80,12 @@ export interface UserProfileDTO {
   yearLevel?: number;
 }
 
+// Matching the exact schema from the OpenAPI specification
 export interface UpdateUserProfileDTO {
   firstName: string;
   lastName: string;
-  birthdate?: string;
-  profilePictureUrl?: string;
+  birthdate?: string; // Optional, format should be YYYY-MM-DD
+  profilePictureUrl?: string; // Optional
 }
 
 export interface UpdateTeacherProfileDTO {
@@ -117,10 +118,6 @@ export async function getTeacherProfile(): Promise<UserProfileDTO> {
 }
 
 /**
- * This function is no longer needed - using physicalId directly
- */
-
-/**
  * Validates if a string is in UUID format
  */
 function isValidUUID(id: string): boolean {
@@ -135,10 +132,35 @@ export async function updateUserProfile(
 ): Promise<UserProfileDTO> {
   console.log('Updating user profile');
   
-  // Updated to match new backend implementation that doesn't require user ID
+  // Ensure payload is exactly as expected
+  const exactPayload: UpdateUserProfileDTO = {
+    firstName: profileData.firstName,
+    lastName: profileData.lastName
+  };
+  
+  // Only include optional fields if they have values
+  if (profileData.birthdate) {
+    exactPayload.birthdate = profileData.birthdate;
+  }
+  
+  if (profileData.profilePictureUrl) {
+    exactPayload.profilePictureUrl = profileData.profilePictureUrl;
+    console.log(`Profile picture URL length: ${profileData.profilePictureUrl.length} characters`);
+  }
+  
+  // Log the exact payload being sent
+  console.log('Sending payload to API:', exactPayload);
+  
+  // Using correct API endpoint path with custom content-type headers
   const { data, error, status } = await serverApiClient.put(
     `/users/profile`,
-    profileData
+    exactPayload,
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    }
   );
   
   if (error || status >= 400) {
@@ -160,7 +182,7 @@ export async function updateTeacherProfile(
 ): Promise<UserProfileDTO> {
   console.log('Updating teacher profile');
   
-  // Updated to match new backend implementation that doesn't require user ID
+  // Using correct API endpoint path
   const { data, error, status } = await serverApiClient.put(
     `/users/profile/teacher`,
     profileData
@@ -185,7 +207,7 @@ export async function updateStudentProfile(
 ): Promise<UserProfileDTO> {
   console.log('Updating student profile');
   
-  // Matching new backend implementation
+  // Using correct API endpoint path
   const { data, error, status } = await serverApiClient.put(
     `/users/profile/student`,
     profileData
