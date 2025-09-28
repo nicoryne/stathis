@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Outfit, Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { QueryProvider } from '@/providers/query-provider';
 import { Toaster } from 'sonner';
 import { AuthInitializer } from '@/components/auth/auth-initializer';
