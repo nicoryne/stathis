@@ -1,15 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { DashboardHeader } from '@/components/dashboard/dashboard-header';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import { Sidebar } from '@/components/dashboard/sidebar';
+import { AuthNavbar } from '@/components/auth-navbar';
+import { WebSocketManager } from '@/lib/websocket/websocket-client';
+import { getTeacherClassrooms, getClassroomStudents } from '@/services/api-classroom';
+import { cn } from '@/lib/utils';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter
 } from "@/components/ui/card";
 import {
   Select,
@@ -18,389 +22,654 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Activity, 
-  Heart, 
-  Thermometer, 
-  Wind, 
-  Droplet, 
-  Clock
+import { Badge } from '@/components/ui/badge';
+import {
+  Heart,
+  Search,
+  AlertTriangle,
+  UserRoundX,
+  School,
+  Clock,
+  Users,
+  Filter,
+  Wifi,
+  WifiOff,
+  Loader2,
 } from 'lucide-react';
-import { Sidebar } from '@/components/dashboard/sidebar';
-import { AuthNavbar } from '@/components/auth-navbar';
-import { VitalSignsDTO, HeartRateAlertDTO } from '@/services/vitals/api-vitals-client';
-import { useVitalSigns } from '@/lib/websocket/use-vital-signs';
-import { useHeartRateAlerts } from '@/lib/websocket/use-heart-rate-alerts';
-import { getTeacherClassrooms, getClassroomStudents } from '@/services/api-classroom';
-import { getTasksByClassroom } from '@/services/api-task-client';
+import { useToast } from '@/components/ui/use-toast';
+
+// Define the interface for student data
+interface Student {
+  id: string;
+  firstName: string;
+  lastName: string;
+  studentNumber: string;
+  heartRate?: number;
+  isActive: boolean;
+  lastUpdate: string;
+  status: "excellent" | "good" | "warning" | "inactive";
+  profilePictureUrl?: string;
+}
+
+// WebSocket message types
+interface WebSocketHeartRateData {
+  studentId: string;
+  heartRate: number;
+  timestamp: string;
+}
+
+interface WebSocketStudentStatusData {
+  studentId: string;
+  isActive: boolean;
+  lastSeen: string;
+}
+
+// Constants for status and thresholds
+const HEART_RATE_THRESHOLD = 90;
+const EXCELLENT_THRESHOLD = 70;
+
+// Function to transform API data to our Student model
+function mapApiDataToStudent(apiStudent: any): Student {
+  return {
+    id: apiStudent.physicalId,
+    firstName: apiStudent.firstName,
+    lastName: apiStudent.lastName,
+    studentNumber: apiStudent.email?.split('@')[0] || 'Unknown', // Use part of email as student number
+    heartRate: undefined,
+    isActive: apiStudent.verified,
+    lastUpdate: "Just now",
+    status: apiStudent.verified ? "good" : "inactive",
+    profilePictureUrl: apiStudent.profilePictureUrl
+  };
+}
+
+// Format relative time (e.g., "2 min ago")
+function formatRelativeTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  
+  if (diffSeconds < 60) return `${diffSeconds} sec ago`;
+  
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes} min ago`;
+  
+  const diffHours = Math.floor(diffMinutes / 60);
+  return `${diffHours} hr ago`;
+}
+
+// Function to determine heart rate status
+function getHeartRateStatus(
+  heartRate: number | undefined, 
+  threshold = HEART_RATE_THRESHOLD
+): "excellent" | "good" | "warning" | "inactive" {
+  if (!heartRate) return "inactive";
+  if (heartRate < EXCELLENT_THRESHOLD) return "excellent";
+  if (heartRate <= threshold) return "good";
+  return "warning";
+}
+
+// Determine status color CSS classes
+function getStatusColor(status: string): string {
+  switch (status) {
+    case "excellent":
+      return "border-green-500 bg-green-50 text-green-700";
+    case "good":
+      return "border-blue-500 bg-blue-50 text-blue-700";
+    case "warning":
+      return "border-orange-500 bg-orange-50 text-orange-700";
+    case "inactive":
+      return "border-gray-300 bg-gray-50 text-gray-500 opacity-75";
+    default:
+      return "border-gray-300 bg-gray-50 text-gray-500";
+  }
+}
+
+// Determine badge color for status
+function getStatusBadgeClass(status: string): string {
+  switch (status) {
+    case "excellent":
+      return "bg-green-100 text-green-800";
+    case "good":
+      return "bg-blue-100 text-blue-800";
+    case "warning":
+      return "bg-orange-100 text-orange-800";
+    case "inactive":
+      return "bg-gray-100 text-gray-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+}
+
+// Custom hook for WebSocket connection with throttling
+function useWebSocketMonitor(classroomId: string | null) {
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  
+  // Buffer for incoming WebSocket data to prevent excessive updates
+  const heartRateBuffer = useRef<Record<string, WebSocketHeartRateData>>({});
+  const statusBuffer = useRef<Record<string, WebSocketStudentStatusData>>({});
+  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUpdateTimeRef = useRef<Date>(new Date());
+  const { toast } = useToast();
+
+  // Throttled function to process buffered updates
+  const processBufferedUpdates = useCallback(() => {
+    // Clear any existing timeout
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    
+    // Schedule update with 500ms throttle
+    updateTimeoutRef.current = setTimeout(() => {
+      // Only process if we have data
+      if (Object.keys(heartRateBuffer.current).length === 0 && 
+          Object.keys(statusBuffer.current).length === 0) {
+        return;
+      }
+      
+      setStudents(prevStudents => {
+        // Use Map for faster lookups by student ID
+        const studentMap = new Map(prevStudents.map(student => [student.id, student]));
+        let hasChanges = false;
+        
+        // Process heart rate updates
+        Object.values(heartRateBuffer.current).forEach(data => {
+          const student = studentMap.get(data.studentId);
+          if (student) {
+            // Skip update if data hasn't changed
+            if (student.heartRate === data.heartRate) {
+              return;
+            }
+            
+            const status = getHeartRateStatus(data.heartRate);
+            studentMap.set(data.studentId, {
+              ...student,
+              heartRate: data.heartRate,
+              lastUpdate: formatRelativeTime(data.timestamp),
+              status,
+              isActive: true
+            });
+            hasChanges = true;
+          }
+        });
+        
+        // Process status updates
+        Object.values(statusBuffer.current).forEach(data => {
+          const student = studentMap.get(data.studentId);
+          if (student && student.isActive !== data.isActive) {
+            studentMap.set(data.studentId, {
+              ...student,
+              isActive: data.isActive,
+              lastUpdate: formatRelativeTime(data.lastSeen),
+              status: data.isActive ? (student.status !== 'inactive' ? student.status : 'good') : 'inactive'
+            });
+            hasChanges = true;
+          }
+        });
+        
+        // Clear buffers
+        heartRateBuffer.current = {};
+        statusBuffer.current = {};
+        
+        // Update the timestamp
+        if (hasChanges) {
+          lastUpdateTimeRef.current = new Date();
+        }
+        
+        // Only create new array if data changed
+        return hasChanges ? Array.from(studentMap.values()) : prevStudents;
+      });
+    }, 500);
+  }, []);
+
+  // Handle WebSocket heart rate updates
+  const handleHeartRateUpdate = useCallback((data: any) => {
+    if (!data || !data.studentId || typeof data.heartRate !== 'number') {
+      return;
+    }
+    
+    // Store in buffer instead of updating state directly
+    heartRateBuffer.current[data.studentId] = data;
+    processBufferedUpdates();
+  }, [processBufferedUpdates]);
+  
+  // Handle WebSocket student status updates
+  const handleStudentStatusUpdate = useCallback((data: any) => {
+    if (!data || !data.studentId || typeof data.isActive !== 'boolean') {
+      return;
+    }
+    
+    // Store in buffer instead of updating state directly
+    statusBuffer.current[data.studentId] = data;
+    processBufferedUpdates();
+  }, [processBufferedUpdates]);
+
+  // Set up WebSocket connection
+  useEffect(() => {
+    if (!classroomId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    const wsManager = WebSocketManager.getInstance();
+    const subscriptions: (() => void)[] = [];
+    
+    // Subscribe to WebSocket events
+    subscriptions.push(wsManager.subscribe('$SYSTEM/connected', () => {
+      setIsConnected(true);
+      toast({
+        title: "Connected",
+        description: "Live monitoring data is now active",
+      });
+    }));
+    
+    subscriptions.push(wsManager.subscribe('$SYSTEM/disconnected', () => {
+      setIsConnected(false);
+      toast({
+        title: "Disconnected",
+        description: "Connection to monitoring server lost",
+        variant: "destructive",
+      });
+    }));
+    
+    // Subscribe to heart rate updates
+    const heartRateTopic = `/topic/classroom/${classroomId}/vitals`;
+    subscriptions.push(wsManager.subscribe(heartRateTopic, handleHeartRateUpdate));
+    
+    // Subscribe to student status updates
+    const statusTopic = `/topic/classroom/${classroomId}/status`;
+    subscriptions.push(wsManager.subscribe(statusTopic, handleStudentStatusUpdate));
+    
+    // Fetch initial student list and start WebSocket if needed
+    const fetchStudents = async () => {
+      try {
+        const response = await getClassroomStudents(classroomId);
+        const initialStudents = response.students.map(mapApiDataToStudent);
+        setStudents(initialStudents);
+        
+        // Start WebSocket connection if not already connected
+        if (!wsManager.isConnected()) {
+          // Get token from localStorage if available
+          const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+          wsManager.connect(token || undefined);
+        } else {
+          setIsConnected(true);
+        }
+      } catch (err) {
+        console.error('Error fetching students:', err);
+        setError('Failed to load student data. Please try again.');
+        setStudents([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchStudents();
+    
+    // Cleanup function
+    return () => {
+      subscriptions.forEach(unsub => unsub());
+      if (updateTimeoutRef.current) {
+        clearTimeout(updateTimeoutRef.current);
+      }
+    };
+  }, [classroomId, handleHeartRateUpdate, handleStudentStatusUpdate, toast]);
+  
+  // Return the state and helper functions
+  return {
+    students,
+    isLoading,
+    error,
+    isConnected,
+    lastUpdateTime: lastUpdateTimeRef.current
+  };
+}
+
+// Memoized student card component
+const StudentCard = memo(function StudentCardBase({ student }: { student: Student }) {
+  const isInactive = !student.isActive;
+  const heartRateStatus = useMemo(
+    () => getHeartRateStatus(student.heartRate),
+    [student.heartRate]
+  );
+  
+  return (
+    <Card className={cn(
+      "relative overflow-hidden transition-all hover:shadow-lg",
+      "border-l-4 border-t-4 border-r-2 border-b-2",
+      getStatusColor(student.status),
+      isInactive && "grayscale"
+    )}>
+      {/* Status Indicator */}
+      <div className={cn(
+        "absolute top-0 left-0 right-0 h-1",
+        student.status === "excellent" && "bg-green-500",
+        student.status === "good" && "bg-blue-500",
+        student.status === "warning" && "bg-orange-500",
+        student.status === "inactive" && "bg-gray-500"
+      )} />
+      
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg font-bold tracking-tight">
+              {student.lastName}, {student.firstName}
+            </CardTitle>
+            <CardDescription className="font-mono text-xs">
+              {student.studentNumber}
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className={cn("text-xs", getStatusBadgeClass(student.status))}>
+            {student.status === "excellent" && "Excellent"}
+            {student.status === "good" && "Normal"}
+            {student.status === "warning" && "Warning"}
+            {student.status === "inactive" && "Inactive"}
+          </Badge>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className={cn(
+              "p-2 rounded-full",
+              heartRateStatus === "excellent" && "bg-green-100",
+              heartRateStatus === "good" && "bg-blue-100",
+              heartRateStatus === "warning" && "bg-orange-100",
+              heartRateStatus === "inactive" && "bg-gray-100"
+            )}>
+              <Heart className={cn(
+                "h-5 w-5",
+                heartRateStatus === "excellent" && "text-green-600",
+                heartRateStatus === "good" && "text-blue-600",
+                heartRateStatus === "warning" && "animate-pulse text-orange-600",
+                heartRateStatus === "inactive" && "text-gray-600"
+              )} />
+            </div>
+            <div>
+              <p className="font-bold text-lg">
+                {student.heartRate ? `${student.heartRate} BPM` : "No Data"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+      
+      <CardFooter className="pt-0 pb-3 text-xs text-muted-foreground border-t">
+        <div className="flex w-full justify-between items-center">
+          <div className="flex items-center">
+            <Clock className="mr-1 h-3 w-3" />
+            <span>Updated: {student.lastUpdate}</span>
+          </div>
+          <div className="flex items-center">
+            <div className={cn(
+              "h-2 w-2 rounded-full mr-1",
+              student.isActive ? "bg-green-500" : "bg-gray-400"
+            )} />
+            <span>{student.isActive ? "Online" : "Offline"}</span>
+          </div>
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}, (prevProps, nextProps) => {
+  // Custom equality check to prevent unnecessary re-renders
+  const prevStudent = prevProps.student;
+  const nextStudent = nextProps.student;
+  
+  return (
+    prevStudent.id === nextStudent.id &&
+    prevStudent.heartRate === nextStudent.heartRate &&
+    prevStudent.isActive === nextStudent.isActive &&
+    prevStudent.lastUpdate === nextStudent.lastUpdate &&
+    prevStudent.status === nextStudent.status
+  );
+});
 
 export default function MonitoringPage() {
-  const [selectedClassroom, setSelectedClassroom] = useState('');
-  const [selectedTask, setSelectedTask] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState('');
+  const [selectedClassroom, setSelectedClassroom] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { toast } = useToast();
+  
   // Fetch classrooms
-  const { data: classroomsData } = useQuery({
+  const { data: classroomsData, isLoading: isLoadingClassrooms } = useQuery({
     queryKey: ['teacher-classrooms'],
     queryFn: async () => {
       try {
         return await getTeacherClassrooms();
       } catch (error) {
         console.error('Error fetching classrooms:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load classrooms. Please try again.",
+          variant: "destructive",
+        });
         return [];
       }
     }
   });
   
-  // Fetch tasks for selected classroom
-  const { data: tasksData } = useQuery({
-    queryKey: ['classroom-tasks', selectedClassroom],
-    queryFn: async () => {
-      if (!selectedClassroom) return [];
-      try {
-        return await getTasksByClassroom(selectedClassroom);
-      } catch (error) {
-        console.error('Error fetching tasks:', error);
-        return [];
-      }
-    },
-    enabled: !!selectedClassroom
-  });
-  
-  // Fetch students for selected classroom
-  const { data: studentsData, isLoading: isStudentsLoading } = useQuery({
-    queryKey: ['classroom-students', selectedClassroom],
-    queryFn: async () => {
-      if (!selectedClassroom) return { students: [] };
-      try {
-        const response = await getClassroomStudents(selectedClassroom);
-        return response;
-      } catch (error) {
-        console.error('Error fetching students:', error);
-        return { students: [] };
-      }
-    },
-    enabled: !!selectedClassroom
-  });
-  
-  // Use real-time vital signs from WebSocket
-  const { 
-    vitalSigns, 
-    isConnected, 
-    error: wsError, 
-    lastUpdated,
-    refreshData,
-    subscriptionTopics
-  } = useVitalSigns(selectedStudent, selectedTask);
-  
-  // Use heart rate alerts for the selected classroom
+  // Use custom WebSocket hook for real-time student data
   const {
-    alerts: heartRateAlerts,
-    clearAlert,
-    clearAllAlerts,
-    error: alertsError
-  } = useHeartRateAlerts(selectedClassroom);
+    students,
+    isLoading,
+    error,
+    isConnected,
+    lastUpdateTime
+  } = useWebSocketMonitor(selectedClassroom);
   
-  // Debug information for development
-  useEffect(() => {
-    if (isConnected) {
-      console.log('WebSocket connected, subscribed to topics:', subscriptionTopics);
+  // Memoized filtering and sorting logic for students
+  const filteredStudents = useMemo(() => {
+    return students
+      .filter(student => {
+        // Filter by search query
+        const matchesSearch = !searchQuery || 
+          `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          student.studentNumber.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        // Filter by status
+        const matchesStatus = statusFilter === "all" || student.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => a.lastName.localeCompare(b.lastName));
+  }, [students, searchQuery, statusFilter]);
+  
+  // Memoized stats calculation
+  const stats = useMemo(() => {
+    if (students.length === 0) {
+      return { active: 0, inactive: 0, warning: 0, total: 0 };
     }
     
-    if (vitalSigns) {
-      console.log('Received vital signs update:', vitalSigns);
-    }
-  }, [isConnected, vitalSigns, subscriptionTopics]);
+    // Single pass through students array for efficiency
+    const result = students.reduce((acc, student) => {
+      if (student.isActive) acc.active++;
+      else acc.inactive++;
+      if (student.status === "warning") acc.warning++;
+      return acc;
+    }, { active: 0, inactive: 0, warning: 0 });
+    
+    return { ...result, total: students.length };
+  }, [students]);
   
-  // Helper function to determine color based on vital sign value
-  const getVitalStatusColor = (value: number, type: string): string => {
-    switch (type) {
-      case 'heartRate':
-        return value < 60 || value > 100 ? 'text-red-500' : 'text-green-500';
-      case 'oxygenSaturation':
-        return value < 95 ? 'text-red-500' : 'text-green-500';
-      default:
-        return 'text-green-500';
-    }
-  };
+  // Handle classroom selection
+  const handleClassroomChange = useCallback((classroomId: string) => {
+    setSelectedClassroom(classroomId);
+  }, []);
   
-  // Only use the actual vital signs available from the backend
-  // The backend provides only heart rate and oxygen saturation
+  // Handle search input
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
   
-  // No need to transform the data - use it as is
+  // Handle status filter
+  const toggleStatusFilter = useCallback(() => {
+    setStatusFilter(prev => {
+      if (prev === "all") return "warning";
+      return "all";
+    });
+  }, []);
   
   return (
-    <div className="flex min-h-screen">
-      <Sidebar className="w-64 flex-shrink-0" />
-
+    <div className="flex min-h-screen bg-background">
+      <Sidebar className="hidden lg:block" />
+      
       <div className="flex-1">
         <AuthNavbar />
         
-        <main className="p-6">
-          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
+          {/* Header */}
+          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Vital Signs Monitoring</h1>
-              <p className="text-muted-foreground mt-1">Monitor student vital signs during activities</p>
+              <h1 className="text-3xl font-bold tracking-tight">Student Health Monitoring</h1>
+              <p className="text-muted-foreground">
+                Real-time vitals tracking • {classroomsData?.find(c => c.physicalId === selectedClassroom)?.name || 'Class'} • {lastUpdateTime.toLocaleTimeString()}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={!selectedStudent || !isConnected}
-                onClick={refreshData}
-              >
-                <Activity className="mr-2 h-4 w-4" />
-                Refresh Now
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={!selectedStudent || heartRateAlerts.length === 0}
-                onClick={() => clearAllAlerts()}
-              >
-                <Clock className="mr-2 h-4 w-4" />
-                Clear Alerts
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid gap-6">
-            {/* Selection Controls */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Monitoring Controls</CardTitle>
-                <CardDescription>Select classroom, task, and student to monitor</CardDescription>
-              </CardHeader>
-              <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Classroom</label>
-                <Select value={selectedClassroom} onValueChange={setSelectedClassroom}>
-                  <SelectTrigger>
+            
+            <div className="flex flex-col md:flex-row items-end md:items-center space-y-2 md:space-y-0 md:space-x-2">
+              <div className="flex items-center space-x-2">
+                {/* Classroom selector */}
+                <Select value={selectedClassroom || ''} onValueChange={handleClassroomChange}>
+                  <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select classroom" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classroomsData?.map(classroom => (
-                      <SelectItem key={classroom.physicalId} value={classroom.physicalId}>
-                        {classroom.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Task</label>
-                <Select 
-                  value={selectedTask} 
-                  onValueChange={setSelectedTask}
-                  disabled={!selectedClassroom}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select task" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tasksData?.map(task => (
-                      <SelectItem key={task.physicalId} value={task.physicalId}>
-                        {task.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Student</label>
-                <Select 
-                  value={selectedStudent} 
-                  onValueChange={setSelectedStudent}
-                  disabled={!selectedTask || isStudentsLoading || !studentsData?.students?.length}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {isStudentsLoading ? (
-                      <SelectItem value="loading" disabled>Loading students...</SelectItem>
-                    ) : studentsData?.students?.length ? (
-                      studentsData.students.map(student => (
-                        <SelectItem key={student.physicalId} value={student.physicalId}>
-                          {student.firstName} {student.lastName}
+                    {isLoadingClassrooms ? (
+                      <SelectItem value="loading" disabled>Loading...</SelectItem>
+                    ) : classroomsData?.length ? (
+                      classroomsData.map((classroom) => (
+                        <SelectItem key={classroom.physicalId} value={classroom.physicalId}>
+                          {classroom.name}
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="no-students" disabled>No students found</SelectItem>
+                      <SelectItem value="no-classrooms" disabled>No classrooms</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
+                
+                {/* WebSocket connection status */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn("rounded-full", isConnected ? "text-green-500" : "text-muted-foreground")}>
+                  {isConnected ? (
+                    <Wifi className="h-4 w-4 animate-pulse" />
+                  ) : (
+                    <WifiOff className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search students..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="pl-9 md:w-[250px] lg:w-[300px]"
+                />
+              </div>
+              
+              {/* Filter button */}
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={toggleStatusFilter}
+                className={statusFilter !== "all" ? "bg-orange-100" : ""}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Stats cards */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="border-l-4 border-l-green-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Students</CardTitle>
+                <Users className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+                <p className="text-xs text-muted-foreground">
+                  {Math.round((stats.active / stats.total) * 100) || 0}% of total
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-l-4 border-l-orange-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{stats.warning}</div>
+                <p className="text-xs text-muted-foreground">High heart rate detected</p>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-l-4 border-l-gray-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Inactive</CardTitle>
+                <UserRoundX className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
+                <p className="text-xs text-muted-foreground">No data received</p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Main content */}
+          {isLoading ? (
+            <div className="flex items-center justify-center h-60">
+              <div className="flex flex-col items-center space-y-4">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-lg text-muted-foreground">Loading student data...</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Vital Signs Display */}
-        {/* Error messages */}
-        {(wsError || alertsError) && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <strong className="font-bold">Connection Error: </strong>
-            <span className="block sm:inline">{wsError || alertsError}</span>
-          </div>
-        )}
-        
-        {/* Heart Rate Alerts Section */}
-        {heartRateAlerts.length > 0 && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold mb-3 flex items-center">
-              <Heart className="h-5 w-5 text-red-500 mr-2" />
-              Heart Rate Alerts
-            </h2>
-            <div className="space-y-2">
-              {heartRateAlerts.map((alert, index) => (
-                <div 
-                  key={`${alert.studentId}-${alert.timestamp}-${index}`}
-                  className="bg-red-50 border border-red-200 rounded-md p-3 flex justify-between items-center"
-                >
-                  <div>
-                    <p className="font-medium">{alert.studentName}</p>
-                    <p className="text-sm text-red-700">{alert.alertMessage}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(alert.timestamp).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => clearAlert(`${alert.studentId}${alert.timestamp}`)}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
+          ) : error ? (
+            <Card className="flex flex-col items-center justify-center p-12 text-center">
+              <AlertTriangle className="h-20 w-20 mb-6 text-orange-500" />
+              <CardTitle className="text-2xl mb-2">Error Loading Data</CardTitle>
+              <CardDescription className="text-lg">{error}</CardDescription>
+              <Button
+                onClick={() => setSelectedClassroom(selectedClassroom)}
+                className="mt-6"
+                variant="outline"
+              >
+                Try Again
+              </Button>
+            </Card>
+          ) : filteredStudents.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {filteredStudents.map((student) => (
+                <StudentCard key={student.id} student={student} />
               ))}
             </div>
-          </div>
-        )}
-        
-        {isConnected && (
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-muted-foreground">
-              Connected to real-time monitoring
-              {lastUpdated && ` · Last updated: ${lastUpdated.toLocaleTimeString()}`}
-            </span>
-          </div>
-        )}
-        
-        {selectedStudent && selectedTask && !isConnected && (
-          <div className="flex items-center gap-2 mb-4 text-amber-600">
-            <div className="w-3 h-3 bg-amber-500 rounded-full"></div>
-            <span className="text-sm">Connecting to monitoring system...</span>
-          </div>
-        )}
-        
-        {/* Show debugging info in development */}
-        {process.env.NODE_ENV === 'development' && selectedStudent && selectedTask && (
-          <div className="bg-slate-50 p-4 rounded mb-4 text-xs font-mono overflow-auto max-h-40">
-            <details>
-              <summary className="cursor-pointer font-semibold mb-2">Connection Debug Info</summary>
-              <div>
-                <p><strong>Connection Status:</strong> {isConnected ? 'Connected' : 'Disconnected'}</p>
-                <p><strong>Student ID:</strong> {selectedStudent}</p>
-                <p><strong>Task ID:</strong> {selectedTask}</p>
-                <p><strong>Last Updated:</strong> {lastUpdated?.toISOString() || 'Never'}</p>
-                <p><strong>Subscribed Topics:</strong></p>
-                <ul className="list-disc pl-4">
-                  {subscriptionTopics.map((topic, i) => (
-                    <li key={i}>{topic}</li>
-                  ))}
-                </ul>
-              </div>
-            </details>
-          </div>
-        )}
-        
-        {selectedStudent && vitalSigns ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {/* Heart Rate */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Heart Rate</CardTitle>
-                <Heart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${getVitalStatusColor(vitalSigns.heartRate, 'heartRate')}`}>
-                  {vitalSigns.heartRate ?? 'N/A'} <span className="text-sm font-normal">BPM</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Normal range: 60-100 BPM
-                </p>
-                {vitalSigns.isPreActivity && (
-                  <div className="mt-1 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Pre-Activity
-                  </div>
-                )}
-                {vitalSigns.isPostActivity && (
-                  <div className="mt-1 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                    Post-Activity
-                  </div>
-                )}
-              </CardContent>
+          ) : (
+            <Card className="flex flex-col items-center justify-center p-12 text-center">
+              <School className="h-20 w-20 mb-6 text-muted-foreground/40" />
+              <CardTitle className="text-2xl mb-2">No Students Found</CardTitle>
+              <CardDescription className="text-lg">
+                {searchQuery ? "Try adjusting your search criteria" : selectedClassroom ? "No students enrolled in this class" : "Please select a classroom"}
+              </CardDescription>
             </Card>
-
-            {/* Blood Oxygen / Oxygen Saturation */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Blood Oxygen</CardTitle>
-                <Droplet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${getVitalStatusColor(vitalSigns.oxygenSaturation, 'oxygenSaturation')}`}>
-                  {vitalSigns.oxygenSaturation ?? 'N/A'}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Normal range: ≥95%
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Last Updated */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Last Updated</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-medium">
-                  {lastUpdated ? lastUpdated.toLocaleTimeString() : 'N/A'}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {lastUpdated ? lastUpdated.toLocaleDateString() : 'No data yet'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        ) : selectedStudent ? (
-          <Card>
-            <CardContent className="py-10">
-              <div className="text-center text-muted-foreground">
-                <Activity className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                <h3 className="text-lg font-medium mb-2">Loading vital signs...</h3>
-                <p>Connecting to monitoring system</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="py-10">
-              <div className="text-center text-muted-foreground">
-                <Activity className="mx-auto h-12 w-12 mb-4 text-muted-foreground/50" />
-                <h3 className="text-lg font-medium mb-2">No student selected</h3>
-                <p>Select a classroom, task, and student to view vital signs</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-          </div>
-        </main>
+          )}
+        </div>
       </div>
     </div>
   );
