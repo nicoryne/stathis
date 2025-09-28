@@ -78,21 +78,25 @@ public class TaskService {
         taskRepository.delete(task);
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
     public Optional<Task> getTaskByPhysicalId(String physicalId) {
         return taskRepository.findByPhysicalId(physicalId);
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
     public List<Task> getTasksByClassroom(String classroomPhysicalId) {
         return taskRepository.findByClassroomPhysicalId(classroomPhysicalId);
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
     public List<Task> getActiveTasksByClassroom(String classroomPhysicalId) {
         return taskRepository.findActiveTasksByClassroom(classroomPhysicalId);
     }
 
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('TEACHER', 'STUDENT')")
     public List<Task> getStartedTasksByClassroom(String classroomPhysicalId) {
         return taskRepository.findStartedTasksByClassroom(classroomPhysicalId);
@@ -124,10 +128,12 @@ public class TaskService {
         taskRepository.save(task);
     }
 
+    @Transactional(readOnly = true)
     public boolean existsByPhysicalId(String physicalId) {
         return taskRepository.existsByPhysicalId(physicalId);
     }
 
+    @Transactional(readOnly = true)
     public boolean existsByPhysicalIdAndClassroomId(String physicalId, String classroomId) {
         return taskRepository.existsByPhysicalIdAndClassroomId(physicalId, classroomId);
     }

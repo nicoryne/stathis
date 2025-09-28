@@ -52,30 +52,37 @@ public class TaskCompletionService {
         return taskCompletionRepository.save(taskCompletion);
     }
 
+    @Transactional(readOnly = true)
     public Optional<TaskCompletion> getTaskCompletion(String studentId, String taskId) {
         return taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId);
     }
 
+    @Transactional(readOnly = true)
     public List<TaskCompletion> getTaskCompletionsByStudent(String studentId) {
         return taskCompletionRepository.findByStudentId(studentId);
     }
 
+    @Transactional(readOnly = true)
     public List<TaskCompletion> getTaskCompletionsByTask(String taskId) {
         return taskCompletionRepository.findByTaskId(taskId);
     }
 
+    @Transactional(readOnly = true)
     public List<TaskCompletion> getCompletedTasks(String taskId) {
         return taskCompletionRepository.findCompletedByTaskId(taskId);
     }
 
+    @Transactional(readOnly = true)
     public List<TaskCompletion> getSubmittedForReviewTasks(String taskId) {
         return taskCompletionRepository.findSubmittedForReviewByTaskId(taskId);
     }
 
+    @Transactional(readOnly = true)
     public long countCompletedTasks(String taskId) {
         return taskCompletionRepository.countCompletedByTaskId(taskId);
     }
 
+    @Transactional(readOnly = true)
     public long countSubmittedForReviewTasks(String taskId) {
         return taskCompletionRepository.countSubmittedForReviewByTaskId(taskId);
     }
@@ -89,6 +96,7 @@ public class TaskCompletionService {
         taskCompletionRepository.save(taskCompletion);
     }
 
+    @Transactional(readOnly = true)
     public boolean existsByStudentIdAndTaskId(String studentId, String taskId) {
         return taskCompletionRepository.existsByStudentIdAndTaskId(studentId, taskId);
     }

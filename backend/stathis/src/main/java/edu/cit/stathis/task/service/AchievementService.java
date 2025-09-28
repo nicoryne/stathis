@@ -100,6 +100,7 @@ public class AchievementService {
         }
     }
 
+    @Transactional(readOnly = true)
     private Score getBestScore(String studentId, String taskId) {
         List<Score> scores = scoreRepository.findByStudentIdAndTaskId(studentId, taskId);
         if (scores.isEmpty()) return null;
@@ -159,6 +160,7 @@ public class AchievementService {
         updateTaskProgress(studentId, taskId, "exercise", true);
     }
 
+    @Transactional
     private void createBadgeIfNotExists(String studentId, String taskId, BadgeType badgeType) {
         if (!badgeRepository.existsByStudentIdAndTaskIdAndBadgeType(studentId, taskId, badgeType.name())) {
             Badge badge = Badge.builder()
@@ -173,6 +175,7 @@ public class AchievementService {
         }
     }
 
+    @Transactional
     private void updateLeaderboard(String studentId, String taskId, Score score) {
         Leaderboard leaderboard = leaderboardRepository.findByStudentIdAndTaskId(studentId, taskId);
         if (leaderboard == null) {
@@ -193,6 +196,7 @@ public class AchievementService {
         updateRanks(taskId);
     }
 
+    @Transactional
     private void updateRanks(String taskId) {
         List<Leaderboard> entries = leaderboardRepository.findByTaskIdOrderByScoreDescTimeTakenAsc(taskId);
         for (int i = 0; i < entries.size(); i++) {
@@ -202,6 +206,7 @@ public class AchievementService {
         }
     }
 
+    @Transactional(readOnly = true)
     private boolean isSpeedDemon(String taskId, long timeTaken) {
         List<Leaderboard> entries = leaderboardRepository.findByTaskIdOrderByScoreDescTimeTakenAsc(taskId);
         if (entries.size() < 10) return false;
@@ -212,6 +217,7 @@ public class AchievementService {
             .anyMatch(entry -> entry.getTimeTaken() >= timeTaken);
     }
 
+    @Transactional
     private String generatePhysicalId() {
         String year = String.valueOf(OffsetDateTime.now().getYear()).substring(2);
         Random random = new Random();

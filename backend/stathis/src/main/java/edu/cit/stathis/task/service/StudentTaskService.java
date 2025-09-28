@@ -49,6 +49,7 @@ public class StudentTaskService {
     @Autowired
     private ClassroomService classroomService;
 
+    @Transactional(readOnly = true)
     public List<StudentTaskResponseDTO> getStudentTasks(String classroomPhysicalId, String studentId) {
         // Only allow if student is enrolled and verified
         if (!classroomService.isUserEnrolledAndVerifiedInClassroom(studentId, classroomPhysicalId)) {
@@ -60,13 +61,14 @@ public class StudentTaskService {
             .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public StudentTaskResponseDTO getStudentTask(String taskId, String studentId) {
         Task task = taskRepository.findByPhysicalId(taskId)
             .orElseThrow(() -> new EntityNotFoundException("Task not found with ID: " + taskId));
         return buildStudentTaskResponse(task, studentId);
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public TaskProgressDTO getTaskProgress(String taskId, String studentId) {
         Task task = taskRepository.findByPhysicalId(taskId)
             .orElseThrow(() -> new EntityNotFoundException("Task not found with ID: " + taskId));
@@ -208,6 +210,7 @@ public class StudentTaskService {
         updateTaskCompletion(studentId, taskId, "exercise", true);
     }
 
+    @Transactional
     private void updateTaskCompletion(String studentId, String taskId, String componentType, boolean completed) {
         TaskCompletion completion = taskCompletionRepository.findByStudentIdAndTaskId(studentId, taskId)
             .orElse(null);
