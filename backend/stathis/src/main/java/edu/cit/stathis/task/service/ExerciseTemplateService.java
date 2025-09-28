@@ -22,6 +22,7 @@ public class ExerciseTemplateService {
     @Autowired
     private PhysicalIdService physicalIdService;
 
+    @Transactional
     public ExerciseTemplate createExerciseTemplate(ExerciseTemplateBodyDTO exerciseTemplateBodyDTO) {
         ExerciseTemplate exerciseTemplate = new ExerciseTemplate();
         exerciseTemplate.setPhysicalId(generatePhysicalId());
@@ -44,15 +45,18 @@ public class ExerciseTemplateService {
         return String.format("EXERCISE-%s-%s-%s", year, secondPart, thirdPart);
     }
 
+    @Transactional(readOnly = true)
     public ExerciseTemplate getExerciseTemplate(String physicalId) {
         return exerciseTemplateRepository.findByPhysicalId(physicalId)
             .orElseThrow(() -> new RuntimeException("Exercise template not found"));
     }
 
+    @Transactional(readOnly = true)
     public List<ExerciseTemplate> getAllExerciseTemplates() {
         return exerciseTemplateRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<ExerciseTemplate> getAllExerciseTemplatesByTeacherPhysicalId(String teacherPhysicalId) {
         return exerciseTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
     }

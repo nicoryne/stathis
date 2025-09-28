@@ -21,6 +21,7 @@ public class QuizTemplateService {
     @Autowired
     private PhysicalIdService physicalIdService;
 
+    @Transactional
     public QuizTemplate createQuizTemplate(QuizTemplateBodyDTO quizTemplateBodyDTO) {
         QuizTemplate quizTemplate = new QuizTemplate();
         quizTemplate.setPhysicalId(generatePhysicalId());
@@ -40,14 +41,17 @@ public class QuizTemplateService {
         return String.format("QUIZ-%s-%s-%s", year, secondPart, thirdPart);
     }
 
+    @Transactional(readOnly = true)
     public QuizTemplate getQuizTemplate(String physicalId) {
         return quizTemplateRepository.findByPhysicalId(physicalId).orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public List<QuizTemplate> getAllQuizTemplates() {
         return quizTemplateRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<QuizTemplate> getAllQuizTemplatesByTeacherPhysicalId(String teacherPhysicalId) {
         return quizTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
     }

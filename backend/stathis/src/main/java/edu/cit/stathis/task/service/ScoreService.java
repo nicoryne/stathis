@@ -53,22 +53,27 @@ public class ScoreService {
         return scoreRepository.save(score);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Score> getScoreByPhysicalId(String physicalId) {
         return scoreRepository.findByPhysicalId(physicalId);
     }
 
+    @Transactional(readOnly = true)
     public List<Score> getScoresByStudent(String studentId) {
         return scoreRepository.findByStudentId(studentId);
     }
 
+    @Transactional(readOnly = true)
     public List<Score> getScoresByTask(String taskId) {
         return scoreRepository.findByTaskId(taskId);
     }
 
+    @Transactional(readOnly = true)
     public List<Score> getScoresByStudentAndTask(String studentId, String taskId) {
         return scoreRepository.findByStudentIdAndTaskId(studentId, taskId);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Score> getQuizScore(String studentId, String taskId, String quizTemplateId) {
         return scoreRepository.findQuizScore(studentId, taskId, quizTemplateId);
     }
@@ -77,10 +82,12 @@ public class ScoreService {
         return scoreRepository.findExerciseScore(studentId, taskId, exerciseTemplateId);
     }
 
+    @Transactional(readOnly = true)
     public Double getAverageQuizScore(String taskId, String quizTemplateId) {
         return scoreRepository.getAverageQuizScore(taskId, quizTemplateId);
     }
 
+    @Transactional(readOnly = true)
     public Double getAverageExerciseScore(String taskId, String exerciseTemplateId) {
         return scoreRepository.getAverageExerciseScore(taskId, exerciseTemplateId);
     }
@@ -94,14 +101,17 @@ public class ScoreService {
         scoreRepository.save(score);
     }
 
+    @Transactional(readOnly = true)
     public boolean existsByPhysicalId(String physicalId) {
         return scoreRepository.existsByPhysicalId(physicalId);
     }
 
+    @Transactional(readOnly = true)
     public boolean existsQuizScore(String studentId, String taskId, String quizTemplateId) {
         return scoreRepository.existsQuizScore(studentId, taskId, quizTemplateId);
     }
 
+    @Transactional(readOnly = true)
     public boolean existsExerciseScore(String studentId, String taskId, String exerciseTemplateId) {
         return scoreRepository.existsExerciseScore(studentId, taskId, exerciseTemplateId);
     }
