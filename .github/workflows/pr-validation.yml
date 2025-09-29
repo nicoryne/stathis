@@ -47,11 +47,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web/stathis-web/package-lock.json
+          # No npm cache because no lockfile exists in web/stathis-web
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Run linting
         run: npm run lint
