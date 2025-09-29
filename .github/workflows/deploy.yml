@@ -8,11 +8,51 @@ on:
   workflow_dispatch:
 
 jobs:
+  deploy-check:
+    name: Deploy Check (PR to main)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-check-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm deploy workflow will run on merge
+        run: |
+          echo "This is a dry-run check. On merge to main, the deploy job will execute."
+      - name: Validate server SSH secrets are present
+        run: |
+          missing=0
+          for s in DO_HOST DO_USERNAME DO_SSH_KEY; do
+            if [ -z "${{ secrets[s] }}" ]; then
+              echo "Missing secret: $s"; missing=1; fi; done
+          if [ "$missing" -ne 0 ]; then echo "One or more required secrets are missing."; exit 1; fi
+      - name: Summarize changed areas
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            web:
+              - 'web/**'
+            backend:
+              - 'backend/**'
+      - name: Output change summary
+        run: |
+          echo "web changes: ${{ steps.changes.outputs.web }}"
+          echo "backend changes: ${{ steps.changes.outputs.backend }}"
+  
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
     # Only deploy on push to main, not on PRs
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -34,11 +74,11 @@ jobs:
             # Build only what changed using Docker build contexts
             echo "🔨 Building containers from monorepo subfolders..."
             
-            # Build frontend from nested frontend subfolder
-            docker build -t stathis-frontend:latest ./frontend/frontend
+            # Build web (Next.js) from monorepo path
+            docker build -t stathis-frontend:latest ./web/stathis-web
             
-            # Build backend from nested backend subfolder  
-            docker build -t stathis-backend:latest ./backend/backend
+            # Build backend (Spring) from monorepo path  
+            docker build -t stathis-backend:latest ./backend/stathis
             
             # Deploy with compose (no rebuild needed since we built above)
             docker compose up -d --force-recreate
@@ -50,21 +90,21 @@ jobs:
             # Health checks
             echo "🔍 Checking service health..."
             
-            # Check frontend
-            if docker exec stathis-frontend curl -f http://localhost:3000 >/dev/null 2>&1; then
+            # Check frontend via host network
+            if curl -f http://localhost:3000 >/dev/null 2>&1; then
               echo "✅ Frontend is healthy"
             else
               echo "❌ Frontend health check failed"
-              docker logs stathis-frontend --tail 20
+              docker compose logs --no-color --tail 50
               exit 1
             fi
             
-            # Check backend
-            if docker exec stathis-backend curl -f http://localhost:8080 >/dev/null 2>&1; then
+            # Check backend via host network
+            if curl -f http://localhost:8080/actuator/health >/dev/null 2>&1; then
               echo "✅ Backend is healthy"
             else
               echo "❌ Backend health check failed"
-              docker logs stathis-backend --tail 20
+              docker compose logs --no-color --tail 50
               exit 1
             fi
             
