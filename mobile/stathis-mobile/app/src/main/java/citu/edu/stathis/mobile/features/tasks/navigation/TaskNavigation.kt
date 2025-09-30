@@ -7,9 +7,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import citu.edu.stathis.mobile.features.tasks.presentation.TaskDetailScreen
 import citu.edu.stathis.mobile.features.tasks.presentation.TaskListScreen
+import citu.edu.stathis.mobile.features.tasks.presentation.TaskTemplateScreen
 
 const val taskListRoute = "task_list/{classroomId}"
 const val taskDetailRoute = "task_detail/{taskId}"
+const val taskQuizRoute = "task_quiz/{taskId}/{templateId}"
+const val taskExerciseRoute = "task_exercise/{taskId}/{templateId}"
 
 fun NavController.navigateToTaskList(classroomId: String) {
     navigate("task_list/$classroomId")
@@ -46,7 +49,51 @@ fun NavGraphBuilder.taskGraph(navController: NavController) {
             taskId = taskId,
             onNavigateBack = {
                 navController.popBackStack()
+            },
+            onStartQuiz = { templateId ->
+                navController.navigate("task_quiz/$taskId/$templateId")
+            },
+            onStartExercise = { templateId ->
+                navController.navigate("task_exercise/$taskId/$templateId")
             }
+        )
+    }
+
+    // Student-only quiz taking screen
+    composable(
+        route = taskQuizRoute,
+        arguments = listOf(
+            navArgument("taskId") { type = NavType.StringType },
+            navArgument("templateId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+        val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+        TaskTemplateScreen(
+            taskId = taskId,
+            templateType = "QUIZ",
+            templateId = templateId,
+            onNavigateBack = { navController.popBackStack() },
+            onTaskCompleted = { navController.popBackStack() }
+        )
+    }
+
+    // Student-only exercise screen (duplicate of practice flow access)
+    composable(
+        route = taskExerciseRoute,
+        arguments = listOf(
+            navArgument("taskId") { type = NavType.StringType },
+            navArgument("templateId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+        val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+        TaskTemplateScreen(
+            taskId = taskId,
+            templateType = "EXERCISE",
+            templateId = templateId,
+            onNavigateBack = { navController.popBackStack() },
+            onTaskCompleted = { navController.popBackStack() }
         )
     }
 }

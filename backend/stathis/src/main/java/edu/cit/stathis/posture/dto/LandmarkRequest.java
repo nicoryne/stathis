@@ -8,5 +8,5 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class LandmarkRequest {
-  public float[][][] landmarks;
+  public float[][] landmarks;
 }

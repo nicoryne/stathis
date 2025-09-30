@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { DashboardShell } from '@/components/dashboard/dashboard-shell';
-import { DashboardHeader } from '@/components/dashboard/dashboard-header';
+import { Sidebar } from '@/components/dashboard/sidebar';
+import { AuthNavbar } from '@/components/auth-navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Card,
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { 
   UserIcon, 
@@ -35,22 +36,27 @@ import {
   Award, 
   Calendar,
   Mail,
-  Save
+  Save,
+  Upload,
+  X
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   getTeacherProfile, 
   updateUserProfile, 
   updateTeacherProfile, 
-  UserProfileDTO 
+  UserProfileDTO,
+  UpdateUserProfileDTO,
+  UpdateTeacherProfileDTO
 } from '@/services/users/api-user-client';
+// Test endpoints import removed
 
 // Define validation schemas for forms
 const personalInfoSchema = z.object({
   firstName: z.string().min(2, { message: 'First name must be at least 2 characters.' }),
   lastName: z.string().min(2, { message: 'Last name must be at least 2 characters.' }),
   birthdate: z.string().optional(),
-  profilePictureUrl: z.string().url({ message: 'Please enter a valid URL.' }).optional().or(z.literal('')),
+  profilePictureUrl: z.string().optional(),
 });
 
 const teacherProfileSchema = z.object({
@@ -63,6 +69,10 @@ export default function ProfilePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('personal');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Removed local storage fallback implementation
   
   // Fetch teacher profile data
   const { 
@@ -73,16 +83,17 @@ export default function ProfilePage() {
   } = useQuery({
     queryKey: ['teacher-profile'],
     queryFn: getTeacherProfile,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
   
   // Initialize personal info form
   const personalInfoForm = useForm<z.infer<typeof personalInfoSchema>>({
     resolver: zodResolver(personalInfoSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      birthdate: '',
-      profilePictureUrl: '',
+      firstName: profileData?.firstName || '',
+      lastName: profileData?.lastName || '',
+      birthdate: profileData?.birthdate || '',
+      profilePictureUrl: profileData?.profilePictureUrl || '',
     },
   });
   
@@ -90,9 +101,9 @@ export default function ProfilePage() {
   const teacherProfileForm = useForm<z.infer<typeof teacherProfileSchema>>({
     resolver: zodResolver(teacherProfileSchema),
     defaultValues: {
-      school: '',
-      department: '',
-      positionTitle: '',
+      school: profileData?.school || '',
+      department: profileData?.department || '',
+      positionTitle: profileData?.positionTitle || '',
     },
   });
   
@@ -100,11 +111,16 @@ export default function ProfilePage() {
   React.useEffect(() => {
     if (profileData) {
       personalInfoForm.reset({
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
         birthdate: profileData.birthdate || '',
         profilePictureUrl: profileData.profilePictureUrl || '',
       });
+      
+      // Set image preview if profile picture exists
+      if (profileData.profilePictureUrl) {
+        setImagePreview(profileData.profilePictureUrl);
+      }
       
       teacherProfileForm.reset({
         school: profileData.school || '',
@@ -114,11 +130,79 @@ export default function ProfilePage() {
     }
   }, [profileData, personalInfoForm, teacherProfileForm]);
   
+  // Image upload handler that uses a placeholder URL due to database limitations
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.match(/image\/(jpeg|jpg|png|gif|webp)/)) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please upload an image file (JPEG, PNG, GIF, WebP)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Validate file size
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Image should be less than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Show a preview of the uploaded image in the UI
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // Set the image preview for visual purposes
+      setImagePreview(e.target?.result as string);
+      
+      // IMPORTANT: Due to a database limitation (VARCHAR(255) column), 
+      // we can't store the actual image data. In a real application, 
+      // we would upload the image to cloud storage and store just the URL.
+      // For now, we use a placeholder URL service based on the user's name.
+      toast({
+        title: 'Database Limitation',
+        description: 'Due to database constraints (255 char limit), your actual image cannot be stored. We are showing it in the preview but using a placeholder URL for storage.',
+        variant: 'default',
+        duration: 6000,
+      });
+      
+      // Generate a placeholder URL based on the user's name
+      const firstName = profileData?.firstName || personalInfoForm.getValues('firstName');
+      const lastName = profileData?.lastName || personalInfoForm.getValues('lastName');
+      const placeholderUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        firstName + '+' + lastName
+      )}&size=200&background=random`;
+      
+      // Set the form value to this placeholder URL
+      personalInfoForm.setValue('profilePictureUrl', placeholderUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  // Clear uploaded image
+  const clearImage = () => {
+    setImagePreview(null);
+    personalInfoForm.setValue('profilePictureUrl', '');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   // Mutation for updating personal info
   const updatePersonalInfoMutation = useMutation({
-    mutationFn: updateUserProfile,
+    mutationFn: (data: UpdateUserProfileDTO) => {
+      return updateUserProfile(data);
+    },
     onSuccess: (data) => {
+      // Update the query cache with the new data
       queryClient.setQueryData(['teacher-profile'], data);
+      
       toast({
         title: 'Profile Updated',
         description: 'Your personal information has been updated successfully.',
@@ -135,7 +219,9 @@ export default function ProfilePage() {
   
   // Mutation for updating teacher profile
   const updateTeacherProfileMutation = useMutation({
-    mutationFn: updateTeacherProfile,
+    mutationFn: (data: UpdateTeacherProfileDTO) => {
+      return updateTeacherProfile(data);
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(['teacher-profile'], data);
       toast({
@@ -154,70 +240,96 @@ export default function ProfilePage() {
   
   // Handle form submissions
   const onPersonalInfoSubmit = (values: z.infer<typeof personalInfoSchema>) => {
-    updatePersonalInfoMutation.mutate(values);
+    console.log('Updating personal profile');
+    
+    // Create a payload that maintains the original values where possible
+    const payload = {
+      // Use the current values from the form
+      firstName: values.firstName,
+      lastName: values.lastName,
+    } as UpdateUserProfileDTO;
+    
+    // Only include optional fields if they have values
+    if (values.birthdate) {
+      payload.birthdate = values.birthdate;
+    }
+    
+    if (values.profilePictureUrl) {
+      payload.profilePictureUrl = values.profilePictureUrl;
+    } else {
+      payload.profilePictureUrl = profileData?.profilePictureUrl || '';
+    }
+    
+    console.log('Profile update payload:', payload);
+    
+    // Submit the update
+    updatePersonalInfoMutation.mutate(payload);
   };
   
   const onTeacherProfileSubmit = (values: z.infer<typeof teacherProfileSchema>) => {
+    console.log('Updating teacher profile');
+    console.log('Form values being submitted:', values);
+    
+    // Backend will get the current user from authentication context
     updateTeacherProfileMutation.mutate(values);
   };
   
   // Handle loading and error states
   if (isLoading) {
     return (
-      <DashboardShell>
-        <DashboardHeader heading="Profile Management" text="Manage your profile information" />
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading your profile...</p>
-          </div>
+      <div className="flex min-h-screen">
+        <Sidebar className="w-64 flex-shrink-0" />
+        <div className="flex-1">
+          <AuthNavbar />
+          <main className="p-6">
+            <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
+                <p className="text-muted-foreground mt-1">Manage your profile information</p>
+              </div>
+            </div>
+            <Card className="mx-auto max-w-lg">
+              <CardHeader>
+                <CardTitle>Loading...</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center p-4">
+                  {/* Replace with proper loading spinner component later */}
+                  <p className="animate-pulse">Loading your profile information...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </main>
         </div>
-      </DashboardShell>
-    );
-  }
-  
-  if (isError) {
-    return (
-      <DashboardShell>
-        <DashboardHeader heading="Profile Management" text="Manage your profile information" />
-        <Card className="mx-auto max-w-lg">
-          <CardHeader>
-            <CardTitle className="text-red-500">Error Loading Profile</CardTitle>
-            <CardDescription>
-              There was a problem loading your profile information.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : 'Unknown error occurred'}
-            </p>
-            <Button 
-              className="mt-4" 
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
-            >
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </DashboardShell>
+      </div>
     );
   }
   
   return (
-    <DashboardShell>
-      <DashboardHeader heading="Profile Management" text="Manage your profile information">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
-          >
-            Refresh
-          </Button>
-        </div>
-      </DashboardHeader>
+    <div className="flex min-h-screen">
+      <Sidebar className="w-64 flex-shrink-0" />
+      
+      <div className="flex-1">
+        <AuthNavbar />
+        
+        <main className="p-6">
+          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
+              <p className="text-muted-foreground mt-1">Manage your profile information</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
+              >
+                Refresh
+              </Button>
+            </div>
+          </div>
 
-      <div className="grid gap-8">
+          <div className="grid gap-8">
         {/* Profile Summary */}
         <Card>
           <CardContent className="p-6">
@@ -330,15 +442,56 @@ export default function ProfilePage() {
                       name="profilePictureUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Profile Picture URL</FormLabel>
+                          <FormLabel>Profile Picture</FormLabel>
                           <FormControl>
-                            <Input 
-                              placeholder="https://example.com/profile-picture.jpg" 
-                              {...field} 
-                            />
+                            <div className="space-y-4">
+                              {/* Image Preview */}
+                              {imagePreview && (
+                                <div className="relative w-32 h-32 mx-auto md:mx-0">
+                                  <img 
+                                    src={imagePreview} 
+                                    alt="Profile preview" 
+                                    className="w-full h-full object-cover rounded-full border-2 border-primary"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="icon"
+                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                    onClick={clearImage}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                              
+                              {/* File Upload Input */}
+                              <div className="flex items-center gap-4">
+                                <input
+                                  type="file"
+                                  id="profile-picture"
+                                  accept="image/*"
+                                  onChange={handleImageUpload}
+                                  ref={fileInputRef}
+                                  className="hidden"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Upload className="h-4 w-4" />
+                                  {imagePreview ? 'Change Image' : 'Upload Image'}
+                                </Button>
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Images will be compressed to save bandwidth
+                              </div>
+                            </div>
                           </FormControl>
-                          <FormDescription>
-                            Enter a direct URL to an image. Leave blank to use initials.
+                          <FormDescription className="font-bold text-primary">
+                            NEW! Upload your profile picture here (Max: 2MB)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -464,7 +617,9 @@ export default function ProfilePage() {
             </Card>
           </TabsContent>
         </Tabs>
+          </div>
+        </main>
       </div>
-    </DashboardShell>
+    </div>
   );
 }

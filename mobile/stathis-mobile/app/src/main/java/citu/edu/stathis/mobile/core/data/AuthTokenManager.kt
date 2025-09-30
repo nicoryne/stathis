@@ -88,6 +88,17 @@ class AuthTokenManager @Inject constructor(
         }
     }
 
+    /**
+     * Update tokens without touching identity fields. Use when refresh succeeded but we don't refetch profile yet.
+     */
+    suspend fun updateTokens(accessToken: String?, refreshToken: String?) {
+        dataStore.edit { preferences ->
+            accessToken?.let { preferences[ACCESS_TOKEN_KEY] = it }
+            refreshToken?.let { preferences[REFRESH_TOKEN_KEY] = it }
+            preferences[IS_LOGGED_IN_KEY] = !preferences[ACCESS_TOKEN_KEY].isNullOrBlank()
+        }
+    }
+
     suspend fun checkAndHandleTokenExpiration() {
         val accessToken = dataStore.data.map { it[ACCESS_TOKEN_KEY] }.firstOrNull()
         if (tokenValidationUseCase.isTokenExpired(accessToken)) {

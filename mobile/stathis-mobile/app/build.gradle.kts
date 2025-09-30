@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +9,20 @@ plugins {
     id("org.jetbrains.kotlin.kapt")
     kotlin("plugin.serialization")
 }
+
+val localProps = gradle.rootProject.file("local.properties").let { file ->
+    Properties().apply {
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+}
+
+// String helper
+fun propStr(key: String, default: String = ""): String =
+    localProps.getProperty(key, default)
+
+// Boolean helper
+fun propBool(key: String, default: String = "false"): String =
+    localProps.getProperty(key, default)
 
 android {
     namespace = "cit.edu.stathis.mobile"
@@ -23,12 +39,28 @@ android {
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            // Read from local.properties (defaults shown)
+            val appEnv = propStr("APP_ENV", "local")
+            val apiBaseUrl = propStr("API_BASE_URL", "https://api-stathis.ryne.dev/")
+            buildConfigField("String", "APP_ENV", "\"$appEnv\"")
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            // Always show onboarding when APP_ENV=local
+            val alwaysShowOnboarding = if (appEnv == "local") "true" else "false"
+            buildConfigField("boolean", "ALWAYS_SHOW_ONBOARDING", alwaysShowOnboarding)
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            val appEnv = propStr("APP_ENV", "prod")
+            val apiBaseUrl = propStr("API_BASE_URL", "https://api-stathis.ryne.dev/")
+            buildConfigField("String", "APP_ENV", "\"$appEnv\"")
+            buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+            buildConfigField("boolean", "ALWAYS_SHOW_ONBOARDING", "false")
         }
     }
     buildFeatures {
@@ -52,6 +84,8 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.biometric.ktx)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.foundation)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -68,12 +102,11 @@ dependencies {
 
     // Material 3
     implementation(libs.androidx.material3)
+    
+    // DataStore for theme preferences (use version catalog alias)
 
     // Android UI
     implementation(libs.androidx.ui.tooling.preview)
-    debugImplementation(libs.androidx.ui.tooling)
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.test.manifest)
 
     // Material Icons
     implementation(libs.androidx.material.icons.extended.android)
@@ -101,7 +134,6 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     // Biometric
-    implementation(libs.androidx.biometric.ktx)
 
     // Bluetooth dependencies
     implementation(libs.androidx.bluetooth)
@@ -123,9 +155,12 @@ dependencies {
     implementation(libs.accompanist.permissions)
 
     // Testing dependencies
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit.v115)
-    androidTestImplementation(libs.androidx.espresso.core.v351)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation(platform("com.squareup.okhttp3:okhttp-bom:4.12.0"))
+    testImplementation("com.squareup.okhttp3:mockwebserver")
+    testImplementation("com.squareup.okhttp3:okhttp")
+    testImplementation("com.squareup.okhttp3:logging-interceptor")
+    // Use unified latest AndroidX test artifacts from version catalog
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.ui.test.junit4)
     debugImplementation(libs.ui.tooling)
@@ -143,12 +178,23 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    implementation("androidx.health.connect:connect-client:1.1.0-rc01")
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha01")
+
+    // Timber for logging
+    implementation(libs.timber)
 
     // Compose Charts
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")
     implementation("com.patrykandpatrick.vico:core:1.13.1")
+
+    // Feature modules
+    implementation(project(":core:common"))
+    implementation(project(":feature:classroom"))
+    implementation(project(":feature:exercise"))
+    implementation(project(":feature:vitals"))
+    implementation(project(":feature:tasks"))
+    implementation(project(":feature:progress"))
 
 }
 

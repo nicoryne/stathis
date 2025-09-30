@@ -2,7 +2,7 @@ package citu.edu.stathis.mobile.features.vitals.di
 
 import citu.edu.stathis.mobile.features.vitals.domain.VitalsApiService
 import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepositoryImpl
-import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository
+import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -26,11 +26,11 @@ abstract class VitalsRepositoryModule {
 @InstallIn(SingletonComponent::class)
 object VitalsNetworkModule {
 
-
     @Provides
     @Singleton
     fun provideVitalsApiService(retrofit: Retrofit): VitalsApiService {
         return retrofit.create(VitalsApiService::class.java)
     }
 }
+
 

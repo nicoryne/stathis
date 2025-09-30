@@ -4,6 +4,7 @@ import citu.edu.stathis.mobile.core.data.AuthTokenManager
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
+import cit.edu.stathis.mobile.BuildConfig
 
 class HandleAuthStateUseCase @Inject constructor(
     private val authTokenManager: AuthTokenManager,

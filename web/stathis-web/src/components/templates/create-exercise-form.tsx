@@ -51,16 +51,12 @@ interface CreateExerciseFormProps {
 // Options based on API requirements
 const exerciseTypes = [
   { value: "PUSH_UP", label: "Push Up" },
-  { value: "SIT_UP", label: "Sit Up" },
-  { value: "JUMPING_JACK", label: "Jumping Jack" },
-  { value: "TYPE1", label: "Type 1" },
-  { value: "TYPE2", label: "Type 2" }
+  { value: "SQUATS", label: "Squats" }
 ];
 
 const exerciseDifficulties = [
   { value: "BEGINNER", label: "Beginner" },
-  { value: "INTERMEDIATE", label: "Intermediate" },
-  { value: "ADVANCED", label: "Advanced" }
+  { value: "EXPERT", label: "Expert" }
 ];
 
 const goalRepsOptions = [
@@ -101,8 +97,8 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
       const templateData: ExerciseTemplateBodyDTO = {
         title: data.title,
         description: data.description,
-        exerciseType: data.exerciseType as 'PUSH_UP' | 'SIT_UP' | 'JUMPING_JACK' | 'TYPE1' | 'TYPE2',
-        exerciseDifficulty: data.exerciseDifficulty as 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED',
+        exerciseType: data.exerciseType as 'PUSH_UP' | 'SQUATS',
+        exerciseDifficulty: data.exerciseDifficulty as 'BEGINNER' | 'EXPERT',
         goalReps: data.goalReps,
         goalAccuracy: data.goalAccuracy,
         goalTime: data.goalTime
@@ -122,13 +118,26 @@ export function CreateExerciseForm({ onSuccess, onCancel }: CreateExerciseFormPr
     }
   });
 
-  const onSubmit = (values: ExerciseTemplateFormValues) => {
+  const onSubmit = (values: ExerciseTemplateFormValues, event?: React.BaseSyntheticEvent) => {
+    // Prevent the default form submission behavior which could trigger parent forms
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     createExerciseMutation.mutate(values);
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form 
+        onSubmit={(e) => {
+          // Explicitly prevent default and stop propagation to avoid triggering parent forms
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit(onSubmit)(e);
+        }} 
+        className="space-y-4"
+      >
         <FormField
           control={form.control}
           name="title"

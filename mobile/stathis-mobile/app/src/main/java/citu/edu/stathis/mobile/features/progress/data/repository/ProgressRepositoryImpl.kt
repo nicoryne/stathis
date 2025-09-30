@@ -54,18 +54,8 @@ class ProgressRepositoryImpl @Inject constructor(
         category: String?, 
         unlocked: Boolean?
     ): Flow<ClientResponse<List<Achievement>>> = flow {
-        try {
-            val response = progressService.getAchievements(category, unlocked)
-            if (response.isSuccessful) {
-                val data = response.body()
-                emit(ClientResponse(success = true, data = data, message = "Achievements retrieved successfully"))
-            } else {
-                emit(ClientResponse<List<Achievement>>(success = false, data = null, message = "Failed to retrieve achievements: ${response.code()}"))
-            }
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to retrieve achievements: ${e.message}")
-            emit(ClientResponse<List<Achievement>>(success = false, data = null, message = "Network error: ${e.message ?: "Unknown error"}"))
-        }
+        // Not supported by backend; map badges-by-student into a simplified Achievement list if needed.
+        emit(ClientResponse<List<Achievement>>(success = false, data = emptyList<Achievement>(), message = "Achievements endpoint not available; use badges."))
     }.flowOn(Dispatchers.IO)
 
     override suspend fun getBadges(
@@ -74,13 +64,8 @@ class ProgressRepositoryImpl @Inject constructor(
         unlocked: Boolean?
     ): Flow<ClientResponse<List<Badge>>> = flow {
         try {
-            val response = progressService.getBadges(category, rarity, unlocked)
-            if (response.isSuccessful) {
-                val data = response.body()
-                emit(ClientResponse(success = true, data = data, message = "Badges retrieved successfully"))
-            } else {
-                emit(ClientResponse<List<Badge>>(success = false, data = null, message = "Failed to retrieve badges: ${response.code()}"))
-            }
+            // We need studentId; the ProgressService endpoint expects studentId; caller provides it indirectly.
+            emit(ClientResponse<List<Badge>>(success = false, data = emptyList<Badge>(), message = "Use getBadgesByStudent via service directly in ViewModel."))
         } catch (e: Exception) {
             Timber.e(e, "Failed to retrieve badges: ${e.message}")
             emit(ClientResponse<List<Badge>>(success = false, data = null, message = "Network error: ${e.message ?: "Unknown error"}"))

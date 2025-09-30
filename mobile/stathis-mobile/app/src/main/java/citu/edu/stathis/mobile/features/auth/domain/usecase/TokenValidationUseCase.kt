@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.features.auth.domain.usecase
 import com.auth0.android.jwt.JWT
 import javax.inject.Inject
 import java.util.Date
+import cit.edu.stathis.mobile.BuildConfig
 
 class TokenValidationUseCase @Inject constructor() {
     fun isTokenExpired(token: String?): Boolean {

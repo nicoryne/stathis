@@ -31,11 +31,17 @@ interface ProgressService {
     /**
      * Get all achievements for the current student
      */
-    @GET("api/student/progress/achievements")
-    suspend fun getAchievements(
-        @Query("category") category: String? = null,
-        @Query("unlocked") unlocked: Boolean? = null
-    ): Response<List<Achievement>>
+    @GET("api/achievements/badges")
+    suspend fun getBadgesByStudent(
+        @Query("studentId") studentId: String
+    ): Response<List<BadgeResponseDTO>>
+
+    @GET("api/achievements/leaderboard")
+    suspend fun getLeaderboardByStudent(
+        @Query("studentId") studentId: String,
+        @Query("sortBy") sortBy: String = "score",
+        @Query("order") order: String = "desc"
+    ): Response<List<LeaderboardResponseDTO>>
     
     /**
      * Get all badges for the current student
@@ -84,4 +90,24 @@ data class LeaderboardEntry(
     val rank: Int,
     val points: Int,
     val isCurrentUser: Boolean
+)
+
+data class BadgeResponseDTO(
+    val physicalId: String?,
+    val studentId: String?,
+    val taskId: String?,
+    val badgeType: String?,
+    val description: String?,
+    val earnedAt: String?
+)
+
+data class LeaderboardResponseDTO(
+    val physicalId: String?,
+    val studentId: String?,
+    val taskId: String?,
+    val score: Double?,
+    val timeTaken: Long?,
+    val accuracy: Double?,
+    val rank: Int?,
+    val completedAt: String?
 )

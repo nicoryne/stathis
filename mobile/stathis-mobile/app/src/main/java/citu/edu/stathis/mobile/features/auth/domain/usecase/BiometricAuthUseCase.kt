@@ -9,12 +9,23 @@ import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
+import cit.edu.stathis.mobile.BuildConfig
 
 class BiometricAuthUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
     private val authTokenManager: AuthTokenManager
 ) {
+    suspend fun hasRefreshToken(): Boolean {
+        return authTokenManager.refreshTokenFlow.firstOrNull().isNullOrBlank().not()
+    }
+
+    suspend fun canPromptBiometrics(): Boolean {
+        val availability = checkBiometricAvailability()
+        val ok = availability == BiometricState.Available
+        val hasToken = hasRefreshToken()
+        return ok && hasToken
+    }
     fun checkBiometricAvailability(): BiometricState {
         val biometricManager = BiometricManager.from(context)
         return when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {

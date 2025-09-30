@@ -58,6 +58,7 @@ public class ClassroomService {
         return classroomRepository.save(classroom);
     }
 
+    @Transactional(readOnly = true)
     public Classroom getClassroomById(String physicalId) {
         return classroomRepository.findByPhysicalId(physicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
@@ -70,15 +71,18 @@ public class ClassroomService {
         classroomRepository.delete(classroom);
     }
 
+    @Transactional(readOnly = true)
     public List<Classroom> getClassroomsByCurrentTeacher() {
         return classroomRepository.findByTeacherId(physicalIdService.getCurrentUserPhysicalId());
     }
 
+    @Transactional(readOnly = true)
     public List<Classroom> getClassroomsByCurrentStudent() {
         return classroomRepository.findByClassroomStudents_Student_User_PhysicalId(
             physicalIdService.getCurrentUserPhysicalId());
     }
 
+    @Transactional
     public String generateClassroomCode(Classroom classroom) {
         String classroomCode = Base64.getEncoder().encodeToString(classroom.getPhysicalId().getBytes());
         classroom.setClassroomCode(classroomCode);
@@ -87,6 +91,7 @@ public class ClassroomService {
     }
 
     @PreAuthorize("hasRole('STUDENT')")
+    @Transactional
     public void enrollStudentInClassroom(String classroomCode) {
         String studentPhysicalId = physicalIdService.getCurrentUserPhysicalId();
 
@@ -119,6 +124,7 @@ public class ClassroomService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<StudentListResponseDTO> getStudentListByClassroomPhysicalId(String classroomPhysicalId) {
         Classroom classroom = classroomRepository.findByPhysicalId(classroomPhysicalId)
             .orElseThrow(() -> new RuntimeException("Classroom not found"));
@@ -175,6 +181,7 @@ public class ClassroomService {
             .build();
     }
 
+    @Transactional(readOnly = true)
     public String getTeacherName(String teacherId) {
         return userService.findUserProfileByPhysicalId(teacherId).getFirstName() + " " + 
                userService.findUserProfileByPhysicalId(teacherId).getLastName();
@@ -187,6 +194,7 @@ public class ClassroomService {
         return String.format("ROOM-%s-%s", year, secondPart);
     }
     
+    @Transactional
     private String provideUniquePhysicalId() {
         String generatedPhysicalId;
         do {
@@ -224,6 +232,7 @@ public class ClassroomService {
         classroomRepository.save(classroom);
     }
 
+    @Transactional(readOnly = true)
     public boolean isUserEnrolledInClassroom(String userPhysicalId, String classroomPhysicalId) {
         Classroom classroom = getClassroomById(classroomPhysicalId);
         return classroom.getClassroomStudents().stream()
@@ -231,6 +240,7 @@ public class ClassroomService {
             classroom.getTeacherId().equals(userPhysicalId);
     }
 
+    @Transactional(readOnly = true)
     public boolean isUserEnrolledAndVerifiedInClassroom(String userPhysicalId, String classroomPhysicalId) {
         Classroom classroom = getClassroomById(classroomPhysicalId);
         return classroom.getClassroomStudents().stream()

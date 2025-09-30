@@ -1,11 +1,35 @@
-import { HeartPulse } from 'lucide-react';
+'use client';
 import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export function Logo() {
+  const pathname = usePathname();
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      <Image src="/images/logos/stathis.webp" width={32} height={32} alt="Stathis Logo" />
-      <span className="text-xl font-bold tracking-tight">Stathis</span>
-    </div>
+    <Link 
+      href="/" 
+      className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+      onClick={handleLogoClick}
+    >
+      <Image 
+        src="/images/logos/stathis.webp" 
+        alt="Stathis Logo" 
+        width={40} 
+        height={40}
+        className="rounded-lg"
+      />
+      <span className="text-xl font-bold tracking-tight text-primary">Stathis</span>
+    </Link>
   );
 }

@@ -1,26 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Search, School2, ArrowRight, Bell, Users, Book, Calendar, Activity, Trash2, Power, PowerOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { CreateClassroomForm } from '@/components/classroom/create-classroom-form';
+import { EditClassroomForm } from '@/components/classroom/edit-classroom-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getTeacherClassrooms, deleteClassroom, activateClassroom, deactivateClassroom } from '@/services/api-classroom-client';
-import { ClassroomResponseDTO } from '@/services/api-classroom';
-import { getCurrentUserEmail, getCurrentUserPhysicalId } from '@/lib/utils/jwt';
+import { useToast } from "@/components/ui/use-toast";
+import { ClassroomResponseDTO, ClassroomBodyDTO, createClassroom, deleteClassroom, activateClassroom, deactivateClassroom, updateClassroom, getTeacherClassrooms } from "@/services/api-classroom-client";
+import { getCurrentUserPhysicalId, getCurrentUserEmail, getCurrentUserRole } from "@/lib/utils/jwt";
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import ThemeSwitcher from '@/components/theme-switcher';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { signOut } from '@/services/api-auth-client';
 
 // StatCard Component for reuse
 interface StatCardProps {
@@ -29,6 +31,10 @@ interface StatCardProps {
   description: string;
   icon: React.ElementType;
   className?: string;
+}
+
+const handlesignOut = async () => {
+    await signOut();
 }
 
 const StatCard = ({ title, value, description, icon: Icon, className = '' }: StatCardProps) => (
@@ -53,6 +59,16 @@ export default function ClassroomPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  // Function to safely close the edit dialog
+  const closeEditDialog = useCallback(() => {
+    setEditDialogOpen(false);
+    // Reset selected classroom after a short delay to avoid UI flicker
+    setTimeout(() => {
+      setSelectedClassroom(null);
+    }, 100);
+  }, []);
   const [selectedClassroom, setSelectedClassroom] = useState<ClassroomResponseDTO | null>(null);
   const userPhysicalId = getCurrentUserPhysicalId();
   const userEmail = getCurrentUserEmail();
@@ -85,11 +101,53 @@ export default function ClassroomPage() {
     onSuccess: () => {
       toast.success('Classroom deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['teacher-classrooms'] });
+      // Close the dialog first
       setDeleteDialogOpen(false);
       setSelectedClassroom(null);
+      
+      // Guaranteed full page refresh to reset all state
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 500);
     },
     onError: (error) => {
       toast.error(`Failed to delete classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Close the dialog first
+      setDeleteDialogOpen(false);
+      setSelectedClassroom(null);
+      
+      // Guaranteed full page refresh to reset all state
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 500);
+    }
+  });
+  
+  // Update classroom mutation
+  const updateClassroomMutation = useMutation({
+    mutationFn: ({ physicalId, updates }: { physicalId: string, updates: Partial<ClassroomBodyDTO> }) => 
+      updateClassroom(physicalId, updates),
+    onSuccess: () => {
+      toast.success('Classroom updated successfully');
+      // Close the dialog first
+      setEditDialogOpen(false);
+      setSelectedClassroom(null);
+      
+      // Guaranteed full page refresh to reset all state
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 500);
+    },
+    onError: (error) => {
+      toast.error(`Failed to update classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Close the dialog and reset state
+      setEditDialogOpen(false);
+      setSelectedClassroom(null);
+      
+      // Guaranteed full page refresh to reset all state
+      setTimeout(() => {
+        window.location.href = window.location.pathname;
+      }, 500);
     }
   });
   
@@ -118,16 +176,19 @@ export default function ClassroomPage() {
   });
   
   // Filter classrooms based on search term and active tab
-  const filteredClassrooms = classrooms?.filter(classroom => {
-    const matchesSearch = classroom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      classroom.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (activeTab === 'all') return matchesSearch;
-    if (activeTab === 'active') return matchesSearch && classroom.active;
-    if (activeTab === 'inactive') return matchesSearch && !classroom.active;
-    
-    return matchesSearch;
-  });
+  const filteredClassrooms = classrooms
+    ? classrooms
+        .filter((classroom: ClassroomResponseDTO) => 
+          classroom.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+          classroom.description.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .filter((classroom: ClassroomResponseDTO) => {
+          if (activeTab === 'all') return true;
+          if (activeTab === 'active') return classroom.active;
+          if (activeTab === 'inactive') return !classroom.active;
+          return true;
+        })
+    : [];
   
   // Handle classroom creation success
   const handleClassroomCreated = () => {
@@ -136,9 +197,19 @@ export default function ClassroomPage() {
     toast.success('Classroom created successfully!');
   };
   
+  // Calculate statistics
+  const totalClassrooms = classrooms?.length || 0;
+  const activeClassrooms = classrooms?.filter((c: ClassroomResponseDTO) => c.active).length || 0;
+  const totalStudents = classrooms?.reduce((total: number, c: ClassroomResponseDTO) => total + (c.studentCount || 0), 0) || 0;
+  
+  // Find the latest classroom
+  const latestClassroom = classrooms
+    ? [...classrooms].sort((a: ClassroomResponseDTO, b: ClassroomResponseDTO) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+    : null;
+  
   // Calculate stats for the dashboard
-  const activeClassrooms = classrooms?.filter(c => c.active).length || 0;
-  const totalStudents = classrooms?.reduce((total, c) => total + (c.studentCount || 0), 0) || 0;
+  const activeClassroomsCount = classrooms?.filter(c => c.active).length || 0;
+  const totalStudentsCount = classrooms?.reduce((total, c) => total + (c.studentCount || 0), 0) || 0;
   const recentActivity = classrooms && classrooms.length > 0 ? 
     new Date(Math.max(...classrooms.map(c => new Date(c.updatedAt || c.createdAt).getTime()))).toLocaleDateString() : 
     'No activity';
@@ -178,9 +249,8 @@ export default function ClassroomPage() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/settings')}>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push('/logout')}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={handlesignOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <ThemeSwitcher />
@@ -221,19 +291,19 @@ export default function ClassroomPage() {
           <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Total Classrooms"
-              value={classrooms?.length || '0'}
+              value={totalClassrooms.toString()}
               description="Registered classrooms"
               icon={School2}
             />
             <StatCard
               title="Active Classrooms"
-              value={activeClassrooms.toString()}
+              value={activeClassroomsCount.toString()}
               description="Currently active classrooms"
               icon={Activity}
             />
             <StatCard
               title="Total Students"
-              value={totalStudents.toString()}
+              value={totalStudentsCount.toString()}
               description="Students enrolled"
               icon={Users}
             />
@@ -296,7 +366,7 @@ export default function ClassroomPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredClassrooms?.map((classroom) => (
+              {filteredClassrooms.map((classroom: ClassroomResponseDTO) => (
                 <Card key={classroom.physicalId} className="overflow-hidden hover:shadow-md transition-shadow duration-300">
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
@@ -318,6 +388,18 @@ export default function ClassroomPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Classroom Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedClassroom(classroom);
+                                setEditDialogOpen(true);
+                              }}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                              </svg>
+                              Edit Classroom
+                            </DropdownMenuItem>
                             {classroom.active ? (
                               <DropdownMenuItem
                                 onClick={() => deactivateClassroomMutation.mutate(classroom.physicalId)}
@@ -414,6 +496,7 @@ export default function ClassroomPage() {
                 setDeleteDialogOpen(false);
                 setSelectedClassroom(null);
               }}
+              disabled={deleteClassroomMutation.isPending}
             >
               Cancel
             </Button>
@@ -430,6 +513,49 @@ export default function ClassroomPage() {
               ) : 'Delete Classroom'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Classroom Dialog */}
+      <Dialog 
+        open={editDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            // Close the dialog
+            setEditDialogOpen(false);
+            setSelectedClassroom(null);
+            
+            // Force a page refresh after a brief delay
+            setTimeout(() => {
+              window.location.href = window.location.pathname;
+            }, 100);
+          } else {
+            setEditDialogOpen(true);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Classroom</DialogTitle>
+            <DialogDescription>
+              Update the details of your classroom.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedClassroom && (
+            <EditClassroomForm 
+              classroom={selectedClassroom}
+              onSuccess={() => {
+                setEditDialogOpen(false);
+                // The component will handle the page refresh
+              }}
+              onCancel={() => {
+                setEditDialogOpen(false);
+                // Only reset selected classroom after dialog closes
+                setTimeout(() => setSelectedClassroom(null), 100);
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

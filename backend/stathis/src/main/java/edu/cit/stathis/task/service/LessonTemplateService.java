@@ -21,6 +21,7 @@ public class LessonTemplateService {
     @Autowired
     private PhysicalIdService physicalIdService;
 
+    @Transactional
     public LessonTemplate createLessonTemplate(LessonTemplateBodyDTO lessonTemplateBodyDTO) {
         LessonTemplate lessonTemplate = new LessonTemplate();
         lessonTemplate.setPhysicalId(generatePhysicalId());
@@ -39,14 +40,17 @@ public class LessonTemplateService {
         return String.format("LESSON-%s-%s-%s", year, secondPart, thirdPart);
     }
 
+    @Transactional(readOnly = true)
     public LessonTemplate getLessonTemplate(String physicalId) {
         return lessonTemplateRepository.findByPhysicalId(physicalId).orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public List<LessonTemplate> getAllLessonTemplates() {
         return lessonTemplateRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<LessonTemplate> getAllLessonTemplatesByTeacherPhysicalId(String teacherPhysicalId) {
         return lessonTemplateRepository.findByTeacherPhysicalId(teacherPhysicalId);
     }

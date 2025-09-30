@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { createLessonTemplate } from '@/services/templates/api-template-client';
 import { LessonTemplateBodyDTO } from '@/services/templates/api-template-client';
 import { useMutation } from '@tanstack/react-query';
+import { LessonContentBuilder } from './lesson-content-builder';
 import {
   Form,
   FormControl,
@@ -37,14 +38,22 @@ interface CreateLessonFormProps {
 }
 
 export function CreateLessonForm({ onSuccess, onCancel }: CreateLessonFormProps) {
+  // State to track JSON content from the builder
+  const [jsonContent, setJsonContent] = useState<string>('{}');
   const form = useForm<LessonTemplateFormValues>({
     resolver: zodResolver(lessonTemplateSchema),
     defaultValues: {
       title: '',
       description: '',
-      content: '{}'
+      content: jsonContent
     }
   });
+  
+  // Update form when JSON content changes from the builder
+  const updateContent = (newJsonContent: string) => {
+    setJsonContent(newJsonContent);
+    form.setValue('content', newJsonContent);
+  };
 
   const createLessonMutation = useMutation({
     mutationFn: (data: LessonTemplateFormValues) => {
@@ -76,13 +85,27 @@ export function CreateLessonForm({ onSuccess, onCancel }: CreateLessonFormProps)
     }
   });
 
-  const onSubmit = (values: LessonTemplateFormValues) => {
+  const onSubmit = (values: LessonTemplateFormValues, event?: React.BaseSyntheticEvent) => {
+    // Prevent the default form submission behavior which could trigger parent forms
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     createLessonMutation.mutate(values);
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form 
+        onSubmit={(e) => {
+          // Explicitly prevent default and stop propagation to avoid triggering parent forms
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit(onSubmit)(e);
+        }} 
+        className="flex flex-col h-full max-h-[60vh] overflow-hidden"
+      >
+        <div className="flex-1 overflow-y-auto pr-4 space-y-4">
         <FormField
           control={form.control}
           name="title"
@@ -120,20 +143,22 @@ export function CreateLessonForm({ onSuccess, onCancel }: CreateLessonFormProps)
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Content (JSON format)</FormLabel>
+              <FormLabel>Lesson Content</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder='{"sections": [{"title": "Introduction", "content": "Welcome to the lesson..."}]}' 
-                  className="min-h-[200px] font-mono text-sm"
-                  {...field} 
-                />
+                <div className="border rounded-md p-4 bg-background">
+                  <LessonContentBuilder 
+                    initialValue={field.value}
+                    onChange={updateContent}
+                  />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="flex justify-end gap-2 pt-4">
+        </div>
+        <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background border-t mt-4">
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
