@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,8 +36,8 @@ import androidx.navigation.NavController
  */
 private fun calculateProgressPercentage(tasks: List<citu.edu.stathis.mobile.features.tasks.data.model.Task>): String {
     if (tasks.isEmpty()) return "0%"
-    
-    val startedTasks = tasks.count { it.isStarted }
+
+    val startedTasks = tasks.count { it.isStarted == true }
     val percentage = ((startedTasks.toFloat() / tasks.size) * 100).toInt()
     return "${percentage}%"
 }
@@ -66,7 +67,7 @@ fun ClassroomDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = MaterialTheme.colorScheme.onSurface
                         )
@@ -360,8 +361,8 @@ private fun ProgressOverviewSection(
     classroomTasks: List<citu.edu.stathis.mobile.features.tasks.data.model.Task>,
     modifier: Modifier = Modifier
 ) {
-    val startedTasks = classroomTasks.count { it.isStarted }
-    val notStartedTasks = classroomTasks.count { !it.isStarted }
+    val startedTasks = classroomTasks.count { it.isStarted == true }
+    val notStartedTasks = classroomTasks.count { it.isStarted != true }
     val totalTasks = classroomTasks.size
     val progressPercentage = if (totalTasks > 0) startedTasks.toFloat() / totalTasks else 0f
     
@@ -463,30 +464,7 @@ private fun ActionButtonsSection(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Primary Action Button
-        Button(
-            onClick = { navController.navigateToTaskList(classroomId) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Text(
-                    text = "Start Exercising",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
+        // Removed redundant primary button per spec
 
         // Secondary Action Buttons
         Row(
@@ -499,7 +477,7 @@ private fun ActionButtonsSection(
                     .weight(1f)
                     .height(48.dp),
                 shape = RoundedCornerShape(12.dp)
-            ) {
+                ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)

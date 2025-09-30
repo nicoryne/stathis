@@ -25,6 +25,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,15 +37,72 @@ import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
 import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
-import citu.edu.stathis.mobile.features.tasks.presentation.components.LessonView
-import citu.edu.stathis.mobile.features.tasks.presentation.components.QuizView
+import citu.edu.stathis.mobile.features.tasks.presentation.components.LessonTemplateRenderer
+import citu.edu.stathis.mobile.features.tasks.presentation.components.QuizTemplateRenderer
+import citu.edu.stathis.mobile.features.tasks.presentation.components.ExerciseTemplateRenderer
 import coil3.compose.AsyncImage
+@Composable
+private fun FallbackComponentsSection(
+    task: Task,
+    viewModel: TaskViewModel,
+    onStartExercise: (String) -> Unit,
+    onStartQuiz: (String) -> Unit,
+    onStartLesson: (String) -> Unit,
+    onBackAfterLesson: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            // Lesson (use embedded template if present). Open in dedicated screen.
+            task.lessonTemplate?.let { lesson ->
+                LessonCard(
+                    isCompleted = false,
+                    onStartLesson = { onStartLesson(lesson.physicalId) }
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Exercise (open via button similar to quiz/lesson)
+            val embeddedExerciseId = task.exerciseTemplateId ?: task.exerciseTemplate?.physicalId
+            embeddedExerciseId?.let { templateId ->
+                ComponentCard(
+                    title = "Exercise",
+                    isCompleted = false,
+                    onClick = { onStartExercise(templateId) }
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+
+            // Quiz
+            val embeddedQuizId = task.quizTemplateId ?: task.quizTemplate?.physicalId
+            embeddedQuizId?.let { templateId ->
+                QuizCard(
+                    score = null,
+                    maxAttempts = task.maxAttempts,
+                    onTakeQuiz = { onStartQuiz(templateId) }
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
     taskId: String,
     onNavigateBack: () -> Unit,
+    onStartLesson: (String) -> Unit = {},
+    onStartQuiz: (String) -> Unit = {},
+    onStartExercise: (String) -> Unit = {},
     viewModel: TaskViewModel = hiltViewModel()
 ) {
     val task by viewModel.selectedTask.collectAsState()
@@ -109,6 +170,10 @@ fun TaskDetailScreen(
             }
 
             task?.let { currentTask ->
+                    val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                        .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                    val active = currentTask.isActive ?: true
+                    val isUnavailable = pastDeadline || !active
                     // Hero Section
                     item {
                         TaskHeroSection(
@@ -117,37 +182,48 @@ fun TaskDetailScreen(
                         )
                     }
 
-                    // Quick Stats
-                    item {
-                        TaskQuickStatsSection(
-                            task = currentTask,
-                            progress = progress,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    }
+                           // Quick Stats
+                           item {
+                               TaskQuickStatsSection(
+                                   task = currentTask,
+                                   progress = progress,
+                                   modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                               )
+                           }
 
-                    // Due Dates Section
-                    item {
-                        TaskDueDatesSection(
-                            task = currentTask,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                    }
+                    // Due Dates card removed per spec
 
-                    // Progress Section
-                    progress?.let { currentProgress ->
-                        item {
-                        TaskProgressSection(
-                            progress = currentProgress,
-                            task = currentTask,
-                            viewModel = viewModel,
-                            onLessonComplete = viewModel::completeLesson,
-                            onExerciseComplete = viewModel::completeExercise,
-                                onQuizSubmit = viewModel::submitQuizScore,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
-                        }
-                    }
+                       // Progress Section
+                       progress?.let { currentProgress ->
+                           item {
+                               TaskProgressSection(
+                                   progress = currentProgress,
+                                   task = currentTask,
+                                   viewModel = viewModel,
+                                   onLessonComplete = viewModel::completeLesson,
+                                   onExerciseComplete = viewModel::completeExercise,
+                                   onQuizSubmit = viewModel::submitQuizScore,
+                                   onStartLesson = { if (!isUnavailable) onStartLesson(it) },
+                                   onStartExercise = { if (!isUnavailable) onStartExercise(it) },
+                                   onStartQuiz = { if (!isUnavailable) onStartQuiz(it) },
+                                   onBackAfterLesson = onNavigateBack,
+                                   modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                               )
+                           }
+                       } ?: run {
+                           // Render components even if progress endpoint 403s, using embedded template if present
+                           item {
+                               FallbackComponentsSection(
+                                   task = currentTask,
+                                   viewModel = viewModel,
+                                   onStartLesson = { if (!isUnavailable) onStartLesson(it) },
+                                   onStartExercise = { if (!isUnavailable) onStartExercise(it) },
+                                   onStartQuiz = { if (!isUnavailable) onStartQuiz(it) },
+                                   onBackAfterLesson = onNavigateBack,
+                                   modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                               )
+                           }
+                       }
                 }
             }
         }
@@ -253,34 +329,34 @@ private fun TaskQuickStatsSection(
     progress: TaskProgressResponse?,
     modifier: Modifier = Modifier
 ) {
-    LazyRow(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(horizontal = 8.dp)
-    ) {
-        item {
-            StatCard(
-                title = "Progress",
-                value = "${((progress?.progress ?: 0f) * 100).toInt()}%",
-                icon = Icons.Default.TrendingUp,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        item {
-            StatCard(
-                title = "Status",
-                value = if (progress?.progress == 1f) "Completed" else "In Progress",
-                icon = Icons.Default.CheckCircle,
-                color = MaterialTheme.colorScheme.secondary
-            )
-        }
-        item {
-            StatCard(
-                title = "Type",
-                value = "Assignment",
-                icon = Icons.Default.Assignment,
-                color = MaterialTheme.colorScheme.tertiary
-            )
+    Column(modifier = modifier.padding(horizontal = 8.dp)) {
+        val quizId = task.quizTemplateId ?: task.quizTemplate?.physicalId
+        if (quizId != null) {
+            val score = progress?.quizScores?.get(quizId)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    title = "Highest Score",
+                    value = score?.toString() ?: "-",
+                    icon = Icons.Default.EmojiEvents,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                val attemptsVal = if (score != null) "1/${task.maxAttempts}" else "0/${task.maxAttempts}"
+                StatCard(
+                    title = "Attempts",
+                    value = attemptsVal,
+                    icon = Icons.Default.History,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            DueDateWideCard(task.closingDate)
+        } else {
+            DueDateWideCard(task.closingDate)
         }
     }
 }
@@ -290,12 +366,16 @@ private fun StatCard(
     title: String,
     value: String,
     icon: ImageVector,
-    color: Color
+    color: Color,
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier
+    val effectiveModifier = if (modifier == Modifier) {
+        Modifier
             .width(120.dp)
-            .heightIn(min = 120.dp),
+            .heightIn(min = 120.dp)
+    } else modifier
+    Card(
+        modifier = effectiveModifier,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -375,20 +455,12 @@ private fun TaskDueDatesSection(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
                 DateItem(
-                    label = "Submission",
-                    date = task.submissionDate,
-                    icon = Icons.Default.Upload
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                DateItem(
-                    label = "Closing",
+                    label = "Due Date",
                     date = task.closingDate,
                     icon = Icons.Default.LockClock
                 )
@@ -436,18 +508,10 @@ private fun DueDateSection(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.Center
             ) {
                 DateItem(
-                    label = "Submission",
-                    date = submissionDate,
-                    icon = Icons.Default.Upload
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                DateItem(
-                    label = "Closing",
+                    label = "Due Date",
                     date = closingDate,
                     icon = Icons.Default.LockClock
                 )
@@ -462,6 +526,16 @@ private fun DateItem(
     date: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
+    val parsed = remember(date) {
+        runCatching { OffsetDateTime.parse(date) }.getOrNull()
+    }
+    val formatted = remember(parsed) {
+        parsed?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()?.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+            ?: date
+    }
+    val isOverdue = remember(parsed) {
+        parsed?.isBefore(OffsetDateTime.now()) == true
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -484,9 +558,9 @@ private fun DateItem(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = date,
+            text = formatted,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (label == "Closing" && isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -502,6 +576,10 @@ private fun TaskProgressSection(
     onLessonComplete: (String, String) -> Unit,
     onExerciseComplete: (String, String) -> Unit,
     onQuizSubmit: (String, String, Int) -> Unit,
+    onStartLesson: (String) -> Unit,
+    onStartExercise: (String) -> Unit,
+    onStartQuiz: (String) -> Unit,
+    onBackAfterLesson: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -515,148 +593,80 @@ private fun TaskProgressSection(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.TrendingUp,
-                    contentDescription = "Progress",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-        Text(
-            text = "Progress",
-            style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                   Row(
+                       verticalAlignment = Alignment.CenterVertically,
+                       horizontalArrangement = Arrangement.spacedBy(8.dp)
+                   ) {
+                       Icon(
+                           imageVector = Icons.Default.TrendingUp,
+                           contentDescription = "Progress",
+                           tint = MaterialTheme.colorScheme.primary,
+                           modifier = Modifier.size(20.dp)
+                       )
+                       Text(
+                           text = "Progress",
+                           style = MaterialTheme.typography.titleMedium,
+                           color = MaterialTheme.colorScheme.primary,
+                           fontWeight = FontWeight.Bold
+                       )
+                   }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                   Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress Bar with percentage
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${(progress.progress * 100).toInt()}% Complete",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+                   // Progress Bar with percentage
+                   Row(
+                       modifier = Modifier.fillMaxWidth(),
+                       horizontalArrangement = Arrangement.SpaceBetween,
+                       verticalAlignment = Alignment.CenterVertically
+                   ) {
+                       Text(
+                           text = "${((progress.progress ?: 0f) * 100).toInt()}% Complete",
+                           style = MaterialTheme.typography.bodyMedium,
+                           fontWeight = FontWeight.Medium,
+                           color = MaterialTheme.colorScheme.onSurface
+                       )
+                   }
 
-        Spacer(modifier = Modifier.height(8.dp))
+                   Spacer(modifier = Modifier.height(8.dp))
 
-        LinearProgressIndicator(
-                progress = { progress.progress },
-            modifier = Modifier
-                .fillMaxWidth()
-                    .height(8.dp),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-        )
+                   LinearProgressIndicator(
+                       progress = { progress.progress ?: 0f },
+                       modifier = Modifier
+                           .fillMaxWidth()
+                           .height(8.dp),
+                       color = MaterialTheme.colorScheme.primary,
+                       trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                   )
 
-            Spacer(modifier = Modifier.height(20.dp))
+                   Spacer(modifier = Modifier.height(20.dp))
 
         // Components Section
         if (!task.lessonTemplateId.isNullOrEmpty()) {
-            ComponentCard(
-                title = "Lesson",
-                isCompleted = task.lessonTemplateId in progress.completedLessons,
-                onClick = { onLessonComplete(task.physicalId, task.lessonTemplateId) }
+            LessonCard(
+                isCompleted = task.lessonTemplateId in (progress.completedLessons ?: emptyList()),
+                onStartLesson = { onStartLesson(task.lessonTemplateId!!) }
             )
-            Spacer(Modifier.height(8.dp))
-                
-                // Load and display actual lesson template data
-                val lessonTemplate by viewModel.lessonTemplate.collectAsState()
-                LaunchedEffect(task.lessonTemplateId) {
-                    viewModel.loadLessonTemplate(task.lessonTemplateId)
-                }
-                
-                lessonTemplate?.let { lesson ->
-                    LessonView(lesson = lesson)
-                } ?: run {
-                    // Show loading state while fetching lesson template
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
         }
 
-        if (!task.exerciseTemplateId.isNullOrEmpty()) {
+        val exerciseTemplatePhysicalId = task.exerciseTemplateId ?: task.exerciseTemplate?.physicalId
+        if (!exerciseTemplatePhysicalId.isNullOrEmpty()) {
             ComponentCard(
                 title = "Exercise",
-                isCompleted = task.exerciseTemplateId in progress.completedExercises,
-                onClick = { onExerciseComplete(task.physicalId, task.exerciseTemplateId) }
+                isCompleted = exerciseTemplatePhysicalId in (progress.completedExercises ?: emptyList()),
+                onClick = { onStartExercise(exerciseTemplatePhysicalId!!) }
             )
         }
 
-        if (!task.quizTemplateId.isNullOrEmpty()) {
-            val quizScore = progress.quizScores[task.quizTemplateId]
+        val quizTemplatePhysicalId = task.quizTemplateId ?: task.quizTemplate?.physicalId
+        if (!quizTemplatePhysicalId.isNullOrEmpty()) {
+            val quizScore = progress.quizScores?.get(quizTemplatePhysicalId)
             QuizCard(
                 score = quizScore,
                 maxAttempts = task.maxAttempts,
-                onSubmit = { score ->
-                    onQuizSubmit(task.physicalId, task.quizTemplateId, score)
-                }
+                onTakeQuiz = { onStartQuiz(quizTemplatePhysicalId!!) }
             )
             Spacer(Modifier.height(8.dp))
-            
-            // Load and display actual quiz template data
-            val quizTemplate by viewModel.quizTemplate.collectAsState()
-            LaunchedEffect(task.quizTemplateId) {
-                viewModel.loadQuizTemplate(task.quizTemplateId)
-            }
-            
-            quizTemplate?.let { quiz ->
-                QuizView(
-                    quiz = quiz,
-                    onSubmitScore = { score ->
-                        onQuizSubmit(task.physicalId, task.quizTemplateId!!, score)
-                    }
-                )
-            } ?: run {
-                // Show loading state while fetching quiz template
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
+            // Quiz content now opens in dedicated screen
         }
         }
     }
@@ -755,144 +765,318 @@ private fun ComponentCard(
 private fun QuizCard(
     score: Int?,
     maxAttempts: Int,
-    onSubmit: (Int) -> Unit
+    onTakeQuiz: () -> Unit
 ) {
-    var showDialog by remember { mutableStateOf(false) }
-    var quizScore by remember { mutableStateOf(0) }
+    val attemptsText = if (score == null) "0/$maxAttempts attempts" else "1/$maxAttempts attempts"
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 96.dp)
             .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (score != null) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
-                MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Quiz,
-                    contentDescription = "Quiz",
-                    tint = if (score != null) 
-                        MaterialTheme.colorScheme.onPrimaryContainer 
-                    else 
-                        MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Column {
-            Text(
-                text = "Quiz",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = if (score != null) 
-                            MaterialTheme.colorScheme.onPrimaryContainer 
-                        else 
-                            MaterialTheme.colorScheme.onSurface
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)
+                            )
+                        )
                     )
-                    if (score != null) {
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Quiz,
+                            contentDescription = "Quiz",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Completed",
+                            text = "Quiz",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = attemptsText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (score != null) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text("Score $score") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.EmojiEvents,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (score != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.EmojiEvents,
-                        contentDescription = "Score",
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(20.dp)
+            Box(modifier = Modifier.padding(16.dp)) {
+                Button(
+                    onClick = onTakeQuiz,
+                    enabled = score == null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (score == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (score == null) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                Text(
-                    text = "Score: $score",
-                    style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.tertiary
-                )
+                ) {
+                    Text(
+                        if (score == null) "Take Quiz" else "Completed",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (score == null) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = { showDialog = true },
-                enabled = score == null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (score != null) 
-                        MaterialTheme.colorScheme.primaryContainer 
-                    else 
-                        MaterialTheme.colorScheme.primary,
-                    contentColor = if (score != null) 
-                        MaterialTheme.colorScheme.onPrimaryContainer 
-                    else 
-                        MaterialTheme.colorScheme.onPrimary
-                ),
-                shape = RoundedCornerShape(8.dp)
+@Composable
+private fun DueDateWideCard(
+    closingDate: String
+) {
+    val parsed = remember(closingDate) {
+        runCatching { OffsetDateTime.parse(closingDate) }.getOrNull()
+    }
+    val formattedDue = remember(parsed) {
+        parsed?.atZoneSameInstant(ZoneId.systemDefault())?.toLocalDate()?.format(DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+            ?: closingDate
+    }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 96.dp)
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            // Gradient header for visual polish
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "Due Date",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                    ) {
+                        Text(
+                            text = "Due Date",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = formattedDue,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                val now = OffsetDateTime.now()
+                val parsed = runCatching { OffsetDateTime.parse(closingDate) }.getOrNull()
+                val daysText = parsed?.let {
+                    val days = ChronoUnit.DAYS.between(now.toLocalDate(), it.toLocalDate())
+                    when {
+                        days < 0 -> "Overdue by ${kotlin.math.abs(days)} day${if (kotlin.math.abs(days) == 1L) "" else "s"}"
+                        days == 0L -> "Due today"
+                        days == 1L -> "Due in 1 day"
+                        else -> "Due in $days days"
+                    }
+                } ?: ""
                 Text(
-                    text = if (score != null) "Submitted" else "Submit Score",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium
+                    text = daysText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
+}
 
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text("Submit Quiz Score") },
-            text = {
-                Column {
-                    Text("Enter your quiz score:")
-                    Slider(
-                        value = quizScore.toFloat(),
-                        onValueChange = { quizScore = it.toInt() },
-                        valueRange = 0f..100f,
-                        steps = 100
+@Composable
+private fun LessonCard(
+    isCompleted: Boolean,
+    onStartLesson: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.18f)
+                            )
+                        )
                     )
-                    Text("Score: $quizScore")
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onSubmit(quizScore)
-                        showDialog = false
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Lesson",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
-                ) {
-                    Text("Submit")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDialog = false }
-                ) {
-                    Text("Cancel")
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Lesson",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isCompleted) "Completed" else "Not started",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-        )
+
+            Box(modifier = Modifier.padding(16.dp)) {
+                Button(
+                    onClick = onStartLesson,
+                    enabled = !isCompleted,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (!isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (!isCompleted) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(
+                        if (!isCompleted) "Start Lesson" else "Completed",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (!isCompleted) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

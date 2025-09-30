@@ -5,8 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import timber.log.Timber
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
 import citu.edu.stathis.mobile.features.dashboard.presentation.viewmodel.DashboardViewModel
 import citu.edu.stathis.mobile.features.dashboard.presentation.viewmodel.*
@@ -38,6 +42,7 @@ fun LearnScreen(
     dashboardViewModel: DashboardViewModel = hiltViewModel()
 ) {
     val classroomsState by viewModel.classroomsState.collectAsState()
+    val verifiedMap by viewModel.verifiedMap.collectAsState()
     val enrollmentState by viewModel.enrollmentState.collectAsState()
     val progressState by dashboardViewModel.progressState.collectAsState()
     val tasksState by dashboardViewModel.tasksState.collectAsState()
@@ -77,7 +82,10 @@ fun LearnScreen(
             .background(surfaceColor)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 100.dp) // Ensure content scrolls above nav bar
         ) {
     // Streak Header and Join Class
     StreakHeader(
@@ -91,14 +99,7 @@ fun LearnScreen(
         tasksState = tasksState
     )
 
-    // Upcoming Tasks
-    LearnUpcomingTasksSection(
-        tasksState = tasksState,
-        onTaskClick = { taskId -> navController.navigate("task_detail/$taskId") },
-        onViewAllTasks = { /* TODO: Implement all tasks screen */ }
-    )
-            
-            // Main Content
+            // Main Content (Your Classrooms FIRST)
             when (val currentState = classroomsState) {
                 is ClassroomsState.Loading -> {
                     Box(
@@ -116,21 +117,103 @@ fun LearnScreen(
                 is ClassroomsState.Success -> {
                     ClassroomsHeader(
                         pathTitle = "Your Classrooms",
-                        completedSections = when (val s = classroomsState) {
-                            is ClassroomsState.Success -> s.classrooms.size
-                            else -> 0
-                        },
+                        completedSections = currentState.classrooms.size,
                         totalSections = 5
                     )
-                    ClassroomsContent(
-                        classrooms = currentState.classrooms,
-                        onClassroomClick = { classroom ->
-                            navController.navigate("classroom_detail/${classroom.physicalId}")
-                        },
-                        onViewTasks = { classroom ->
-                            navController.navigateToTaskList(classroom.physicalId)
+                    
+                    // Wait for verification data to load before partitioning
+                    if (verifiedMap.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = primaryColor
+                            )
                         }
-                    )
+                    } else {
+                        // Enrolled only when explicitly verified=true; otherwise consider pending
+                        // Default to pending for newly enrolled classrooms until verification is confirmed
+                        Timber.d("Classrooms: ${currentState.classrooms.map { "${it.name} (${it.physicalId})" }}")
+                        Timber.d("VerifiedMap: $verifiedMap")
+                        val (enrolled, pending) = currentState.classrooms.partition { c ->
+                            val isVerified = verifiedMap[c.physicalId] == true
+                            Timber.d("Classroom ${c.name} (${c.physicalId}): verified=$isVerified")
+                            isVerified
+                        }
+                        Timber.d("Enrolled: ${enrolled.map { it.name }}")
+                        Timber.d("Pending: ${pending.map { it.name }}")
+                        // Build classroom name map for upcoming tasks footer
+                        val classroomNameById = currentState.classrooms.associate { it.physicalId to it.name }
+
+                        // Enrolled Classrooms Section
+                        if (enrolled.isNotEmpty()) {
+                            Text(
+                                text = "Enrolled",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            enrolled.forEach { classroom ->
+                                ClassroomCard(
+                                    classroom = classroom,
+                                    isUnlocked = true,
+                                    progress = 0.0f,
+                                    onClick = { 
+                                        if (verifiedMap[classroom.physicalId] == true) {
+                                            navController.navigate("classroom_detail/${classroom.physicalId}")
+                                        }
+                                    },
+                                    onViewTasks = { 
+                                        if (verifiedMap[classroom.physicalId] == true) {
+                                            navController.navigateToTaskList(classroom.physicalId)
+                                        }
+                                    },
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                        
+                        // Pending Classrooms Section
+                        if (pending.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Pending Verification",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            pending.forEach { classroom ->
+                                ClassroomCard(
+                                    classroom = classroom,
+                                    isUnlocked = false,
+                                    progress = 0.0f,
+                                    onClick = { /* blocked */ },
+                                    onViewTasks = { /* blocked */ },
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                        
+                        // Upcoming Tasks Section
+                        Spacer(modifier = Modifier.height(16.dp))
+                        LearnUpcomingTasksSection(
+                            tasksState = tasksState,
+                            classroomNameById = classroomNameById,
+                            onTaskClick = { taskId -> navController.navigate("task_detail/$taskId") },
+                            onViewAllTasks = { navController.navigate("tasks_upcoming_all") }
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
                 }
                 is ClassroomsState.Error -> {
                     ErrorBanner(
@@ -396,8 +479,10 @@ private fun ClassroomsHeader(
 @Composable
 private fun LearnUpcomingTasksSection(
     tasksState: TasksState,
+    classroomNameById: Map<String, String>,
     onTaskClick: (String) -> Unit,
-    onViewAllTasks: () -> Unit
+    onViewAllTasks: () -> Unit,
+    defaultClassroomId: String? = null
 ) {
     // Local copy of the UpcomingTasksSection from Practice to avoid cross-file access
     Column(
@@ -438,9 +523,27 @@ private fun LearnUpcomingTasksSection(
                 )
             }
             is TasksState.Success -> {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    tasksState.tasks.take(3).forEach { task ->
-                        TaskItemRow(task = task, onClick = onTaskClick)
+                val now = java.time.OffsetDateTime.now()
+                val availableTasks = tasksState.tasks.filter { task ->
+                    val pastDeadline = runCatching { java.time.OffsetDateTime.parse(task.closingDate) }
+                        .getOrNull()?.isBefore(now) == true
+                    val active = task.isActive ?: true
+                    !pastDeadline && active // Only include tasks that are not past deadline and are active
+                }
+                
+                if (availableTasks.isEmpty()) {
+                    LearnEmptyStateCard(
+                        title = "No upcoming tasks",
+                        description = "All tasks are completed or unavailable",
+                        icon = Icons.Default.CheckCircle
+                    )
+                } else {
+                    val sortedByClosest = availableTasks
+                        .sortedBy { runCatching { java.time.OffsetDateTime.parse(it.closingDate) }.getOrNull() ?: java.time.OffsetDateTime.MAX }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        sortedByClosest.take(2).forEach { task ->
+                            TaskItemRow(task = task, classroomName = classroomNameById[task.classroomPhysicalId], onClick = onTaskClick)
+                        }
                     }
                 }
             }
@@ -574,7 +677,7 @@ private fun ProgressAndTasksHeader(
 }
 
 @Composable
-private fun TaskItemRow(task: Task, onClick: (String) -> Unit = {}) {
+fun TaskItemRow(task: Task, classroomName: String? = null, onClick: (String) -> Unit = {}) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -589,6 +692,28 @@ private fun TaskItemRow(task: Task, onClick: (String) -> Unit = {}) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Left: type icon
+            val typeIcon = when {
+                task.lessonTemplateId?.isNotEmpty() == true || task.lessonTemplate != null -> Icons.Default.MenuBook
+                task.quizTemplateId?.isNotEmpty() == true || task.quizTemplate != null -> Icons.Default.Quiz
+                task.exerciseTemplateId?.isNotEmpty() == true || task.exerciseTemplate != null -> Icons.Default.FitnessCenter
+                else -> Icons.Default.Assignment
+            }
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            ) {
+                Icon(
+                    imageVector = typeIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(6.dp)
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            // Middle: title and description
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.name,
@@ -603,24 +728,42 @@ private fun TaskItemRow(task: Task, onClick: (String) -> Unit = {}) {
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1
                 )
+
+                // Due date (MM/DD/YYYY)
+                val dueFormatted = runCatching { java.time.OffsetDateTime.parse(task.closingDate) }
+                    .getOrNull()
+                    ?.toLocalDate()
+                    ?.format(java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy"))
+                    ?: task.closingDate
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Due: $dueFormatted",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
 
-            // Template type indicator inferred from available template IDs
-            val icon = when {
-                task.lessonTemplateId?.isNotEmpty() == true -> Icons.Default.MenuBook
-                task.quizTemplateId?.isNotEmpty() == true -> Icons.Default.Quiz
-                task.exerciseTemplateId?.isNotEmpty() == true -> Icons.Default.FitnessCenter
-                else -> Icons.Default.Assignment
-            }
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(6.dp)
+            // Right: classroom chip
+            if (!classroomName.isNullOrBlank()) {
+                AssistChip(
+                    onClick = {},
+                    label = { Text(classroomName) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.School,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 )
             }
         }
@@ -652,20 +795,89 @@ private fun ClassroomsContent(
 }
 
 @Composable
+private fun ClassroomsSplitContent(
+    enrolled: List<Classroom>,
+    pending: List<Classroom>,
+    onClassroomClick: (Classroom) -> Unit,
+    onViewTasks: (Classroom) -> Unit,
+    footer: (@Composable () -> Unit)? = null
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (enrolled.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Enrolled",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            items(enrolled) { classroom ->
+                ClassroomCard(
+                    classroom = classroom,
+                    isUnlocked = true,
+                    progress = 0.0f,
+                    onClick = { onClassroomClick(classroom) },
+                    onViewTasks = { onViewTasks(classroom) }
+                )
+            }
+        }
+        if (pending.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Pending Verification",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            items(pending) { classroom ->
+                ClassroomCard(
+                    classroom = classroom,
+                    isUnlocked = false,
+                    progress = 0.0f,
+                    onClick = { /* blocked */ },
+                    onViewTasks = { /* blocked */ }
+                )
+            }
+        }
+        item { footer?.invoke() }
+    }
+}
+
+@Composable
 private fun ClassroomCard(
     classroom: Classroom,
     isUnlocked: Boolean,
     progress: Float,
     onClick: () -> Unit,
-    onViewTasks: () -> Unit
+    onViewTasks: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = isUnlocked) { onClick() },
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        color = if (isUnlocked) {
+            MaterialTheme.colorScheme.surfaceContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isUnlocked) {
+                MaterialTheme.colorScheme.outlineVariant
+            } else {
+                MaterialTheme.colorScheme.outline
+            }
+        )
     ) {
         Row(
             modifier = Modifier
@@ -679,7 +891,11 @@ private fun ClassroomCard(
             ) {
                 Text(
                     text = classroom.name,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isUnlocked) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 2,
@@ -689,7 +905,11 @@ private fun ClassroomCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = classroom.description,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isUnlocked) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -698,28 +918,55 @@ private fun ClassroomCard(
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Teacher: ${classroom.teacherName}",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isUnlocked) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    },
                     style = MaterialTheme.typography.labelSmall
                 )
             }
             
-            // Progress Circle
+            // Progress Circle or Pending Status
             Box(
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.size(48.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 4.dp,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                )
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isUnlocked) {
+                    CircularProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 4.dp,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    )
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    // Pending verification status - Lock icon
+                    Card(
+                        modifier = Modifier.size(48.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Locked",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
             }
         }
     }

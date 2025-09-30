@@ -20,6 +20,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
+import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
+import java.time.OffsetDateTime
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,12 +34,47 @@ fun TaskListScreen(
 ) {
     val tasks by viewModel.tasks.collectAsState()
     val error by viewModel.error.collectAsState()
+    var typeFilter by remember { mutableStateOf("ALL") }
+    var statusFilter by remember { mutableStateOf("ALL") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Store progress data for each task (nullable because fetch may fail)
+    var taskProgressMap by remember { mutableStateOf<Map<String, TaskProgressResponse?>>(emptyMap()) }
 
     LaunchedEffect(classroomId) {
         viewModel.loadTasksForClassroom(classroomId)
     }
+    
+    // Fetch progress data for all tasks when tasks change
+    LaunchedEffect(tasks) {
+        if (tasks.isNotEmpty()) {
+            val progressMap = mutableMapOf<String, TaskProgressResponse?>()
+            tasks.forEach { task ->
+                try {
+                    // Add detailed logging for debugging
+                    android.util.Log.d("TaskListScreen", "Fetching progress for task: ${task.name} (${task.physicalId})")
+                    android.util.Log.d("TaskListScreen", "Task details - Active: ${task.isActive}, Started: ${task.isStarted}, Closing: ${task.closingDate}")
+                    
+                    val progress = viewModel.getTaskProgress(task.physicalId, suppressError = true)
+                    if (progress != null) {
+                        android.util.Log.d("TaskListScreen", "Progress fetched for ${task.name}: completed=${progress.isCompleted}, progress=${progress.progress}")
+                    } else {
+                        android.util.Log.w("TaskListScreen", "No progress data for task ${task.name}")
+                    }
+                    progressMap[task.physicalId] = progress
+                } catch (e: Exception) {
+                    // If progress fetch fails, continue without it
+                    android.util.Log.e("TaskListScreen", "Failed to fetch progress for task ${task.physicalId}: ${e.message}", e)
+                }
+            }
+            taskProgressMap = progressMap
+            android.util.Log.d("TaskListScreen", "Final progress map: $progressMap")
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { 
@@ -76,11 +114,147 @@ fun TaskListScreen(
                     )
                 )
         ) {
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Filters row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = typeFilter == "ALL",
+                        onClick = { typeFilter = "ALL" },
+                        label = { Text("All") }
+                    )
+                    FilterChip(
+                        selected = typeFilter == "LESSON",
+                        onClick = { typeFilter = "LESSON" },
+                        label = { Text("Lesson") }
+                    )
+                    FilterChip(
+                        selected = typeFilter == "QUIZ",
+                        onClick = { typeFilter = "QUIZ" },
+                        label = { Text("Quiz") }
+                    )
+                    FilterChip(
+                        selected = typeFilter == "EXERCISE",
+                        onClick = { typeFilter = "EXERCISE" },
+                        label = { Text("Exercise") }
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = statusFilter == "ALL",
+                        onClick = { statusFilter = "ALL" },
+                        label = { Text("All") }
+                    )
+                    FilterChip(
+                        selected = statusFilter == "COMPLETED",
+                        onClick = { statusFilter = "COMPLETED" },
+                        label = { Text("Completed") }
+                    )
+                    FilterChip(
+                        selected = statusFilter == "ONGOING",
+                        onClick = { statusFilter = "ONGOING" },
+                        label = { Text("Ongoing") }
+                    )
+                    FilterChip(
+                        selected = statusFilter == "UNAVAILABLE",
+                        onClick = { statusFilter = "UNAVAILABLE" },
+                        label = { Text("Unavailable") }
+                    )
+                }
+
+                val filtered = tasks.filter { task ->
+                    val pastDeadline = runCatching { OffsetDateTime.parse(task.closingDate) }
+                        .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                    val hasLesson = task.lessonTemplateId?.isNotEmpty() == true || task.lessonTemplate != null
+                    val hasQuiz = task.quizTemplateId?.isNotEmpty() == true || task.quizTemplate != null
+                    val hasExercise = task.exerciseTemplateId?.isNotEmpty() == true || task.exerciseTemplate != null
+
+                    val typeOk = when (typeFilter) {
+                        "LESSON" -> hasLesson
+                        "QUIZ" -> hasQuiz
+                        "EXERCISE" -> hasExercise
+                        else -> true
+                    }
+
+                    // Status logic: prioritize deactivation over completion
+                    val progress = taskProgressMap[task.physicalId]
+                    val active = task.isActive ?: true
+                    val started = task.isStarted ?: false
+                    val isUnavailable = pastDeadline || !active
+                    
+                    // Debug logging for status determination
+                    android.util.Log.d("TaskListScreen", "Status logic for ${task.name}:")
+                    android.util.Log.d("TaskListScreen", "  - Past deadline: $pastDeadline")
+                    android.util.Log.d("TaskListScreen", "  - Active: $active")
+                    android.util.Log.d("TaskListScreen", "  - Started: $started")
+                    android.util.Log.d("TaskListScreen", "  - Is unavailable: $isUnavailable")
+                    android.util.Log.d("TaskListScreen", "  - Progress data: ${progress?.isCompleted}")
+                    android.util.Log.d("TaskListScreen", "  - Cache completion: ${TaskCompletionCache.isCompleted(task.physicalId)}")
+                    
+                    // If task is unavailable (deactivated or past deadline), it's unavailable regardless of completion
+                    val hasAnyTemplate = hasLesson || hasQuiz || hasExercise
+                    val isCompleted = if (isUnavailable) {
+                        false // Deactivated tasks are never considered completed
+                    } else {
+                        progress?.isCompleted
+                            ?: TaskCompletionCache.isCompleted(task.physicalId)
+                            ?: (hasAnyTemplate && started && !active)
+                    }
+                    val isOngoing = !isUnavailable && !isCompleted && active
+                    
+                    android.util.Log.d("TaskListScreen", "  - Final status - Completed: $isCompleted, Ongoing: $isOngoing, Unavailable: $isUnavailable")
+
+                    val statusOk = when (statusFilter) {
+                        "COMPLETED" -> isCompleted
+                        "ONGOING" -> isOngoing
+                        "UNAVAILABLE" -> isUnavailable
+                        else -> true
+                    }
+                    typeOk && statusOk
+                }.sortedWith { task1, task2 ->
+                    // First, separate available and unavailable tasks
+                    val task1PastDeadline = runCatching { OffsetDateTime.parse(task1.closingDate) }
+                        .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                    val task1ActiveVal = task1.isActive ?: true
+                    val task1Unavailable = task1PastDeadline || !task1ActiveVal
+                    
+                    val task2PastDeadline = runCatching { OffsetDateTime.parse(task2.closingDate) }
+                        .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                    val task2ActiveVal = task2.isActive ?: true
+                    val task2Unavailable = task2PastDeadline || !task2ActiveVal
+                    
+                    // Unavailable tasks go to bottom
+                    if (task1Unavailable && !task2Unavailable) return@sortedWith 1
+                    if (!task1Unavailable && task2Unavailable) return@sortedWith -1
+                    
+                    // Within same availability group, sort by due date (earliest first)
+                    val date1 = runCatching { OffsetDateTime.parse(task1.closingDate) }.getOrNull()
+                    val date2 = runCatching { OffsetDateTime.parse(task2.closingDate) }.getOrNull()
+                    
+                    when {
+                        date1 == null && date2 == null -> 0
+                        date1 == null -> 1
+                        date2 == null -> -1
+                        else -> date1.compareTo(date2)
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 // Error Banner
                 if (error != null) {
                     item {
@@ -103,17 +277,34 @@ fun TaskListScreen(
                 }
 
                 // Tasks List
-                if (tasks.isEmpty()) {
+                if (filtered.isEmpty()) {
                     item {
                         EmptyTasksCard()
                     }
                 } else {
-                    items(tasks) { task ->
+                    items(filtered) { task ->
                         TaskCard(
                             task = task,
-                            onClick = { onTaskClick(task.physicalId) }
+                            progress = taskProgressMap[task.physicalId],
+                            onClick = { onTaskClick(task.physicalId) },
+                            onUnavailableAttempt = {
+                                coroutineScope.launch {
+                                    val reason = buildString {
+                                        val pastDeadline = runCatching { OffsetDateTime.parse(task.closingDate) }
+                                            .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                        val activeVal = task.isActive ?: true
+                                        if (!activeVal) append("Task is deactivated.")
+                                        if (pastDeadline) {
+                                            if (isNotEmpty()) append(" ")
+                                            append("Deadline has passed.")
+                                        }
+                                    }.ifBlank { "This task is unavailable." }
+                                    snackbarHostState.showSnackbar(reason)
+                                }
+                            }
                         )
                     }
+                }
                 }
             }
         }
@@ -123,85 +314,101 @@ fun TaskListScreen(
 @Composable
 private fun TaskCard(
     task: Task,
-    onClick: () -> Unit
+    progress: TaskProgressResponse?,
+    onClick: () -> Unit,
+    onUnavailableAttempt: () -> Unit
 ) {
+    val pastDeadline = runCatching { OffsetDateTime.parse(task.closingDate) }
+        .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+    // Status logic: prioritize deactivation over completion
+    val active = task.isActive ?: true
+    val isUnavailable = pastDeadline || !active
+    val isCompleted = if (isUnavailable) {
+        false // Deactivated tasks are never considered completed
+    } else {
+        progress?.isCompleted ?: false
+    }
+    
+    // Debug logging for TaskCard
+    android.util.Log.d("TaskCard", "TaskCard for ${task.name}:")
+    android.util.Log.d("TaskCard", "  - Past deadline: $pastDeadline")
+    android.util.Log.d("TaskCard", "  - Active: $active")
+    android.util.Log.d("TaskCard", "  - Is unavailable: $isUnavailable")
+    android.util.Log.d("TaskCard", "  - Progress completed: ${progress?.isCompleted}")
+    android.util.Log.d("TaskCard", "  - Final completed: $isCompleted")
+    // Keep items clickable to allow viewing Task Detail even if unavailable; component starts are blocked there
+    val clickableModifier = Modifier.clickable(onClick = { if (isUnavailable) onUnavailableAttempt() else onClick() })
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .then(clickableModifier),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isUnavailable) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
+        Row(
             modifier = Modifier
-                .padding(20.dp)
-                .fillMaxWidth()
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            // Left: type icon
+            TaskTypeIcon(task)
+
+            // Middle: title, description, due date
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isUnavailable) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    overflow = TextOverflow.Ellipsis
                 )
-                
-                TaskStatusChip(
-                    isActive = task.isActive,
-                    isStarted = task.isStarted
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = task.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = task.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.2
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Schedule,
                         contentDescription = "Due Date",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = when {
+                            pastDeadline -> MaterialTheme.colorScheme.error
+                            !active -> MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> MaterialTheme.colorScheme.primary
+                        },
                         modifier = Modifier.size(16.dp)
                     )
+                    Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Due: ${task.submissionDate}",
+                        text = "Due: ${task.closingDate}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = when {
+                            pastDeadline -> MaterialTheme.colorScheme.error
+                            !active -> MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> MaterialTheme.colorScheme.primary
+                        },
                         fontWeight = FontWeight.Medium
                     )
                 }
+            }
 
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = "View Task",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+            // Right: type badge + status
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                TaskTypeBadge(task)
+                TaskStatusChip(
+                    isActive = active,
+                    isPastDeadline = pastDeadline,
+                    isCompleted = isCompleted
                 )
             }
         }
@@ -209,20 +416,49 @@ private fun TaskCard(
 }
 
 @Composable
+private fun TaskTypeBadge(task: Task) {
+    val (icon, label) = when {
+        task.lessonTemplateId?.isNotEmpty() == true || task.lessonTemplate != null -> Icons.Default.MenuBook to "Lesson"
+        task.quizTemplateId?.isNotEmpty() == true || task.quizTemplate != null -> Icons.Default.Quiz to "Quiz"
+        task.exerciseTemplateId?.isNotEmpty() == true || task.exerciseTemplate != null -> Icons.Default.FitnessCenter to "Exercise"
+        else -> Icons.Default.Assignment to "Task"
+    }
+    AssistChip(
+        onClick = {},
+        label = { Text(label) },
+        leadingIcon = {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+        }
+    )
+}
+
+@Composable
 private fun TaskStatusChip(
     isActive: Boolean,
-    isStarted: Boolean
+    isPastDeadline: Boolean,
+    isCompleted: Boolean
 ) {
-    val (backgroundColor, contentColor) = when {
-        !isActive -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-        isStarted -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-        else -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
-    }
-
-    val text = when {
-        !isActive -> "Inactive"
-        isStarted -> "In Progress"
-        else -> "Not Started"
+    val (backgroundColor, contentColor, text) = when {
+        !isActive || isPastDeadline -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            "Unavailable"
+        )
+        isCompleted -> Triple(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer,
+            "Completed"
+        )
+        isActive -> Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            "Ongoing"
+        )
+        else -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            "Not Started"
+        )
     }
 
     Surface(
@@ -236,6 +472,19 @@ private fun TaskStatusChip(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
+    }
+}
+
+@Composable
+private fun TaskTypeIcon(task: Task) {
+    val icon = when {
+        task.lessonTemplateId?.isNotEmpty() == true || task.lessonTemplate != null -> Icons.Default.MenuBook
+        task.quizTemplateId?.isNotEmpty() == true || task.quizTemplate != null -> Icons.Default.Quiz
+        task.exerciseTemplateId?.isNotEmpty() == true || task.exerciseTemplate != null -> Icons.Default.FitnessCenter
+        else -> Icons.Default.Assignment
+    }
+    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(8.dp))
     }
 }
 

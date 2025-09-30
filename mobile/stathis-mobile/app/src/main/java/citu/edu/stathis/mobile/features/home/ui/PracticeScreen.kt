@@ -502,14 +502,30 @@ private fun UpcomingTasksSection(
                 )
             }
             is TasksState.Success -> {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    tasksState.tasks.take(3).forEach { task ->
-                        TaskCard(
-                            task = task,
-                            onClick = { onTaskClick(task.physicalId) }
-                        )
+                val now = java.time.OffsetDateTime.now()
+                val availableTasks = tasksState.tasks.filter { task ->
+                    val pastDeadline = runCatching { java.time.OffsetDateTime.parse(task.closingDate) }
+                        .getOrNull()?.isBefore(now) == true
+                    val active = task.isActive ?: true
+                    !pastDeadline && active // Only include tasks that are not past deadline and are active
+                }
+                
+                if (availableTasks.isEmpty()) {
+                    EmptyStateCard(
+                        title = "No upcoming tasks",
+                        description = "All tasks are completed or unavailable",
+                        icon = Icons.Default.CheckCircle
+                    )
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        availableTasks.take(3).forEach { task ->
+                            TaskCard(
+                                task = task,
+                                onClick = { onTaskClick(task.physicalId) }
+                            )
+                        }
                     }
                 }
             }
@@ -695,7 +711,7 @@ private fun ClassroomsOverviewSection(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     classroomsState.classrooms.take(2).forEach { classroom ->
-                        ClassroomCard(
+                        SimpleClassroomCard(
                             classroom = classroom,
                             onClick = { onClassroomClick(classroom.physicalId) }
                         )
@@ -710,7 +726,7 @@ private fun ClassroomsOverviewSection(
 }
 
 @Composable
-private fun ClassroomCard(
+private fun SimpleClassroomCard(
     classroom: Classroom,
     onClick: () -> Unit
 ) {

@@ -182,7 +182,98 @@ fun HomeNavHost(navController: NavHostController) {
             val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
             TaskDetailScreen(
                 taskId = taskId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onStartLesson = { templateId ->
+                    navController.navigate("task_lesson/$taskId/$templateId")
+                },
+                onStartQuiz = { templateId ->
+                    navController.navigate("task_quiz/$taskId/$templateId")
+                },
+                onStartExercise = { templateId ->
+                    navController.navigate("task_exercise/$taskId/$templateId")
+                }
+            )
+        }
+
+        // All upcoming tasks across classrooms
+        composable(
+            route = "tasks_upcoming_all",
+            enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) },
+            exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
+        ) {
+            citu.edu.stathis.mobile.features.home.ui.AllUpcomingTasksScreen(navController)
+        }
+
+        // No global tasks screen route; "View All" navigates to first enrolled classroom's tasks
+
+        // Student-only lesson screen
+        composable(
+            route = "task_lesson/{taskId}/{templateId}",
+            arguments = listOf(
+                navArgument("taskId") { type = NavType.StringType },
+                navArgument("templateId") { type = NavType.StringType }
+            ),
+            enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) },
+            exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+            val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+            citu.edu.stathis.mobile.features.tasks.presentation.TaskTemplateScreen(
+                taskId = taskId,
+                templateType = "LESSON",
+                templateId = templateId,
+                onNavigateBack = { navController.popBackStack() },
+                onTaskCompleted = { navController.popBackStack() }
+            )
+        }
+
+        // Student-only quiz taking screen
+        composable(
+            route = "task_quiz/{taskId}/{templateId}",
+            arguments = listOf(
+                navArgument("taskId") { type = NavType.StringType },
+                navArgument("templateId") { type = NavType.StringType }
+            ),
+            enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) },
+            exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+            val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+            citu.edu.stathis.mobile.features.tasks.presentation.TaskTemplateScreen(
+                taskId = taskId,
+                templateType = "QUIZ",
+                templateId = templateId,
+                onNavigateBack = { navController.popBackStack() },
+                onTaskCompleted = { navController.popBackStack() }
+            )
+        }
+
+        // Student-only exercise screen
+        composable(
+            route = "task_exercise/{taskId}/{templateId}",
+            arguments = listOf(
+                navArgument("taskId") { type = NavType.StringType },
+                navArgument("templateId") { type = NavType.StringType }
+            ),
+            enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popEnterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) },
+            exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
+            popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+            val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+            citu.edu.stathis.mobile.features.tasks.presentation.TaskTemplateScreen(
+                taskId = taskId,
+                templateType = "EXERCISE",
+                templateId = templateId,
+                onNavigateBack = { navController.popBackStack() },
+                onTaskCompleted = { navController.popBackStack() }
             )
         }
     }

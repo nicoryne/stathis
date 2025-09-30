@@ -1,9 +1,9 @@
 package citu.edu.stathis.mobile.features.vitals.di
 
-import citu.edu.stathis.mobile.features.vitals.domain.usecase.GetCurrentUserIdUseCase
+import citu.edu.stathis.mobile.features.exercise.domain.usecase.GetCurrentUserIdUseCase
 import citu.edu.stathis.mobile.features.auth.data.repository.AuthRepository
 import citu.edu.stathis.mobile.core.data.AuthTokenManager
-import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository
+import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.DeleteVitalRecordUseCase
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.GetVitalsHistoryUseCase
 import citu.edu.stathis.mobile.features.vitals.domain.usecase.SaveVitalsUseCase
@@ -63,12 +63,4 @@ object VitalsUseCaseModule {
         return DeleteVitalRecordUseCase(repository)
     }
     
-    @Provides
-    @Singleton
-    fun provideGetCurrentUserIdUseCase(
-        authTokenManager: AuthTokenManager,
-        authRepository: AuthRepository
-    ): GetCurrentUserIdUseCase {
-        return GetCurrentUserIdUseCase(authTokenManager, authRepository)
-    }
 }

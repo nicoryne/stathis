@@ -1,8 +1,5 @@
 package citu.edu.stathis.mobile.features.vitals.data.model
 
-import kotlinx.serialization.Serializable // If using Kotlinx Serialization
-
-@Serializable // Match your backend DTO fields
 data class VitalsRequestDto(
     val studentId: String,
     val classroomId: String?,

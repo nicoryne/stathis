@@ -2,6 +2,7 @@ package citu.edu.stathis.mobile.features.classroom.data.api
 
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
 import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
+import citu.edu.stathis.mobile.features.classroom.data.model.StudentListResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import retrofit2.Response
 import retrofit2.http.*
@@ -34,4 +35,9 @@ interface ClassroomService {
     suspend fun getClassroomProgress(
         @Path("classroomId") classroomId: String
     ): Response<ClassroomProgress>
+
+    @GET("api/classrooms/{classroomPhysicalId}/students")
+    suspend fun getStudentsForClassroom(
+        @Path("classroomPhysicalId") classroomPhysicalId: String
+    ): Response<List<StudentListResponse>>
 }

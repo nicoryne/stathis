@@ -94,7 +94,11 @@ class TaskViewModel @Inject constructor(
     fun submitQuizScore(taskId: String, quizTemplateId: String, score: Int) {
         viewModelScope.launch {
             when (val result = submitQuizScoreResultUseCase(taskId, quizTemplateId, score)) {
-                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Success -> {
+                    // Mark task as completed in cache for immediate UI feedback
+                    TaskCompletionCache.markCompleted(taskId)
+                    loadTaskProgress(taskId)
+                }
                 is Result.Error -> _error.value = result.message
             }
         }
@@ -103,7 +107,11 @@ class TaskViewModel @Inject constructor(
     fun completeLesson(taskId: String, lessonTemplateId: String) {
         viewModelScope.launch {
             when (val result = completeLessonResultUseCase(taskId, lessonTemplateId)) {
-                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Success -> {
+                    // Mark task as completed in cache for immediate UI feedback
+                    TaskCompletionCache.markCompleted(taskId)
+                    loadTaskProgress(taskId)
+                }
                 is Result.Error -> _error.value = result.message
             }
         }
@@ -112,7 +120,11 @@ class TaskViewModel @Inject constructor(
     fun completeExercise(taskId: String, exerciseTemplateId: String) {
         viewModelScope.launch {
             when (val result = completeExerciseResultUseCase(taskId, exerciseTemplateId)) {
-                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Success -> {
+                    // Mark task as completed in cache for immediate UI feedback
+                    TaskCompletionCache.markCompleted(taskId)
+                    loadTaskProgress(taskId)
+                }
                 is Result.Error -> _error.value = result.message
             }
         }
@@ -120,5 +132,17 @@ class TaskViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
+    }
+    
+    suspend fun getTaskProgress(taskId: String, suppressError: Boolean = false): TaskProgressResponse? {
+        return when (val result = getTaskProgressResultUseCase(taskId)) {
+            is Result.Success -> result.data
+            is Result.Error -> {
+                if (!suppressError) {
+                    _error.value = result.message
+                }
+                null
+            }
+        }
     }
 } 
