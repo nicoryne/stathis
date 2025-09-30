@@ -71,12 +71,13 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Build backend jar
+        working-directory: backend/stathis
         run: |
-          chmod +x backend/stathis/mvnw || true
-          backend/stathis/mvnw -q -B -DskipTests package
-          ls -la backend/stathis/target
-          JAR_PATH=$(ls backend/stathis/target/*.jar | head -n1)
-          echo "JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
+          chmod +x mvnw || true
+          ./mvnw -q -B -DskipTests package
+          ls -la target
+          JAR_PATH=$(ls target/*.jar | head -n1)
+          echo "JAR_PATH=$(pwd)/$JAR_PATH" >> $GITHUB_ENV
       - name: Rename jar to server.jar
         run: |
           cp "$JAR_PATH" server.jar
