@@ -25,6 +25,8 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import edu.cit.stathis.classroom.service.ClassroomService;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 @Service
 public class StudentTaskService {
@@ -116,6 +118,45 @@ public class StudentTaskService {
             existingScore.setAttempts(0);
         }
 
+        // Enforce max attempts based on Task configuration
+        Task task = taskRepository.findByPhysicalId(taskId)
+            .orElseThrow(() -> new EntityNotFoundException("Task not found with ID: " + taskId));
+        validateAttempts(task, existingScore);
+
+        // Ensure maxScore is populated from quiz template if available
+        if (existingScore.getMaxScore() <= 0) {
+            var optTemplate = quizTemplateRepository.findByPhysicalId(quizTemplateId);
+            if (optTemplate.isPresent()) {
+                var quizTemplate = optTemplate.get();
+                int templateMax = 0;
+                try {
+                    Object quizNode = quizTemplate.getContent() != null ? quizTemplate.getContent().get("quiz") : null;
+                    if (quizNode instanceof java.util.Map) {
+                        @SuppressWarnings("unchecked")
+                        var quizMap = (java.util.Map<String, Object>) quizNode;
+                        Object maxScoreNode = quizMap.get("maxScore");
+                        if (maxScoreNode instanceof Number) {
+                            templateMax = ((Number) maxScoreNode).intValue();
+                        } else {
+                            Object contentNode = quizMap.get("content");
+                            if (contentNode instanceof java.util.Map) {
+                                @SuppressWarnings("unchecked")
+                                var contentMap = (java.util.Map<String, Object>) contentNode;
+                                Object questionsNode = contentMap.get("questions");
+                                if (questionsNode instanceof java.util.List) {
+                                    templateMax = ((java.util.List<?>) questionsNode).size();
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+                if (templateMax <= 0) {
+                    templateMax = quizTemplate.getMaxScore();
+                }
+                existingScore.setMaxScore(templateMax);
+            }
+        }
+
         existingScore.setScore(score);
         existingScore.setAttempts(existingScore.getAttempts() + 1);
         existingScore.setCompleted(true);
@@ -188,6 +229,11 @@ public class StudentTaskService {
             existingScore.setAttempts(0);
         }
 
+        // Enforce max attempts based on Task configuration
+        Task task = taskRepository.findByPhysicalId(taskId)
+            .orElseThrow(() -> new EntityNotFoundException("Task not found with ID: " + taskId));
+        validateAttempts(task, existingScore);
+
         existingScore.setScore(computedScore);
         // If template carries maxScore, set it; else fall back to question count
         existingScore.setMaxScore(maxScore);
@@ -198,6 +244,12 @@ public class StudentTaskService {
         Score savedScore = scoreRepository.save(existingScore);
         updateTaskCompletion(studentId, taskId, "quiz", true);
         return savedScore;
+    }
+
+    private void validateAttempts(Task task, Score existingScore) {
+        if (task.getMaxAttempts() > 0 && existingScore.getAttempts() >= task.getMaxAttempts()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Maximum quiz attempts reached for this task");
+        }
     }
 
     @Transactional
