@@ -57,7 +57,7 @@ export default function StudentProgressDetailPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
 
-  // Fetch student progress data using the new API endpoint
+  // Fetch student progress data using our comprehensive implementation
   const {
     data: progressData,
     isLoading: isProgressLoading,
@@ -68,9 +68,10 @@ export default function StudentProgressDetailPage() {
     queryFn: () => getStudentProgress(studentId),
     enabled: !!studentId,
     retry: 2, // Retry failed requests up to 2 times
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes since this performs multiple API calls
   });
 
-  // Fetch student scores for detailed information
+  // Fetch student scores with enhanced task information using our client-side join
   const { 
     data: studentScores, 
     isLoading: isScoresLoading 
@@ -78,6 +79,7 @@ export default function StudentProgressDetailPage() {
     queryKey: ['student-scores', studentId],
     queryFn: () => getStudentScores(studentId),
     enabled: !!studentId,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes since this data requires multiple API calls
   });
 
   // Fetch student badges
@@ -417,21 +419,13 @@ export default function StudentProgressDetailPage() {
                         <TableHead>Type</TableHead>
                         <TableHead>Completed</TableHead>
                         <TableHead className="text-right">Score</TableHead>
-                        <TableHead className="text-right">Max</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {studentScores.map((score) => (
                         <TableRow key={score.physicalId}>
                           <TableCell className="font-medium">
-                            {score.taskName ? (
-                              <span className="font-medium">{score.taskName}</span>
-                            ) : (
-                              <span>
-                                <span className="font-medium">Task</span> 
-                                <span className="text-muted-foreground text-sm ml-1">{score.taskId.substring(0, 8)}...</span>
-                              </span>
-                            )}
+                            <span className="font-medium">{score.taskName}</span>
                           </TableCell>
                           <TableCell>
                             {score.taskType && (
@@ -471,39 +465,13 @@ export default function StudentProgressDetailPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {score.scoreValue !== undefined ? (
-                              <div>
-                                <div className="flex items-center justify-end gap-2">
-                                  <span className={`font-medium ${
-                                    (score.scoreValue / (score.maxScore || 100)) >= 0.7 
-                                      ? 'text-green-600' 
-                                      : (score.scoreValue / (score.maxScore || 100)) >= 0.5 
-                                      ? 'text-amber-600' 
-                                      : 'text-red-600'
-                                  }`}>
-                                    {score.scoreValue}
-                                  </span>
-                                </div>
-                                {/* Score bar visualization */}
-                                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                                  <div 
-                                    className={`h-1.5 rounded-full ${
-                                      (score.scoreValue / (score.maxScore || 100)) >= 0.7 
-                                        ? 'bg-green-500' 
-                                        : (score.scoreValue / (score.maxScore || 100)) >= 0.5 
-                                        ? 'bg-amber-500' 
-                                        : 'bg-red-500'
-                                    }`}
-                                    style={{ width: `${Math.min(100, (score.scoreValue / (score.maxScore || 100)) * 100)}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">N/A</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            {score.maxScore || 100}
+                            <span className="font-medium">
+                              {score.scoreValue !== undefined ? 
+                                score.maxScore ? 
+                                  `${score.scoreValue}/${score.maxScore}` : 
+                                  score.scoreValue 
+                                : 'N/A'}
+                            </span>
                           </TableCell>
                         </TableRow>
                       ))}
