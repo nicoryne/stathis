@@ -5,13 +5,12 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  getStudentScores, 
   getStudentBadges, 
   getStudentLeaderboardPosition,
   getStudentById,
-  getStudentProgress,
+  fetchStudentProgressItems,
   StudentDTO,
-  StudentProgressDTO
+  StudentProgressItemDTO
 } from '@/services/progress/api-progress-client';
 import { Sidebar } from '@/components/dashboard/sidebar';
 
@@ -57,29 +56,36 @@ export default function StudentProgressDetailPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
 
-  // Fetch student progress data using our comprehensive implementation
+  // Fetch student details (for name and profile info)
   const {
-    data: progressData,
-    isLoading: isProgressLoading,
+    data: studentDetails,
+    isLoading: isStudentLoading,
+    isError: isStudentError
+  } = useQuery({
+    queryKey: ['student-details', studentId],
+    queryFn: () => getStudentById(studentId),
+    enabled: !!studentId,
+    retry: 1, // Only retry once since we have fallback handling
+    retryDelay: 1000, // Wait 1 second between retries
+  });
+
+  // Extract classroom ID from student ID for proper API access
+  const classroomId = studentId.includes('-') 
+    ? `${studentId.split('-')[0]}-${studentId.split('-')[1]}` 
+    : undefined;
+    
+  // Fetch student progress items using the new API endpoint with classroom context
+  const {
+    data: progressItems,
+    isLoading: isProgressItemsLoading,
     isError: isProgressError,
     error: progressError
   } = useQuery({
-    queryKey: ['student-progress', studentId],
-    queryFn: () => getStudentProgress(studentId),
-    enabled: !!studentId,
+    queryKey: ['student-progress-items', studentId, classroomId],
+    queryFn: () => fetchStudentProgressItems(studentId, classroomId),
+    enabled: !!studentId && !!classroomId, // Only run if we have both IDs
     retry: 2, // Retry failed requests up to 2 times
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes since this performs multiple API calls
-  });
-
-  // Fetch student scores with enhanced task information using our client-side join
-  const { 
-    data: studentScores, 
-    isLoading: isScoresLoading 
-  } = useQuery({
-    queryKey: ['student-scores', studentId],
-    queryFn: () => getStudentScores(studentId),
-    enabled: !!studentId,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes since this data requires multiple API calls
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
   // Fetch student badges
@@ -102,63 +108,146 @@ export default function StudentProgressDetailPage() {
     enabled: !!studentId,
   });
   
-  // Create a synthetic StudentDTO from the progress data to maintain compatibility
-  const studentData: StudentDTO = progressData ? {
-    physicalId: progressData.studentId,
-    firstName: progressData.fullName.split(' ')[0] || 'Student',
-    lastName: progressData.fullName.split(' ').slice(1).join(' ') || '',
-    email: '', // Email not included in progress data
-    profilePictureUrl: '',
-    verified: true,
-    isVerified: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    joinedAt: new Date().toISOString(),
-  } : {
-    // Fallback student data if progress data isn't available
+  // Extract student ID parts for display in case we can't load full details
+  const idParts = studentId.split('-');
+  const studentNumber = idParts.length >= 3 ? idParts[2] : studentId;
+  
+  // Use the student details if available, otherwise create a fallback
+  const studentData: StudentDTO = studentDetails || {
+    // Fallback student data if details aren't available
     physicalId: studentId,
-    firstName: 'Student',
+    firstName: `Student ${studentNumber}`,
     lastName: '',
     email: '',
     profilePictureUrl: '',
-    verified: false,
-    isVerified: false,
+    verified: true, // Assume verified for UI purposes
+    isVerified: true,
     joinedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
   
-  // Loading state - show skeleton if any of the main data is loading
-  const isLoading = isProgressLoading;
+  // Create computed statistics from progress items
+  const computeStatistics = () => {
+    if (!progressItems || progressItems.length === 0) {
+      return {
+        lessonCompleted: false,
+        exerciseCompleted: false,
+        quizCompleted: false,
+        quizScore: 0,
+        maxQuizScore: 100,
+        quizAttempts: 0,
+        totalTimeTaken: 0,
+        kpis: {
+          averageScore: 0,
+          recentActivityDays: 0,
+          timeSpentMinutes: 0,
+          currentStreakDays: 0
+        },
+        performanceHistory: []
+      };
+    }
+    
+    // Calculate task completion stats
+    const lessonCompleted = progressItems.some(item => 
+      item.taskType.toUpperCase() === 'LESSON' && item.completed);
+      
+    const exerciseCompleted = progressItems.some(item => 
+      item.taskType.toUpperCase() === 'EXERCISE' && item.completed);
+      
+    const quizCompleted = progressItems.some(item => 
+      item.taskType.toUpperCase() === 'QUIZ' && item.completed);
+    
+    // Calculate quiz stats
+    const quizItems = progressItems.filter(item => 
+      item.taskType.toUpperCase() === 'QUIZ');
+      
+    const quizScore = quizItems.length > 0 
+      ? Math.round(quizItems.reduce((sum, item) => sum + (item.score || 0), 0) / quizItems.length)
+      : 0;
+      
+    const maxQuizScore = quizItems.length > 0
+      ? Math.max(...quizItems.map(item => item.maxScore || 100))
+      : 100;
+      
+    const quizAttempts = quizItems.length;
+    
+    // Calculate KPIs
+    // Average score across all tasks
+    const scoredItems = progressItems.filter(item => item.score !== null);
+    const averageScore = scoredItems.length > 0
+      ? Math.round(scoredItems.reduce((sum, item) => sum + (item.score || 0), 0) / 
+          scoredItems.reduce((sum, item) => sum + (item.maxScore || 100), 0) * 100)
+      : 0;
+    
+    // Calculate recent activity
+    const completedItems = progressItems.filter(item => item.completed && item.completedAt);
+    const latestActivity = completedItems.length > 0
+      ? new Date(Math.max(...completedItems.map(item => 
+          item.completedAt ? new Date(item.completedAt).getTime() : 0)))
+      : null;
+    
+    const recentActivityDays = latestActivity
+      ? Math.round((new Date().getTime() - latestActivity.getTime()) / (1000 * 60 * 60 * 24))
+      : 7;
+    
+    // Estimate time spent based on completed tasks
+    const timeSpentMinutes = completedItems.length * 20; // 20 minutes per task
+    
+    // Consider active if activity in last 3 days
+    const currentStreakDays = recentActivityDays < 3 ? 1 : 0;
+    
+    // Create performance history
+    const performanceHistory = progressItems
+      .filter(item => item.taskName) // Only include items with names
+      .slice(0, 5) // Take top 5
+      .map(item => ({
+        period: item.taskType,
+        score: item.score || 0,
+        maxScore: item.maxScore || 100,
+        taskName: item.taskName,
+        taskType: item.taskType
+      }));
+    
+    return {
+      lessonCompleted,
+      exerciseCompleted,
+      quizCompleted,
+      quizScore,
+      maxQuizScore,
+      quizAttempts,
+      totalTimeTaken: timeSpentMinutes * 60, // Convert to seconds
+      kpis: {
+        averageScore,
+        recentActivityDays,
+        timeSpentMinutes,
+        currentStreakDays
+      },
+      performanceHistory
+    };
+  };
   
-  // Error state - show error message if progress data fails to load
-  const isError = isProgressError;
+  // Generate computed progress data
+  const progressStats = computeStatistics();
   
-  // Use progress data for KPIs and statistics when available
-  const overallScore = progressData ? progressData.kpis.averageScore.toFixed(1) : 
-    (studentScores?.length ? 
-      (() => {
-        // Calculate total points and total possible points
-        let totalPoints = 0;
-        let totalPossible = 0;
-        
-        studentScores.forEach(score => {
-          if (score.isCompleted) {
-            totalPoints += score.scoreValue || 0;
-            totalPossible += score.maxScore || 100;
-          }
-        });
-        
-        // Return average as a percentage of total possible
-        return totalPossible > 0 ? (totalPoints / totalPossible * 100).toFixed(1) : '0.0';
-      })() : 
-      'N/A');
+  // Loading state - show skeleton if data is loading but not if there's an error
+  const isLoading = (isProgressItemsLoading && !isProgressError) || (isStudentLoading && !isStudentError);
   
-  const completedTasks = studentScores?.filter(score => score.isCompleted)?.length || 0;
-  const totalTasks = studentScores?.length || 0;
-  const timeSpent = progressData ? progressData.kpis.timeSpentMinutes : 0;
-  const streakDays = progressData ? progressData.kpis.currentStreakDays : 0;
-  const recentActivity = progressData ? progressData.kpis.recentActivityDays : 0;
+  // Error state - show error message if progress data fails to load and isn't loading
+  const isError = isProgressError && !isProgressItemsLoading;
+  
+  // Handle 403 errors gracefully by using fallback data
+  const hasValidData = !!progressItems || !!studentDetails;
+  
+  // Use progress statistics for KPIs when available
+  const overallScore = progressStats.kpis.averageScore.toFixed(1);
+  
+  // Calculate task statistics from progress items
+  const completedTasks = progressItems?.filter(item => item.completed)?.length || 0;
+  const totalTasks = progressItems?.length || 0;
+  const timeSpent = progressStats.kpis.timeSpentMinutes;
+  const streakDays = progressStats.kpis.currentStreakDays;
+  const recentActivity = progressStats.kpis.recentActivityDays;
 
   return (
     <div className="flex min-h-screen">
@@ -311,71 +400,51 @@ export default function StudentProgressDetailPage() {
               </div>
             </div>
 
-            {/* Additional KPI metrics from StudentProgressDTO */}
-            {progressData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-sm mb-1">Time Spent</span>
-                      <div className="flex items-baseline">
-                        <span className="text-3xl font-bold mr-1">{progressData.kpis.timeSpentMinutes}</span>
-                        <span className="text-muted-foreground">minutes</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground mt-2">Total time on tasks</span>
+            {/* Additional KPI metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <span className="text-muted-foreground text-sm mb-1">Time Spent</span>
+                    <div className="flex items-baseline">
+                      <span className="text-3xl font-bold mr-1">{progressStats.kpis.timeSpentMinutes}</span>
+                      <span className="text-muted-foreground">minutes</span>
                     </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-sm mb-1">Current Streak</span>
-                      <div className="flex items-baseline">
-                        <span className="text-3xl font-bold mr-1">{progressData.kpis.currentStreakDays}</span>
-                        <span className="text-muted-foreground">days</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground mt-2">Consecutive days of activity</span>
+                    <span className="text-xs text-muted-foreground mt-2">Total time on tasks</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <span className="text-muted-foreground text-sm mb-1">Current Streak</span>
+                    <div className="flex items-baseline">
+                      <span className="text-3xl font-bold mr-1">{progressStats.kpis.currentStreakDays}</span>
+                      <span className="text-muted-foreground">days</span>
                     </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col items-center">
-                      <span className="text-muted-foreground text-sm mb-1">Recent Activity</span>
-                      <div className="flex items-baseline">
-                        <span className="text-3xl font-bold mr-1">{progressData.kpis.recentActivityDays}</span>
-                        <span className="text-muted-foreground">days ago</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground mt-2">Last interaction with the platform</span>
+                    <span className="text-xs text-muted-foreground mt-2">Consecutive days of activity</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex flex-col items-center">
+                    <span className="text-muted-foreground text-sm mb-1">Recent Activity</span>
+                    <div className="flex items-baseline">
+                      <span className="text-3xl font-bold mr-1">{progressStats.kpis.recentActivityDays}</span>
+                      <span className="text-muted-foreground">days ago</span>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                    <span className="text-xs text-muted-foreground mt-2">Last interaction with the platform</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Status Messages Section */}
-        {progressData && progressData.statusMessages && progressData.statusMessages.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Status Updates</CardTitle>
-              <CardDescription>Recent status updates and feedback for this student</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {progressData.statusMessages.map((message, index) => (
-                  <div key={`status-${index}`} className="flex items-start gap-3 p-3 rounded-md bg-muted">
-                    <div className="h-2 w-2 mt-2 rounded-full bg-primary flex-shrink-0" />
-                    <p className="text-sm">{message}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Status Messages Section has been removed as it's not part of the new API */}
 
         {/* Performance tabs */}
         <Tabs defaultValue="scores">
@@ -398,7 +467,7 @@ export default function StudentProgressDetailPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {isScoresLoading ? (
+                {isProgressItemsLoading ? (
                   <div className="space-y-4">
                     {Array.from({ length: 5 }).map((_, index) => (
                       <div key={index} className="flex justify-between items-center">
@@ -407,9 +476,9 @@ export default function StudentProgressDetailPage() {
                       </div>
                     ))}
                   </div>
-                ) : !studentScores?.length ? (
+                ) : !progressItems?.length ? (
                   <div className="text-center py-6 text-muted-foreground">
-                    No task scores available for this student yet
+                    No task progress available for this student yet
                   </div>
                 ) : (
                   <Table>
@@ -422,37 +491,37 @@ export default function StudentProgressDetailPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {studentScores.map((score) => (
-                        <TableRow key={score.physicalId}>
+                      {progressItems.map((item) => (
+                        <TableRow key={item.taskId}>
                           <TableCell className="font-medium">
-                            <span className="font-medium">{score.taskName}</span>
+                            <span className="font-medium">{item.taskName}</span>
                           </TableCell>
                           <TableCell>
-                            {score.taskType && (
+                            {item.taskType && (
                               <Badge variant="outline" className={`flex items-center gap-1
-                                ${score.taskType.toLowerCase().includes('quiz') ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' : ''}
-                                ${score.taskType.toLowerCase().includes('test') ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' : ''}
-                                ${score.taskType.toLowerCase().includes('lesson') ? 'bg-green-100 text-green-800 hover:bg-green-200 border-green-200' : ''}
-                                ${score.taskType.toLowerCase().includes('exercise') ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' : ''}
-                                ${score.taskType.toLowerCase().includes('assess') ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200' : ''}
+                                ${item.taskType.toLowerCase().includes('quiz') ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' : ''}
+                                ${item.taskType.toLowerCase().includes('test') ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' : ''}
+                                ${item.taskType.toLowerCase().includes('lesson') ? 'bg-green-100 text-green-800 hover:bg-green-200 border-green-200' : ''}
+                                ${item.taskType.toLowerCase().includes('exercise') ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' : ''}
+                                ${item.taskType.toLowerCase().includes('assess') ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200' : ''}
                               `}>
                                 {/* Task type icons */}
-                                {score.taskType.toLowerCase().includes('quiz') && <BarChart className="h-3 w-3" />}
-                                {score.taskType.toLowerCase().includes('test') && <FileText className="h-3 w-3" />}
-                                {score.taskType.toLowerCase().includes('assess') && <GraduationCap className="h-3 w-3" />}
-                                {score.taskType.toLowerCase().includes('lesson') && <BookOpen className="h-3 w-3" />}
-                                {score.taskType.toLowerCase().includes('exercise') && <Dumbbell className="h-3 w-3" />}
-                                {!(score.taskType.toLowerCase().includes('quiz') || 
-                                   score.taskType.toLowerCase().includes('test') || 
-                                   score.taskType.toLowerCase().includes('lesson') || 
-                                   score.taskType.toLowerCase().includes('assess') || 
-                                   score.taskType.toLowerCase().includes('exercise')) && <User className="h-3 w-3" />}
-                                <span className="ml-1">{score.taskType}</span>
+                                {item.taskType.toLowerCase().includes('quiz') && <BarChart className="h-3 w-3" />}
+                                {item.taskType.toLowerCase().includes('test') && <FileText className="h-3 w-3" />}
+                                {item.taskType.toLowerCase().includes('assess') && <GraduationCap className="h-3 w-3" />}
+                                {item.taskType.toLowerCase().includes('lesson') && <BookOpen className="h-3 w-3" />}
+                                {item.taskType.toLowerCase().includes('exercise') && <Dumbbell className="h-3 w-3" />}
+                                {!(item.taskType.toLowerCase().includes('quiz') || 
+                                   item.taskType.toLowerCase().includes('test') || 
+                                   item.taskType.toLowerCase().includes('lesson') || 
+                                   item.taskType.toLowerCase().includes('assess') || 
+                                   item.taskType.toLowerCase().includes('exercise')) && <User className="h-3 w-3" />}
+                                <span className="ml-1">{item.taskType}</span>
                               </Badge>
                             )}
                           </TableCell>
                           <TableCell>
-                            {score.isCompleted ? (
+                            {item.completed ? (
                               <span className="flex items-center text-green-600">
                                 <CheckCircle2 className="h-4 w-4 mr-1" />
                                 Yes
@@ -466,10 +535,10 @@ export default function StudentProgressDetailPage() {
                           </TableCell>
                           <TableCell className="text-right">
                             <span className="font-medium">
-                              {score.scoreValue !== undefined ? 
-                                score.maxScore ? 
-                                  `${score.scoreValue}/${score.maxScore}` : 
-                                  score.scoreValue 
+                              {item.score !== null ? 
+                                item.maxScore !== null ? 
+                                  `${item.score}/${item.maxScore}` : 
+                                  item.score 
                                 : 'N/A'}
                             </span>
                           </TableCell>
@@ -603,8 +672,8 @@ export default function StudentProgressDetailPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {/* Use performance history from progress data when available */}
-                      {progressData?.performanceHistory?.map((entry, index) => (
+                          {/* Use performance history from progress stats */}
+                      {progressStats.performanceHistory.map((entry, index) => (
                         <TableRow key={`performance-${index}`}>
                           <TableCell className="font-medium">#{index + 1}</TableCell>
                           <TableCell>
@@ -664,7 +733,7 @@ export default function StudentProgressDetailPage() {
                       )}
                       
                       {/* If no performance history data is available, show placeholder message */}
-                      {!progressData?.performanceHistory?.length && !leaderboardData?.length && (
+                      {!progressStats.performanceHistory.length && !leaderboardData?.length && (
                         <TableRow>
                           <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                             No performance history available

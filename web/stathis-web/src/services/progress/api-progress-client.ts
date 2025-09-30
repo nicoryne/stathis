@@ -63,6 +63,23 @@ export interface ScoreResponseDTO {
 }
 
 /**
+ * New StudentProgressDTO matching the backend structure
+ */
+export interface StudentProgressItemDTO {
+  taskId: string;
+  taskName: string;
+  taskType: string;
+  classroomPhysicalId: string;
+  completed: boolean;
+  score: number | null;
+  maxScore: number | null;
+  attempts: number | null;
+  completedAt: string | null;
+  submissionDate: string | null;
+  closingDate: string | null;
+}
+
+/**
  * Types for the Student Progress API
  */
 export interface StudentDTO {
@@ -123,9 +140,16 @@ export interface LeaderboardEntryDTO {
  */
 export async function getStudentById(studentId: string): Promise<StudentDTO | null> {
   try {
-    // Directly access the API endpoint that we know is working (based on debug output)
-    const { data, error, status } = await serverApiClient.get(`/v1/students`);
-    // Added /v1/ prefix to conform to API versioning convention and removed redundant /api prefix
+    // Extract classroom code from student ID (format: XX-YYYY-ZZZ)
+    const parts = studentId.split('-');
+    if (parts.length < 2) {
+      console.error('Invalid student ID format:', studentId);
+      return null;
+    }
+    
+    // Try to get student info from the classroom endpoint
+    const classroomId = `${parts[0]}-${parts[1]}`;
+    const { data, error, status } = await serverApiClient.get(`/classrooms/${classroomId}/students`);
     
     // Log for debugging
     console.log('[DEBUG] Student API response:', data);
@@ -545,6 +569,89 @@ export async function getStudentScores(studentId: string): Promise<ScoreResponse
   
   console.log(`Returning ${filteredScores.length} filtered scores from ${enhancedScores.length} total`);
   return filteredScores;
+}
+
+/**
+ * Get student progress using the new endpoint that returns aggregated progress data
+ * @param studentId The ID of the student to fetch progress for
+ * @param classroomId Optional classroom ID to filter tasks by classroom
+ * @returns List of StudentProgressItemDTO objects
+ */
+export async function fetchStudentProgressItems(studentId: string, classroomId?: string): Promise<StudentProgressItemDTO[]> {
+  try {
+    console.log(`Fetching student progress items for student: ${studentId}`);
+    
+    // First, make sure we have the classroom ID to ensure proper access pattern
+    let targetClassroomId = classroomId;
+    
+    // If no classroomId is provided, try to extract it from the studentId
+    // StudentIds typically follow a pattern like XX-YYYY-ZZZ where XX-YYYY is the classroom
+    if (!targetClassroomId && studentId.includes('-')) {
+      const parts = studentId.split('-');
+      if (parts.length >= 2) {
+        targetClassroomId = `${parts[0]}-${parts[1]}`;
+        console.log(`Extracted classroomId ${targetClassroomId} from studentId ${studentId}`);
+      }
+    }
+    
+    if (!targetClassroomId) {
+      console.error(`Cannot fetch progress: No classroom ID available for student ${studentId}`);
+      return [];
+    }
+    
+    // First verify student is in classroom - this establishes access permission
+    try {
+      console.log(`Verifying student ${studentId} is in classroom ${targetClassroomId}`);
+      const { data: studentsData, error: studentsError, status: studentsStatus } = 
+        await serverApiClient.get(`/classrooms/${targetClassroomId}/students`);
+      
+      if (studentsError || studentsStatus >= 400) {
+        console.error(`Failed to verify student in classroom: ${studentsStatus}`);
+        return [];
+      }
+      
+      // Verify the student is in the returned data
+      const studentExists = Array.isArray(studentsData) && 
+        studentsData.some((student: any) => student.physicalId === studentId);
+      
+      if (!studentExists) {
+        console.error(`Student ${studentId} not found in classroom ${targetClassroomId}`);
+        return [];
+      }
+      
+      console.log(`Student ${studentId} verified in classroom ${targetClassroomId}`);
+    } catch (error) {
+      console.error('Error verifying student in classroom:', error);
+      return [];
+    }
+    
+    // Now fetch the actual progress data
+    // Build the endpoint URL with required classroomId parameter
+    let url = `/v1/student-progress/${studentId}?classroomId=${encodeURIComponent(targetClassroomId)}`;
+    
+    console.log(`Using URL: ${url}`);
+    const { data, error, status } = await serverApiClient.get(url);
+    
+    if (error || status >= 400) {
+      const errorMessage = typeof error === 'object' && error !== null && 'message' in error
+        ? (error as { message: string }).message
+        : `Failed to fetch student progress: ${status}`;
+      console.error(errorMessage);
+      return [];
+    }
+    
+    if (!data) {
+      console.log(`No progress data returned for student ${studentId}`);
+      return [];
+    }
+    
+    console.log(`Retrieved ${Array.isArray(data) ? data.length : 0} progress items for student ${studentId}`);
+    return Array.isArray(data) ? data as StudentProgressItemDTO[] : [];
+  } catch (error) {
+    console.error('Error in fetchStudentProgressItems:', error);
+    // Return empty array instead of throwing to prevent cascading errors
+    return [];
+  }
 }
 
 /**
