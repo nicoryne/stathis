@@ -173,49 +173,63 @@ public class StudentTaskService {
         var quizTemplate = quizTemplateRepository.findByPhysicalId(quizTemplateId)
             .orElseThrow(() -> new EntityNotFoundException("Quiz template not found with ID: " + quizTemplateId));
 
-        // Expecting structure per user's provided JSON
-        // { "quiz": { "content": { "questions": [ { "answer": <index> }, ... ] }, "maxScore": n } }
+        // Accept either:
+        // A) { "quiz": { "content": { "questions": [...] }, "maxScore": n } }
+        // B) { "content": { "questions": [...] }, "maxScore": n }
         int computedScore = 0;
         int maxScore = 0;
         try {
-            Object quizNode = quizTemplate.getContent().get("quiz");
-            if (quizNode instanceof java.util.Map) {
+            var contentMapRoot = quizTemplate.getContent();
+            if (contentMapRoot != null) {
+                Object quizNode = contentMapRoot.get("quiz");
+                // Determine quiz root (support both shapes)
                 @SuppressWarnings("unchecked")
-                var quizMap = (java.util.Map<String, Object>) quizNode;
-                Object contentNode = quizMap.get("content");
-                if (contentNode instanceof java.util.Map) {
+                var quizRoot = (quizNode instanceof java.util.Map)
+                        ? (java.util.Map<String, Object>) quizNode
+                        : contentMapRoot; // fallback to root if no "quiz"
+
+                Object contentNode = quizRoot.get("content");
+                @SuppressWarnings("unchecked")
+                var effectiveContent = (contentNode instanceof java.util.Map)
+                        ? (java.util.Map<String, Object>) contentNode
+                        : quizRoot; // some templates may place questions directly under root
+
+                Object questionsNode = effectiveContent.get("questions");
+                if (questionsNode instanceof java.util.List) {
                     @SuppressWarnings("unchecked")
-                    var contentMap = (java.util.Map<String, Object>) contentNode;
-                    Object questionsNode = contentMap.get("questions");
-                    if (questionsNode instanceof java.util.List) {
+                    var questions = (java.util.List<Object>) questionsNode;
+                    maxScore = questions.size();
+                    for (int i = 0; i < questions.size(); i++) {
+                        Object qNode = questions.get(i);
+                        if (!(qNode instanceof java.util.Map)) continue;
                         @SuppressWarnings("unchecked")
-                        var questions = (java.util.List<Object>) questionsNode;
-                        maxScore = questions.size();
-                        for (int i = 0; i < questions.size(); i++) {
-                            Object qNode = questions.get(i);
-                            if (!(qNode instanceof java.util.Map)) continue;
-                            @SuppressWarnings("unchecked")
-                            var qMap = (java.util.Map<String, Object>) qNode;
-                            Object answerObj = qMap.get("answer");
-                            if (answerObj instanceof Number) {
-                                int correctIndex = ((Number) answerObj).intValue();
-                                int studentIndex = (submission.getAnswers() != null && submission.getAnswers().size() > i)
-                                    ? submission.getAnswers().get(i)
-                                    : -1;
-                                if (studentIndex == correctIndex) {
-                                    computedScore += 1; // one point per question
-                                }
+                        var qMap = (java.util.Map<String, Object>) qNode;
+                        Object answerObj = qMap.get("answer");
+                        if (answerObj instanceof Number) {
+                            int correctIndex = ((Number) answerObj).intValue();
+                            int studentIndex = (submission.getAnswers() != null && submission.getAnswers().size() > i)
+                                ? submission.getAnswers().get(i)
+                                : -1;
+                            if (studentIndex == correctIndex) {
+                                computedScore += 1; // one point per question
                             }
                         }
                     }
                 }
-                Object maxScoreNode = quizMap.get("maxScore");
+
+                // Allow maxScore override from quizRoot if provided
+                Object maxScoreNode = quizRoot.get("maxScore");
                 if (maxScoreNode instanceof Number) {
                     maxScore = ((Number) maxScoreNode).intValue();
                 }
             }
         } catch (Exception ex) {
             throw new RuntimeException("Failed to compute quiz score from template content", ex);
+        }
+
+        // Final fallback: if still not positive, use template header maxScore
+        if (maxScore <= 0) {
+            maxScore = quizTemplate.getMaxScore();
         }
 
         // Persist using existing flow
