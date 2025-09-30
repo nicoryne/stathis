@@ -9,7 +9,9 @@ import {
   getStudentBadges, 
   getStudentLeaderboardPosition,
   getStudentById,
-  StudentDTO
+  getStudentProgress,
+  StudentDTO,
+  StudentProgressDTO
 } from '@/services/progress/api-progress-client';
 import { Sidebar } from '@/components/dashboard/sidebar';
 
@@ -44,7 +46,10 @@ import {
   BarChart,
   Calendar,
   CheckCircle2,
-  XCircle
+  XCircle,
+  FileText,
+  Dumbbell,
+  GraduationCap
 } from 'lucide-react';
 
 export default function StudentProgressDetailPage() {
@@ -52,7 +57,20 @@ export default function StudentProgressDetailPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
 
-  // Fetch student scores
+  // Fetch student progress data using the new API endpoint
+  const {
+    data: progressData,
+    isLoading: isProgressLoading,
+    isError: isProgressError,
+    error: progressError
+  } = useQuery({
+    queryKey: ['student-progress', studentId],
+    queryFn: () => getStudentProgress(studentId),
+    enabled: !!studentId,
+    retry: 2, // Retry failed requests up to 2 times
+  });
+
+  // Fetch student scores for detailed information
   const { 
     data: studentScores, 
     isLoading: isScoresLoading 
@@ -81,28 +99,21 @@ export default function StudentProgressDetailPage() {
     queryFn: () => getStudentLeaderboardPosition(studentId),
     enabled: !!studentId,
   });
-
-  // Use the known working student data from debug output
-  // TODO: Replace this with a proper API call when the endpoint is fixed
-  const isStudentLoading = false;
-  const isStudentError = false;
   
-  // Use the student data we know exists based on debug output
-  const student: StudentDTO = {
-    physicalId: studentId,
-    firstName: "Kenny",
-    lastName: "Quijote",
-    email: "quijote.jkennyy@gmail.com",
-    profilePictureUrl: "",
-    joinedAt: "2025-05-27T06:53:34.504818Z",
+  // Create a synthetic StudentDTO from the progress data to maintain compatibility
+  const studentData: StudentDTO = progressData ? {
+    physicalId: progressData.studentId,
+    firstName: progressData.fullName.split(' ')[0] || 'Student',
+    lastName: progressData.fullName.split(' ').slice(1).join(' ') || '',
+    email: '', // Email not included in progress data
+    profilePictureUrl: '',
     verified: true,
     isVerified: true,
-    createdAt: "2025-05-27T06:53:34.504818Z",
-    updatedAt: "2025-05-27T06:53:34.504818Z"
-  };
-  
-  // Fallback data in case student can't be loaded
-  const fallbackStudent: StudentDTO = {
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    joinedAt: new Date().toISOString(),
+  } : {
+    // Fallback student data if progress data isn't available
     physicalId: studentId,
     firstName: 'Student',
     lastName: '',
@@ -114,17 +125,38 @@ export default function StudentProgressDetailPage() {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-
-  // Calculate overall statistics
-  const overallScore = studentScores?.length 
-    ? (studentScores.reduce((sum, score) => sum + (score.scoreValue || 0), 0) / studentScores.length).toFixed(1)
-    : 'N/A';
+  
+  // Loading state - show skeleton if any of the main data is loading
+  const isLoading = isProgressLoading;
+  
+  // Error state - show error message if progress data fails to load
+  const isError = isProgressError;
+  
+  // Use progress data for KPIs and statistics when available
+  const overallScore = progressData ? progressData.kpis.averageScore.toFixed(1) : 
+    (studentScores?.length ? 
+      (() => {
+        // Calculate total points and total possible points
+        let totalPoints = 0;
+        let totalPossible = 0;
+        
+        studentScores.forEach(score => {
+          if (score.isCompleted) {
+            totalPoints += score.scoreValue || 0;
+            totalPossible += score.maxScore || 100;
+          }
+        });
+        
+        // Return average as a percentage of total possible
+        return totalPossible > 0 ? (totalPoints / totalPossible * 100).toFixed(1) : '0.0';
+      })() : 
+      'N/A');
   
   const completedTasks = studentScores?.filter(score => score.isCompleted)?.length || 0;
   const totalTasks = studentScores?.length || 0;
-  
-  // Use actual student data or fallback if not available
-  const studentData = student || fallbackStudent;
+  const timeSpent = progressData ? progressData.kpis.timeSpentMinutes : 0;
+  const streakDays = progressData ? progressData.kpis.currentStreakDays : 0;
+  const recentActivity = progressData ? progressData.kpis.recentActivityDays : 0;
 
   return (
     <div className="flex min-h-screen">
@@ -146,64 +178,202 @@ export default function StudentProgressDetailPage() {
               </Button>
             </div>
           </div>
+          
+          {/* Error state */}
+          {isError && (
+            <Card className="mb-6 border-red-200 bg-red-50 dark:bg-red-950/30">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3">
+                  <XCircle className="h-8 w-8 text-red-500" />
+                  <div>
+                    <h2 className="text-xl font-semibold">Failed to load student progress</h2>
+                    <p className="mt-1 text-muted-foreground">
+                      There was an error loading the student progress data. Please try again later or contact support if the problem persists.
+                    </p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+                      Retry
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-          <div className="grid gap-8">
-            {/* Student profile summary */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-6 items-start">
-              <div className="flex-shrink-0">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={studentData.profilePictureUrl || ''} alt={`${studentData.firstName} ${studentData.lastName}`} />
-                  <AvatarFallback className="text-xl">
-                    {studentData.firstName.charAt(0)}{studentData.lastName.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="flex-grow space-y-2">
-                <div>
-                  <h1 className="text-2xl font-bold mb-1">
-                    {isStudentLoading ? 'Loading...' : studentData.firstName} {isStudentLoading ? '' : studentData.lastName}'s Progress
-                  </h1>
-                  <p className="text-muted-foreground">{studentData.email}</p>
+          {/* Loading state */}
+          {isLoading && (
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <div className="flex flex-col gap-6">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-20 w-20 rounded-full" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-60" />
+                      <Skeleton className="h-4 w-40" />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Skeleton className="h-8 w-32" />
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-8 w-28" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Skeleton className="h-28 w-full" />
+                    <Skeleton className="h-28 w-full" />
+                    <Skeleton className="h-28 w-full" />
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    Enrolled: {isStudentLoading ? 'Loading...' : new Date(studentData.joinedAt || '').toLocaleDateString()}
-                  </Badge>
-                  {leaderboardData && leaderboardData[0] && (
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <Trophy className="h-3 w-3" />
-                      Rank: #{leaderboardData[0].rank}
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className="flex items-center gap-1">
-                    <Award className="h-3 w-3" />
-                    Badges: {studentBadges?.length || 0}
-                  </Badge>
-                </div>
-              </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {!isLoading && !isError && (
+            <div className="grid gap-8">
+              {/* Student profile summary */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    <div className="flex-shrink-0">
+                      <Avatar className="h-20 w-20">
+                        <AvatarImage src={studentData.profilePictureUrl || ''} alt={`${studentData.firstName} ${studentData.lastName}`} />
+                        <AvatarFallback className="text-xl">
+                          {studentData.firstName.charAt(0)}{studentData.lastName.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="flex-grow space-y-2">
+                      <div>
+                        <h1 className="text-2xl font-bold mb-1">
+                          {studentData.firstName} {studentData.lastName}'s Progress
+                        </h1>
+                        <p className="text-muted-foreground">{studentData.email}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          Enrolled: {new Date(studentData.joinedAt || '').toLocaleDateString()}
+                        </Badge>
+                        {leaderboardData && leaderboardData[0] && (
+                          <Badge variant="outline" className="flex items-center gap-1">
+                            <Trophy className="h-3 w-3" />
+                            Rank: #{leaderboardData[0].rank}
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <Award className="h-3 w-3" />
+                          Badges: {studentBadges?.length || 0}
+                        </Badge>
+                      </div>
+                    </div>
               <div className="flex-shrink-0 w-full md:w-auto">
                 <Card className="bg-muted">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Overall Performance</CardTitle>
+                    <CardTitle className="text-sm flex items-center">
+                      <BarChart className="h-4 w-4 mr-2" />
+                      Overall Performance
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold">{overallScore === 'N/A' ? overallScore : `${overallScore}%`}</div>
-                    <Progress 
-                      value={overallScore === 'N/A' ? 0 : parseFloat(overallScore as string)} 
-                      className="h-2 mt-2" 
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Tasks: {completedTasks}/{totalTasks} completed
-                    </p>
+                    <div className="text-3xl font-bold flex items-baseline">
+                      <span className={
+                        overallScore === 'N/A' ? 'text-muted-foreground' :
+                        parseFloat(overallScore as string) >= 70 ? 'text-green-600' :
+                        parseFloat(overallScore as string) >= 50 ? 'text-amber-600' : 'text-red-600'
+                      }>
+                        {overallScore === 'N/A' ? overallScore : `${overallScore}`}
+                      </span>
+                      <span className="text-muted-foreground text-lg ml-1">/100</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-2">
+                      <div 
+                        className={`h-2.5 rounded-full ${overallScore === 'N/A' ? 'bg-gray-400' :
+                          parseFloat(overallScore as string) >= 70 ? 'bg-green-500' :
+                          parseFloat(overallScore as string) >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                        style={{ width: `${overallScore === 'N/A' ? 0 : Math.min(100, parseFloat(overallScore as string))}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">{completedTasks}</span>/{totalTasks} tasks
+                      </p>
+                      <Badge variant="outline" className="text-xs">
+                        {overallScore === 'N/A' ? 'Not Rated' :
+                          parseFloat(overallScore as string) >= 90 ? 'Excellent' :
+                          parseFloat(overallScore as string) >= 80 ? 'Very Good' :
+                          parseFloat(overallScore as string) >= 70 ? 'Good' :
+                          parseFloat(overallScore as string) >= 60 ? 'Fair' :
+                          parseFloat(overallScore as string) >= 50 ? 'Needs Improvement' : 'Poor'}
+                      </Badge>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
             </div>
+
+            {/* Additional KPI metrics from StudentProgressDTO */}
+            {progressData && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col items-center">
+                      <span className="text-muted-foreground text-sm mb-1">Time Spent</span>
+                      <div className="flex items-baseline">
+                        <span className="text-3xl font-bold mr-1">{progressData.kpis.timeSpentMinutes}</span>
+                        <span className="text-muted-foreground">minutes</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-2">Total time on tasks</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col items-center">
+                      <span className="text-muted-foreground text-sm mb-1">Current Streak</span>
+                      <div className="flex items-baseline">
+                        <span className="text-3xl font-bold mr-1">{progressData.kpis.currentStreakDays}</span>
+                        <span className="text-muted-foreground">days</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-2">Consecutive days of activity</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col items-center">
+                      <span className="text-muted-foreground text-sm mb-1">Recent Activity</span>
+                      <div className="flex items-baseline">
+                        <span className="text-3xl font-bold mr-1">{progressData.kpis.recentActivityDays}</span>
+                        <span className="text-muted-foreground">days ago</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-2">Last interaction with the platform</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Status Messages Section */}
+        {progressData && progressData.statusMessages && progressData.statusMessages.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Status Updates</CardTitle>
+              <CardDescription>Recent status updates and feedback for this student</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {progressData.statusMessages.map((message, index) => (
+                  <div key={`status-${index}`} className="flex items-start gap-3 p-3 rounded-md bg-muted">
+                    <div className="h-2 w-2 mt-2 rounded-full bg-primary flex-shrink-0" />
+                    <p className="text-sm">{message}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Performance tabs */}
         <Tabs defaultValue="scores">
@@ -247,18 +417,45 @@ export default function StudentProgressDetailPage() {
                         <TableHead>Type</TableHead>
                         <TableHead>Completed</TableHead>
                         <TableHead className="text-right">Score</TableHead>
+                        <TableHead className="text-right">Max</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {studentScores.map((score) => (
                         <TableRow key={score.physicalId}>
                           <TableCell className="font-medium">
-                            {score.taskName || `Task ${score.taskId}`}
+                            {score.taskName ? (
+                              <span className="font-medium">{score.taskName}</span>
+                            ) : (
+                              <span>
+                                <span className="font-medium">Task</span> 
+                                <span className="text-muted-foreground text-sm ml-1">{score.taskId.substring(0, 8)}...</span>
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">
-                              {score.taskType}
-                            </Badge>
+                            {score.taskType && (
+                              <Badge variant="outline" className={`flex items-center gap-1
+                                ${score.taskType.toLowerCase().includes('quiz') ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' : ''}
+                                ${score.taskType.toLowerCase().includes('test') ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' : ''}
+                                ${score.taskType.toLowerCase().includes('lesson') ? 'bg-green-100 text-green-800 hover:bg-green-200 border-green-200' : ''}
+                                ${score.taskType.toLowerCase().includes('exercise') ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' : ''}
+                                ${score.taskType.toLowerCase().includes('assess') ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200' : ''}
+                              `}>
+                                {/* Task type icons */}
+                                {score.taskType.toLowerCase().includes('quiz') && <BarChart className="h-3 w-3" />}
+                                {score.taskType.toLowerCase().includes('test') && <FileText className="h-3 w-3" />}
+                                {score.taskType.toLowerCase().includes('assess') && <GraduationCap className="h-3 w-3" />}
+                                {score.taskType.toLowerCase().includes('lesson') && <BookOpen className="h-3 w-3" />}
+                                {score.taskType.toLowerCase().includes('exercise') && <Dumbbell className="h-3 w-3" />}
+                                {!(score.taskType.toLowerCase().includes('quiz') || 
+                                   score.taskType.toLowerCase().includes('test') || 
+                                   score.taskType.toLowerCase().includes('lesson') || 
+                                   score.taskType.toLowerCase().includes('assess') || 
+                                   score.taskType.toLowerCase().includes('exercise')) && <User className="h-3 w-3" />}
+                                <span className="ml-1">{score.taskType}</span>
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>
                             {score.isCompleted ? (
@@ -274,15 +471,39 @@ export default function StudentProgressDetailPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className={`font-medium ${
-                              (score.scoreValue || 0) >= 70 
-                                ? 'text-green-600' 
-                                : (score.scoreValue || 0) >= 50 
-                                ? 'text-amber-600' 
-                                : 'text-red-600'
-                            }`}>
-                              {score.scoreValue ? `${score.scoreValue}%` : 'N/A'}
-                            </span>
+                            {score.scoreValue !== undefined ? (
+                              <div>
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className={`font-medium ${
+                                    (score.scoreValue / (score.maxScore || 100)) >= 0.7 
+                                      ? 'text-green-600' 
+                                      : (score.scoreValue / (score.maxScore || 100)) >= 0.5 
+                                      ? 'text-amber-600' 
+                                      : 'text-red-600'
+                                  }`}>
+                                    {score.scoreValue}
+                                  </span>
+                                </div>
+                                {/* Score bar visualization */}
+                                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                  <div 
+                                    className={`h-1.5 rounded-full ${
+                                      (score.scoreValue / (score.maxScore || 100)) >= 0.7 
+                                        ? 'bg-green-500' 
+                                        : (score.scoreValue / (score.maxScore || 100)) >= 0.5 
+                                        ? 'bg-amber-500' 
+                                        : 'bg-red-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, (score.scoreValue / (score.maxScore || 100)) * 100)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">N/A</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {score.maxScore || 100}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -407,42 +628,81 @@ export default function StudentProgressDetailPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Rank</TableHead>
-                            <TableHead>Student</TableHead>
+                            <TableHead>#</TableHead>
+                            <TableHead>Task/Period</TableHead>
                             <TableHead className="text-right">Score</TableHead>
+                            <TableHead className="text-right">Max</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {/* Just showing mock data here */}
-                          <TableRow>
-                            <TableCell className="font-medium">#1</TableCell>
-                            <TableCell>Emma Wilson</TableCell>
-                            <TableCell className="text-right">950</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">#2</TableCell>
-                            <TableCell>Carlos Rodriguez</TableCell>
-                            <TableCell className="text-right">920</TableCell>
-                          </TableRow>
-                          {leaderboardData[0] && (
-                            <TableRow className="bg-muted">
-                              <TableCell className="font-medium">#{leaderboardData[0].rank}</TableCell>
-                              <TableCell>
-                                <span className="font-medium">{studentData.firstName} {studentData.lastName}</span>
-                              </TableCell>
-                              <TableCell className="text-right">{leaderboardData[0].score}</TableCell>
-                            </TableRow>
-                          )}
-                          <TableRow>
-                            <TableCell className="font-medium">#4</TableCell>
-                            <TableCell>Sarah Ahmed</TableCell>
-                            <TableCell className="text-right">880</TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">#5</TableCell>
-                            <TableCell>Michael Patel</TableCell>
-                            <TableCell className="text-right">850</TableCell>
-                          </TableRow>
+                          {/* Use performance history from progress data when available */}
+                      {progressData?.performanceHistory?.map((entry, index) => (
+                        <TableRow key={`performance-${index}`}>
+                          <TableCell className="font-medium">#{index + 1}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {entry.taskType?.toLowerCase().includes('quiz') && <BarChart className="h-3 w-3 text-blue-600" />}
+                              {entry.taskType?.toLowerCase().includes('test') && <FileText className="h-3 w-3 text-purple-600" />}
+                              {entry.taskType?.toLowerCase().includes('assess') && <GraduationCap className="h-3 w-3 text-indigo-600" />}
+                              {entry.taskType?.toLowerCase().includes('lesson') && <BookOpen className="h-3 w-3 text-green-600" />}
+                              {entry.taskType?.toLowerCase().includes('exercise') && <Dumbbell className="h-3 w-3 text-orange-600" />}
+                              <span className="font-medium">{entry.period}</span>
+                            </div>
+                            {entry.taskName && <span className="text-xs text-muted-foreground ml-5">{entry.taskName}</span>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div>
+                              <div className="flex items-center justify-end">
+                                <span className={`font-medium ${
+                                  (entry.score / (entry.maxScore || 100)) >= 0.7 
+                                    ? 'text-green-600' 
+                                    : (entry.score / (entry.maxScore || 100)) >= 0.5 
+                                    ? 'text-amber-600' 
+                                    : 'text-red-600'
+                                }`}>
+                                  {entry.score}
+                                </span>
+                              </div>
+                              {/* Score bar visualization */}
+                              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                <div 
+                                  className={`h-1.5 rounded-full ${
+                                    (entry.score / (entry.maxScore || 100)) >= 0.7 
+                                      ? 'bg-green-500' 
+                                      : (entry.score / (entry.maxScore || 100)) >= 0.5 
+                                      ? 'bg-amber-500' 
+                                      : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, (entry.score / (entry.maxScore || 100)) * 100)}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">{entry.maxScore || 100}</TableCell>
+                        </TableRow>
+                      ))}
+                      
+                      {/* Show the current student's rank */}
+                      {leaderboardData && leaderboardData[0] && (
+                        <TableRow className="bg-muted">
+                          <TableCell className="font-medium">#{leaderboardData[0].rank}</TableCell>
+                          <TableCell>
+                            <span className="font-medium">{studentData.firstName} {studentData.lastName}</span>
+                            <span className="text-xs text-muted-foreground ml-2">(Current ranking)</span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{leaderboardData[0].score}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">100</TableCell>
+                        </TableRow>
+                      )}
+                      
+                      {/* If no performance history data is available, show placeholder message */}
+                      {!progressData?.performanceHistory?.length && !leaderboardData?.length && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
+                            No performance history available
+                          </TableCell>
+                        </TableRow>
+                      )}
                         </TableBody>
                       </Table>
                     </div>
@@ -452,7 +712,8 @@ export default function StudentProgressDetailPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
