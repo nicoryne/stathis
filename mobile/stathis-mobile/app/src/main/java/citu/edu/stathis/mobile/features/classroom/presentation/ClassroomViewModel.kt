@@ -3,7 +3,6 @@ package citu.edu.stathis.mobile.features.classroom.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
-import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
 import citu.edu.stathis.mobile.features.classroom.data.repository.ClassroomRepository
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,9 +22,6 @@ class ClassroomViewModel @Inject constructor(
 
     private val _selectedClassroom = MutableStateFlow<Classroom?>(null)
     val selectedClassroom: StateFlow<Classroom?> = _selectedClassroom
-
-    private val _classroomProgress = MutableStateFlow<ClassroomProgress?>(null)
-    val classroomProgress: StateFlow<ClassroomProgress?> = _classroomProgress
 
     private val _classroomTasks = MutableStateFlow<List<Task>>(emptyList())
     val classroomTasks: StateFlow<List<Task>> = _classroomTasks
@@ -53,20 +49,7 @@ class ClassroomViewModel @Inject constructor(
                 }
                 .collect { classroom ->
                     _selectedClassroom.value = classroom
-                    loadClassroomProgress(classroomId)
                     loadClassroomTasks(classroomId)
-                }
-        }
-    }
-
-    private fun loadClassroomProgress(classroomId: String) {
-        viewModelScope.launch {
-            classroomRepository.getClassroomProgress(classroomId)
-                .catch { e ->
-                    _error.value = e.message
-                }
-                .collect { progress ->
-                    _classroomProgress.value = progress
                 }
         }
     }

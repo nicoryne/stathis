@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
+import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
 import citu.edu.stathis.mobile.features.tasks.domain.usecase.*
 import citu.edu.stathis.mobile.features.common.domain.Result
 import citu.edu.stathis.mobile.features.common.domain.asResult
@@ -19,6 +21,8 @@ class TaskViewModel @Inject constructor(
     private val getTasksForClassroomResultUseCase: GetTasksForClassroomResultUseCase,
     private val getTaskDetailsResultUseCase: GetTaskDetailsResultUseCase,
     private val getTaskProgressResultUseCase: GetTaskProgressResultUseCase,
+    private val getLessonTemplateResultUseCase: GetLessonTemplateResultUseCase,
+    private val getQuizTemplateResultUseCase: GetQuizTemplateResultUseCase,
     private val submitQuizScoreResultUseCase: SubmitQuizScoreResultUseCase,
     private val completeLessonResultUseCase: CompleteLessonResultUseCase,
     private val completeExerciseResultUseCase: CompleteExerciseResultUseCase
@@ -32,6 +36,12 @@ class TaskViewModel @Inject constructor(
 
     private val _taskProgress = MutableStateFlow<TaskProgressResponse?>(null)
     val taskProgress: StateFlow<TaskProgressResponse?> = _taskProgress
+
+    private val _lessonTemplate = MutableStateFlow<LessonTemplate?>(null)
+    val lessonTemplate: StateFlow<LessonTemplate?> = _lessonTemplate
+
+    private val _quizTemplate = MutableStateFlow<QuizTemplate?>(null)
+    val quizTemplate: StateFlow<QuizTemplate?> = _quizTemplate
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
@@ -63,10 +73,32 @@ class TaskViewModel @Inject constructor(
         }
     }
 
+    fun loadLessonTemplate(lessonTemplateId: String) {
+        viewModelScope.launch {
+            when (val result = getLessonTemplateResultUseCase(lessonTemplateId)) {
+                is Result.Success -> _lessonTemplate.value = result.data
+                is Result.Error -> _error.value = result.message
+            }
+        }
+    }
+
+    fun loadQuizTemplate(quizTemplateId: String) {
+        viewModelScope.launch {
+            when (val result = getQuizTemplateResultUseCase(quizTemplateId)) {
+                is Result.Success -> _quizTemplate.value = result.data
+                is Result.Error -> _error.value = result.message
+            }
+        }
+    }
+
     fun submitQuizScore(taskId: String, quizTemplateId: String, score: Int) {
         viewModelScope.launch {
             when (val result = submitQuizScoreResultUseCase(taskId, quizTemplateId, score)) {
-                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Success -> {
+                    // Mark task as completed in cache for immediate UI feedback
+                    TaskCompletionCache.markCompleted(taskId)
+                    loadTaskProgress(taskId)
+                }
                 is Result.Error -> _error.value = result.message
             }
         }
@@ -75,7 +107,11 @@ class TaskViewModel @Inject constructor(
     fun completeLesson(taskId: String, lessonTemplateId: String) {
         viewModelScope.launch {
             when (val result = completeLessonResultUseCase(taskId, lessonTemplateId)) {
-                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Success -> {
+                    // Mark task as completed in cache for immediate UI feedback
+                    TaskCompletionCache.markCompleted(taskId)
+                    loadTaskProgress(taskId)
+                }
                 is Result.Error -> _error.value = result.message
             }
         }
@@ -84,7 +120,11 @@ class TaskViewModel @Inject constructor(
     fun completeExercise(taskId: String, exerciseTemplateId: String) {
         viewModelScope.launch {
             when (val result = completeExerciseResultUseCase(taskId, exerciseTemplateId)) {
-                is Result.Success -> loadTaskProgress(taskId)
+                is Result.Success -> {
+                    // Mark task as completed in cache for immediate UI feedback
+                    TaskCompletionCache.markCompleted(taskId)
+                    loadTaskProgress(taskId)
+                }
                 is Result.Error -> _error.value = result.message
             }
         }
@@ -92,5 +132,17 @@ class TaskViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
+    }
+    
+    suspend fun getTaskProgress(taskId: String, suppressError: Boolean = false): TaskProgressResponse? {
+        return when (val result = getTaskProgressResultUseCase(taskId)) {
+            is Result.Success -> result.data
+            is Result.Error -> {
+                if (!suppressError) {
+                    _error.value = result.message
+                }
+                null
+            }
+        }
     }
 } 

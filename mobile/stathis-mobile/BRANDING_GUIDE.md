@@ -190,7 +190,7 @@ Button(
         .padding(horizontal = 24.dp)
 ) {
     Text(
-        text = "Start Learning",
+        text = "Start Exercising",
         style = MaterialTheme.typography.labelLarge
     )
 }

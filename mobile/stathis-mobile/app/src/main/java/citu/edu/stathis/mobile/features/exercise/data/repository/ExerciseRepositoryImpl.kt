@@ -34,7 +34,6 @@ class ExerciseRepositoryImpl @Inject constructor(
     // ML Kit configuration
     private val options = PoseDetectorOptions.Builder()
         .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
-        // Use the available methods from PoseDetectorOptions
         .build()
 
     private val poseDetector = PoseDetection.getClient(options)

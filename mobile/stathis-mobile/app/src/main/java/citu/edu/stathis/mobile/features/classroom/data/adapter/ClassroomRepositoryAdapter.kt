@@ -1,7 +1,6 @@
 package citu.edu.stathis.mobile.features.classroom.data.adapter
 
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
-import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
 import citu.edu.stathis.mobile.features.classroom.data.repository.ClassroomRepository as DataClassroomRepository
 import citu.edu.stathis.mobile.features.classroom.domain.repository.ClassroomRepository as DomainClassroomRepository
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
@@ -29,10 +28,6 @@ class ClassroomRepositoryAdapter @Inject constructor(
 
     override suspend fun getClassroomTasks(classroomId: String): Flow<List<Task>> {
         return dataRepo.getClassroomTasks(classroomId)
-    }
-
-    override suspend fun getClassroomProgress(classroomId: String): Flow<ClassroomProgress> {
-        return dataRepo.getClassroomProgress(classroomId)
     }
 
     override suspend fun leaveClassroom(classroomId: String): Flow<Boolean> {

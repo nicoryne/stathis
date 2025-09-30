@@ -2,7 +2,6 @@ package citu.edu.stathis.mobile.features.classroom.data.repository
 
 import citu.edu.stathis.mobile.features.classroom.data.api.ClassroomService
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
-import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -27,9 +26,16 @@ class ClassroomRepositoryImpl @Inject constructor(
     }
 
     override suspend fun enrollInClassroom(classroomCode: String): Flow<Classroom> = flow {
-        val response = classroomService.enrollInClassroom(classroomCode)
-        if (response.isSuccessful) {
-            response.body()?.let { classroom -> emit(classroom) }
+        val response = classroomService.enrollInClassroom(mapOf("classroomCode" to classroomCode))
+        if (!response.isSuccessful) {
+            throw Exception("Enrollment failed: ${response.code()} ${response.message()}")
+        }
+        val classroomsResponse = classroomService.getStudentClassrooms()
+        if (classroomsResponse.isSuccessful) {
+            classroomsResponse.body()?.let { classrooms ->
+                val enrolledClassroom = classrooms.find { it.classroomCode == classroomCode }
+                enrolledClassroom?.let { emit(it) }
+            }
         }
     }
 
@@ -37,13 +43,6 @@ class ClassroomRepositoryImpl @Inject constructor(
         val response = classroomService.getClassroomTasks(classroomId)
         if (response.isSuccessful) {
             response.body()?.let { tasks -> emit(tasks) }
-        }
-    }
-
-    override suspend fun getClassroomProgress(classroomId: String): Flow<ClassroomProgress> = flow {
-        val response = classroomService.getClassroomProgress(classroomId)
-        if (response.isSuccessful) {
-            response.body()?.let { progress -> emit(progress) }
         }
     }
 } 

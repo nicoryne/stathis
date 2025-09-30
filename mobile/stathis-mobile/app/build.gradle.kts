@@ -43,7 +43,7 @@ android {
             isMinifyEnabled = false
             // Read from local.properties (defaults shown)
             val appEnv = propStr("APP_ENV", "local")
-            val apiBaseUrl = propStr("API_BASE_URL", "https://api.example.com")
+            val apiBaseUrl = propStr("API_BASE_URL", "https://api-stathis.ryne.dev/")
             buildConfigField("String", "APP_ENV", "\"$appEnv\"")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
             // Always show onboarding when APP_ENV=local
@@ -57,7 +57,7 @@ android {
                 "proguard-rules.pro",
             )
             val appEnv = propStr("APP_ENV", "prod")
-            val apiBaseUrl = propStr("API_BASE_URL", "https://api.example.com")
+            val apiBaseUrl = propStr("API_BASE_URL", "https://api-stathis.ryne.dev/")
             buildConfigField("String", "APP_ENV", "\"$appEnv\"")
             buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
             buildConfigField("boolean", "ALWAYS_SHOW_ONBOARDING", "false")

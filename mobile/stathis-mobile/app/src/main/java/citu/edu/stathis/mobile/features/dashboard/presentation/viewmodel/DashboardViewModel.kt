@@ -10,7 +10,7 @@ import citu.edu.stathis.mobile.features.progress.data.model.StudentProgress
 import citu.edu.stathis.mobile.features.progress.domain.repository.ProgressRepository
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.repository.TaskRepository
-import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository
+import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

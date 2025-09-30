@@ -2,7 +2,8 @@ package citu.edu.stathis.mobile.features.vitals.domain.usecase
 
 import citu.edu.stathis.mobile.core.data.models.ClientResponse
 import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
-import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository
+import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository
+import citu.edu.stathis.mobile.features.exercise.domain.usecase.GetCurrentUserIdUseCase
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 

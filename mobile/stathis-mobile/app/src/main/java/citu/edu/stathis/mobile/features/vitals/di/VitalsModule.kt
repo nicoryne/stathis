@@ -2,9 +2,7 @@ package citu.edu.stathis.mobile.features.vitals.di
 
 import citu.edu.stathis.mobile.features.vitals.domain.VitalsApiService
 import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepositoryImpl
-import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepository as DataVitalsRepository
-import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository as DomainVitalsRepository
-import citu.edu.stathis.mobile.features.vitals.data.adapter.VitalsRepositoryAdapter
+import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -19,15 +17,9 @@ abstract class VitalsRepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindDataVitalsRepository(
+    abstract fun bindVitalsRepository(
         vitalsRepositoryImpl: VitalsRepositoryImpl
-    ): DataVitalsRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindDomainVitalsRepository(
-        adapter: VitalsRepositoryAdapter
-    ): DomainVitalsRepository
+    ): VitalsRepository
 }
 
 @Module
