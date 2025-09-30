@@ -88,7 +88,7 @@ jobs:
         if: ${{ inputs.deploy_frontend }}
         working-directory: web/stathis-web
         run: |
-          npm ci --no-audit --no-fund
+          npm install --no-audit --no-fund
           npm run build
       - name: Package prebuilt .next
         if: ${{ inputs.deploy_frontend }}
@@ -152,8 +152,8 @@ jobs:
               # Extract prebuilt .next into the runtime directory
               tar -xzf "${{ env.REMOTE_FRONTEND_DIR }}/../frontend-next.tgz" -C "${{ env.REMOTE_FRONTEND_DIR }}"
               rm -f "${{ env.REMOTE_FRONTEND_DIR }}/../frontend-next.tgz"
-              # Adjust compose to skip build at runtime (use npm ci + start)
-              sed -i 's/npm install &&\s*npm run build &&\s*npm run start/npm ci \&\& npm run start/g' docker-compose.yml || true
+              # Adjust compose to skip build at runtime (use npm install + start)
+              sed -i 's/npm install &&\s*npm run build &&\s*npm run start/npm install \&\& npm run start/g' docker-compose.yml || true
             fi
             # Ensure backend jar is in place when deploying backend
             if [ "${{ inputs.deploy_backend }}" = "true" ]; then
