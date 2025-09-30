@@ -157,8 +157,6 @@ jobs:
               # Extract prebuilt .next into the runtime directory
               tar -xzf "${{ env.REMOTE_FRONTEND_DIR }}/../frontend-next.tgz" -C "${{ env.REMOTE_FRONTEND_DIR }}"
               rm -f "${{ env.REMOTE_FRONTEND_DIR }}/../frontend-next.tgz"
-              # Adjust compose to skip build at runtime (use npm install + start)
-              sed -i 's/npm install &&\s*npm run build &&\s*npm run start/npm install \&\& npm run start/g' docker-compose.yml || true
             fi
             # Ensure backend jar is in place when deploying backend
             if [ "${{ env.DEPLOY_BACKEND }}" = "true" ]; then
@@ -173,26 +171,24 @@ jobs:
             else
               echo "No services selected for restart. Skipping."
             fi
-            # Optional health checks
+            # Optional health checks (use container health status)
             if [ "${{ env.RUN_HEALTH_CHECKS }}" = "true" ]; then
-              echo "Waiting for containers to settle..."
-              # Retry loop up to 3 minutes for frontend since npm install may take time
+              echo "Waiting for service health statuses..."
               if [ "${{ env.DEPLOY_FRONTEND }}" = "true" ]; then
-                echo "Probing frontend via Docker network ..."
-                for i in $(seq 1 36); do
-                  if docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-frontend:3000 >/dev/null; then
-                    echo "Frontend is healthy"; break; fi; sleep 5; done
-                if ! docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-frontend:3000 >/dev/null; then
-                  echo "Frontend failed"; docker compose logs --no-color --tail 300 stathis-frontend; exit 1; fi
+                echo "Waiting for stathis-frontend to be healthy (max 5 minutes) ..."
+                for i in $(seq 1 60); do
+                  STATUS=$(docker inspect -f '{{json .State.Health.Status}}' stathis-frontend 2>/dev/null | tr -d '"') || STATUS=""
+                  if [ "$STATUS" = "healthy" ]; then echo "Frontend healthy"; break; fi; sleep 5; done
+                STATUS=$(docker inspect -f '{{json .State.Health.Status}}' stathis-frontend 2>/dev/null | tr -d '"') || STATUS=""
+                if [ "$STATUS" != "healthy" ]; then echo "Frontend unhealthy or no healthcheck"; docker compose logs --no-color --tail 300 stathis-frontend; exit 1; fi
               fi
-              # Backend: faster boot, but still retry up to 60s
               if [ "${{ env.DEPLOY_BACKEND }}" = "true" ]; then
-                echo "Probing backend via Docker network ..."
-                for i in $(seq 1 12); do
-                  if docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-backend:8080/actuator/health >/dev/null; then
-                    echo "Backend is healthy"; break; fi; sleep 5; done
-                if ! docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-backend:8080/actuator/health >/dev/null; then
-                  echo "Backend failed"; docker compose logs --no-color --tail 300 stathis-backend; exit 1; fi
+                echo "Waiting for stathis-backend to be healthy (max 2 minutes) ..."
+                for i in $(seq 1 24); do
+                  STATUS=$(docker inspect -f '{{json .State.Health.Status}}' stathis-backend 2>/dev/null | tr -d '"') || STATUS=""
+                  if [ "$STATUS" = "healthy" ]; then echo "Backend healthy"; break; fi; sleep 5; done
+                STATUS=$(docker inspect -f '{{json .State.Health.Status}}' stathis-backend 2>/dev/null | tr -d '"') || STATUS=""
+                if [ "$STATUS" != "healthy" ]; then echo "Backend unhealthy or no healthcheck"; docker compose logs --no-color --tail 300 stathis-backend; exit 1; fi
               fi
             fi
             docker system prune -f || true
