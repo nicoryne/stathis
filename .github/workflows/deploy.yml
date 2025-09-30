@@ -78,8 +78,24 @@ jobs:
         run: |
           cp "$JAR_PATH" server.jar
 
-      # Sync frontend source (Next.js) to VPS; compose will build at runtime
-      - name: Compress frontend for transfer
+      # Prebuild frontend (Next.js) and prepare artifacts
+      - name: Setup Node.js
+        if: ${{ inputs.deploy_frontend }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps and build frontend
+        if: ${{ inputs.deploy_frontend }}
+        working-directory: web/stathis-web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Package prebuilt .next
+        if: ${{ inputs.deploy_frontend }}
+        working-directory: web/stathis-web
+        run: |
+          tar -czf ../../frontend-next.tgz .next
+      - name: Compress frontend source for transfer (non-building runtime)
         if: ${{ inputs.deploy_frontend }}
         run: |
           tar -czf frontend.tgz -C web/stathis-web .
@@ -107,6 +123,16 @@ jobs:
           source: "frontend.tgz"
           target: "${{ env.REMOTE_FRONTEND_DIR }}/.."
           strip_components: 0
+      - name: Upload prebuilt .next bundle
+        if: ${{ inputs.deploy_frontend }}
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "frontend-next.tgz"
+          target: "${{ env.REMOTE_FRONTEND_DIR }}/.."
+          strip_components: 0
 
       # Deploy and restart services via docker compose
       - name: Restart services on VPS
@@ -123,6 +149,11 @@ jobs:
               mkdir -p "${{ env.REMOTE_FRONTEND_DIR }}"
               tar -xzf "${{ env.REMOTE_FRONTEND_DIR }}/../frontend.tgz" -C "${{ env.REMOTE_FRONTEND_DIR }}"
               rm -f "${{ env.REMOTE_FRONTEND_DIR }}/../frontend.tgz"
+              # Extract prebuilt .next into the runtime directory
+              tar -xzf "${{ env.REMOTE_FRONTEND_DIR }}/../frontend-next.tgz" -C "${{ env.REMOTE_FRONTEND_DIR }}"
+              rm -f "${{ env.REMOTE_FRONTEND_DIR }}/../frontend-next.tgz"
+              # Adjust compose to skip build at runtime (use npm ci + start)
+              sed -i 's/npm install &&\s*npm run build &&\s*npm run start/npm ci \&\& npm run start/g' docker-compose.yml || true
             fi
             # Ensure backend jar is in place when deploying backend
             if [ "${{ inputs.deploy_backend }}" = "true" ]; then
