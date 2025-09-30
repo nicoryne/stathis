@@ -1,27 +1,35 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # Manual only; avoid automatic deploys on merge
   workflow_dispatch:
+    inputs:
+      deploy_backend:
+        description: "Deploy backend"
+        type: boolean
+        default: true
+        required: true
+      deploy_frontend:
+        description: "Deploy frontend"
+        type: boolean
+        default: true
+        required: true
+      run_health_checks:
+        description: "Run post-deploy health checks"
+        type: boolean
+        default: true
+        required: true
 
 jobs:
   deploy-check:
-    name: Deploy Check (PR to main)
+    name: Secrets Check
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     permissions:
       contents: read
     concurrency:
-      group: deploy-check-${{ github.head_ref || github.ref }}
+      group: deploy-check
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
-      - name: Confirm deploy workflow will run on merge
-        run: |
-          echo "This is a dry-run check. On merge to main, the deploy job will execute."
       - name: Validate server SSH secrets are present
         env:
           H: ${{ secrets.DO_HOST }}
@@ -31,24 +39,10 @@ jobs:
           [ -z "$H" ] && echo "Missing secret: DO_HOST" && exit 1 || true
           [ -z "$U" ] && echo "Missing secret: DO_USERNAME" && exit 1 || true
           [ -z "$K" ] && echo "Missing secret: DO_SSH_KEY" && exit 1 || true
-      - name: Summarize changed areas
-        uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            web:
-              - 'web/**'
-            backend:
-              - 'backend/**'
-      - name: Output change summary
-        run: |
-          echo "web changes: ${{ steps.changes.outputs.web }}"
-          echo "backend changes: ${{ steps.changes.outputs.backend }}"
   
   deploy:
     name: Build and Deploy to VPS
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
     concurrency:
@@ -71,6 +65,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Build backend jar
+        if: ${{ inputs.deploy_backend }}
         working-directory: backend/stathis
         run: |
           chmod +x mvnw || true
@@ -79,25 +74,31 @@ jobs:
           JAR_PATH=$(ls target/*.jar | head -n1)
           echo "JAR_PATH=$(pwd)/$JAR_PATH" >> $GITHUB_ENV
       - name: Rename jar to server.jar
+        if: ${{ inputs.deploy_backend }}
         run: |
           cp "$JAR_PATH" server.jar
 
       # Sync frontend source (Next.js) to VPS; compose will build at runtime
       - name: Compress frontend for transfer
+        if: ${{ inputs.deploy_frontend }}
         run: |
           tar -czf frontend.tgz -C web/stathis-web .
 
       # Copy artifacts to server
       - name: Upload backend server.jar
+        if: ${{ inputs.deploy_backend }}
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
           key: ${{ env.SSH_KEY }}
           source: "server.jar"
-          target: "${{ env.REMOTE_BACKEND_DIR }}"
+          target: "${{ env.REMOTE_BACKEND_DIR }}/server.jar"
           strip_components: 0
+          overwrite: true
+          rm: false
       - name: Upload frontend bundle
+        if: ${{ inputs.deploy_frontend }}
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.SSH_HOST }}
@@ -117,18 +118,34 @@ jobs:
           script: |
             set -euo pipefail
             cd "${{ env.REMOTE_BASE }}"
-            # Place frontend files
-            mkdir -p "${{ env.REMOTE_FRONTEND_DIR }}"
-            tar -xzf "${{ env.REMOTE_FRONTEND_DIR }}/../frontend.tgz" -C "${{ env.REMOTE_FRONTEND_DIR }}"
-            rm -f "${{ env.REMOTE_FRONTEND_DIR }}/../frontend.tgz"
-            # Ensure backend jar is in place
-            test -f "${{ env.REMOTE_BACKEND_DIR }}/server.jar" || { echo "server.jar is missing"; exit 1; }
+            # Place frontend files when requested
+            if [ "${{ inputs.deploy_frontend }}" = "true" ]; then
+              mkdir -p "${{ env.REMOTE_FRONTEND_DIR }}"
+              tar -xzf "${{ env.REMOTE_FRONTEND_DIR }}/../frontend.tgz" -C "${{ env.REMOTE_FRONTEND_DIR }}"
+              rm -f "${{ env.REMOTE_FRONTEND_DIR }}/../frontend.tgz"
+            fi
+            # Ensure backend jar is in place when deploying backend
+            if [ "${{ inputs.deploy_backend }}" = "true" ]; then
+              test -f "${{ env.REMOTE_BACKEND_DIR }}/server.jar" || { echo "server.jar is missing"; exit 1; }
+            fi
             # Restart only the services we updated
-            docker compose pull || true
-            docker compose up -d --force-recreate --no-deps stathis-backend stathis-frontend
-            # Basic health checks
-            echo "Waiting for containers to settle..."; sleep 20
-            curl -f http://localhost:3000 || { echo "Frontend failed"; docker compose logs --no-color --tail 100 stathis-frontend; exit 1; }
-            curl -f http://localhost:8080/actuator/health || { echo "Backend failed"; docker compose logs --no-color --tail 100 stathis-backend; exit 1; }
+            SERVICES=""
+            if [ "${{ inputs.deploy_backend }}" = "true" ]; then SERVICES="$SERVICES stathis-backend"; fi
+            if [ "${{ inputs.deploy_frontend }}" = "true" ]; then SERVICES="$SERVICES stathis-frontend"; fi
+            if [ -n "$SERVICES" ]; then
+              docker compose up -d --force-recreate --no-deps $SERVICES
+            else
+              echo "No services selected for restart. Skipping."
+            fi
+            # Optional health checks
+            if [ "${{ inputs.run_health_checks }}" = "true" ]; then
+              echo "Waiting for containers to settle..."; sleep 20
+              if [ "${{ inputs.deploy_frontend }}" = "true" ]; then
+                curl -f http://localhost:3000 || { echo "Frontend failed"; docker compose logs --no-color --tail 200 stathis-frontend; exit 1; }
+              fi
+              if [ "${{ inputs.deploy_backend }}" = "true" ]; then
+                curl -f http://localhost:8080/actuator/health || { echo "Backend failed"; docker compose logs --no-color --tail 200 stathis-backend; exit 1; }
+              fi
+            fi
             docker system prune -f || true
             echo "Deployment complete."
