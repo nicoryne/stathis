@@ -178,20 +178,20 @@ jobs:
               echo "Waiting for containers to settle..."
               # Retry loop up to 3 minutes for frontend since npm install may take time
               if [ "${{ env.DEPLOY_FRONTEND }}" = "true" ]; then
-                echo "Probing frontend on :3000 ..."
+                echo "Probing frontend via Docker network ..."
                 for i in $(seq 1 36); do
-                  if curl -fsS http://localhost:3000 >/dev/null; then
+                  if docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-frontend:3000 >/dev/null; then
                     echo "Frontend is healthy"; break; fi; sleep 5; done
-                if ! curl -fsS http://localhost:3000 >/dev/null; then
+                if ! docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-frontend:3000 >/dev/null; then
                   echo "Frontend failed"; docker compose logs --no-color --tail 300 stathis-frontend; exit 1; fi
               fi
               # Backend: faster boot, but still retry up to 60s
               if [ "${{ env.DEPLOY_BACKEND }}" = "true" ]; then
-                echo "Probing backend on :8080/actuator/health ..."
+                echo "Probing backend via Docker network ..."
                 for i in $(seq 1 12); do
-                  if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
+                  if docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-backend:8080/actuator/health >/dev/null; then
                     echo "Backend is healthy"; break; fi; sleep 5; done
-                if ! curl -fsS http://localhost:8080/actuator/health >/dev/null; then
+                if ! docker run --rm --network stathis-network curlimages/curl:8.6.0 -fsS http://stathis-backend:8080/actuator/health >/dev/null; then
                   echo "Backend failed"; docker compose logs --no-color --tail 300 stathis-backend; exit 1; fi
               fi
             fi
