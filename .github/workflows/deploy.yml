@@ -93,7 +93,7 @@ jobs:
           username: ${{ env.SSH_USER }}
           key: ${{ env.SSH_KEY }}
           source: "server.jar"
-          target: "${{ env.REMOTE_BACKEND_DIR }}/server.jar"
+          target: "${{ env.REMOTE_BACKEND_DIR }}"
           strip_components: 0
           overwrite: true
           rm: false
