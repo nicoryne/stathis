@@ -20,12 +20,14 @@ import {
   Users,
   Video,
   Award,
-  UserCircle
+  UserCircle,
+  HeartPulse
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Logo } from '../logo';
+
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -33,74 +35,143 @@ export function Sidebar({ className }: SidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  const routes = [
+  type RouteItem = {
+    label: string;
+    sublabel?: string;
+    icon: any;
+    href: string;
+    active: boolean;
+  };
+
+  const sections: { title: string; items: RouteItem[] }[] = [
     {
-      label: 'Dashboard and Analytics',
-      icon: Home,
-      href: '/dashboard',
-      active: pathname === '/dashboard'
+      title: 'Overview',
+      items: [
+        {
+          label: 'Dashboard',
+          sublabel: 'Overview and analytics',
+          icon: Home,
+          href: '/dashboard',
+          active: pathname === '/dashboard'
+        }
+      ]
     },
     {
-      label: 'Classrooms',
-      icon: School,
-      href: '/classroom',
-      active: pathname.startsWith('/classroom')
+      title: 'Management',
+      items: [
+        {
+          label: 'Classrooms',
+          sublabel: 'Manage your classrooms',
+          icon: School,
+          href: '/classroom',
+          active: pathname.startsWith('/classroom')
+        },
+        {
+          label: 'Student Progress',
+          sublabel: 'Track student performance',
+          icon: Award,
+          href: '/student-progress',
+          active: pathname.startsWith('/student-progress')
+        }
+      ]
     },
     {
-      label: 'Student Progress',
-      icon: Award,
-      href: '/student-progress',
-      active: pathname.startsWith('/student-progress')
+      title: 'Monitoring',
+      items: [
+        {
+          label: 'Live Monitoring',
+          sublabel: 'Real-time vitals and activity',
+          icon: Activity,
+          href: '/monitoring',
+          active: pathname === '/monitoring'
+        }
+      ]
     },
     {
-      label: 'Monitoring',
-      icon: Activity,
-      href: '/monitoring',
-      active: pathname === '/monitoring'
-    },
-    {
-      label: 'Profile',
-      icon: UserCircle,
-      href: '/profile',
-      active: pathname === '/profile'
-    },
+      title: 'Account',
+      items: [
+        {
+          label: 'Profile',
+          sublabel: 'Manage your profile',
+          icon: UserCircle,
+          href: '/profile',
+          active: pathname === '/profile'
+        }
+      ]
+    }
   ];
+
+  const actives = {
+    dashboard: pathname === '/dashboard',
+    classroom: pathname.startsWith('/classroom'),
+    studentProgress: pathname.startsWith('/student-progress'),
+    monitoring: pathname === '/monitoring',
+    profile: pathname === '/profile',
+  } as const;
 
   return (
     <>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild className="md:hidden">
-          <Button variant="outline" size="icon" className="ml-2">
+          <Button variant="outline" size="icon" className="ml-2 rounded-xl bg-background/50 border-border/50">
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle Menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0">
-          <MobileSidebar routes={routes} setOpen={setOpen} />
+        <SheetContent side="left" className="p-0 bg-card/80 backdrop-blur-xl border-border/50">
+          <MobileSidebar actives={actives} setOpen={setOpen} />
         </SheetContent>
       </Sheet>
 
-      <div className={cn('bg-background hidden border-r md:block', className)}>
+      <div className={cn('bg-card/80 backdrop-blur-xl hidden border-r border-border/50 md:block', className)}>
         <div className="flex h-full flex-col">
-          <div className="flex h-14 items-center border-b px-4">
-            <Logo />
+          {/* Logo Section */}
+          <div className="flex h-16 items-center border-b border-border/50 px-6">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                <HeartPulse className="relative h-8 w-8 text-primary" />
+              </div>
+              <span className="text-xl font-bold tracking-tight">Stathis</span>
+            </div>
           </div>
-          <ScrollArea className="flex-1 py-2">
-            <nav className="grid gap-1 px-2">
-              {routes.map((route) => (
-                <Link
-                  key={route.href}
-                  href={route.href}
-                  className={cn(
-                    'hover:bg-accent hover:text-accent-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                    route.active ? 'bg-accent text-accent-foreground' : 'transparent'
-                  )}
-                >
-                  <route.icon className="h-5 w-5" />
-                  {route.label}
-                </Link>
+          
+          {/* Navigation */}
+          <ScrollArea className="flex-1 py-4">
+            <div className="space-y-6">
+              {sections.map((section) => (
+                <div key={section.title} className="px-4">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-2">
+                    {section.title}
+                  </div>
+                  <nav className="grid gap-2">
+                    {section.items.map((route) => (
+                      <div key={route.href}>
+                        <Link
+                          href={route.href}
+                          className={cn(
+                            'hover:bg-primary/10 hover:text-primary group block rounded-xl border transition-all duration-200',
+                            route.active 
+                              ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' 
+                              : 'text-muted-foreground border-transparent hover:text-foreground'
+                          )}
+                        >
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <route.icon className="h-5 w-5" />
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{route.label}</span>
+                              {route.sublabel && (
+                                <span className="text-xs text-muted-foreground">{route.sublabel}</span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </div>
+                    ))}
+                  </nav>
+                </div>
               ))}
-            </nav>
+            </div>
           </ScrollArea>
         </div>
       </div>
@@ -109,38 +180,82 @@ export function Sidebar({ className }: SidebarProps) {
 }
 
 interface MobileSidebarProps {
-  routes: {
-    label: string;
-    icon: any;
-    href: string;
-    active: boolean;
-  }[];
+  actives: {
+    dashboard: boolean;
+    classroom: boolean;
+    studentProgress: boolean;
+    monitoring: boolean;
+    profile: boolean;
+  };
   setOpen: (open: boolean) => void;
 }
 
-function MobileSidebar({ routes, setOpen }: MobileSidebarProps) {
+function MobileSidebar({ actives, setOpen }: MobileSidebarProps) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center border-b px-4">
-        <Logo />
+      <div className="flex h-16 items-center border-b border-border/50 px-6">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+            <HeartPulse className="relative h-8 w-8 text-primary" />
+          </div>
+          <span className="text-xl font-bold tracking-tight">Stathis</span>
+        </div>
       </div>
       <ScrollArea className="flex-1">
-        <nav className="grid gap-1 p-2">
-          {routes.map((route) => (
-            <Link
-              key={route.href}
-              href={route.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                'hover:bg-accent hover:text-accent-foreground flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium',
-                route.active ? 'bg-accent text-accent-foreground' : 'transparent'
-              )}
-            >
-              <route.icon className="h-5 w-5" />
-              {route.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="space-y-6 p-4">
+          {/* Mirror desktop grouping on mobile for consistency */}
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-2">Overview</div>
+            <nav className="grid gap-2">
+              <Link href="/dashboard" onClick={() => setOpen(false)} className={cn('hover:bg-primary/10 hover:text-primary block rounded-xl border px-4 py-3 text-sm transition-all duration-200', actives.dashboard ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : 'text-muted-foreground border-transparent hover:text-foreground')}>
+                <div className="flex items-center gap-3">
+                  <Home className="h-5 w-5" />
+                  <div className="flex flex-col"><span className="font-medium">Dashboard</span><span className="text-xs text-muted-foreground">Overview and analytics</span></div>
+                </div>
+              </Link>
+            </nav>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-2">Management</div>
+            <nav className="grid gap-2">
+              <Link href="/classroom" onClick={() => setOpen(false)} className={cn('hover:bg-primary/10 hover:text-primary block rounded-xl border px-4 py-3 text-sm transition-all duration-200', actives.classroom ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : 'text-muted-foreground border-transparent hover:text-foreground')}>
+                <div className="flex items-center gap-3">
+                  <School className="h-5 w-5" />
+                  <div className="flex flex-col"><span className="font-medium">Classrooms</span><span className="text-xs text-muted-foreground">Manage your classrooms</span></div>
+                </div>
+              </Link>
+              <Link href="/student-progress" onClick={() => setOpen(false)} className={cn('hover:bg-primary/10 hover:text-primary block rounded-xl border px-4 py-3 text-sm transition-all duration-200', actives.studentProgress ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : 'text-muted-foreground border-transparent hover:text-foreground')}>
+                <div className="flex items-center gap-3">
+                  <Award className="h-5 w-5" />
+                  <div className="flex flex-col"><span className="font-medium">Student Progress</span><span className="text-xs text-muted-foreground">Track student performance</span></div>
+                </div>
+              </Link>
+            </nav>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-2">Monitoring</div>
+            <nav className="grid gap-2">
+              <Link href="/monitoring" onClick={() => setOpen(false)} className={cn('hover:bg-primary/10 hover:text-primary block rounded-xl border px-4 py-3 text-sm transition-all duration-200', actives.monitoring ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : 'text-muted-foreground border-transparent hover:text-foreground')}>
+                <div className="flex items-center gap-3">
+                  <Activity className="h-5 w-5" />
+                  <div className="flex flex-col"><span className="font-medium">Live Monitoring</span><span className="text-xs text-muted-foreground">Real-time vitals and activity</span></div>
+                </div>
+              </Link>
+            </nav>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-2">Account</div>
+            <nav className="grid gap-2">
+              <Link href="/profile" onClick={() => setOpen(false)} className={cn('hover:bg-primary/10 hover:text-primary block rounded-xl border px-4 py-3 text-sm transition-all duration-200', actives.profile ? 'bg-primary/10 text-primary border-primary/20 shadow-sm' : 'text-muted-foreground border-transparent hover:text-foreground')}>
+                <div className="flex items-center gap-3">
+                  <UserCircle className="h-5 w-5" />
+                  <div className="flex flex-col"><span className="font-medium">Profile</span><span className="text-xs text-muted-foreground">Manage your profile</span></div>
+                </div>
+              </Link>
+            </nav>
+          </div>
+        </div>
       </ScrollArea>
     </div>
   );
