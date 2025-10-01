@@ -59,7 +59,7 @@ export default function SignUpPage() {
         (data.email as string) : form.getValues().email;
       
       toast.success('Sign up successful', {
-        description: 'Please proceed to login'
+        description: 'Please verify your email to continue'
       });
       
       // Always set the email and show verification modal

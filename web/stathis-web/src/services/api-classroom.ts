@@ -110,17 +110,49 @@ export async function getTeacherClassrooms() {
     }
   }
   
+  // Get the token directly to ensure we're using the most up-to-date version
+  let authToken = '';
+  if (typeof window !== 'undefined') {
+    authToken = localStorage.getItem('auth_token') || '';
+  }
+
   // Use the /teacher endpoint which is designed to use the security context
   const { data, error, status } = await serverApiClient.get('/classrooms/teacher', {
-    // Add explicit headers for debugging
+    // Add explicit headers including Authorization to ensure it's sent correctly
     headers: {
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${authToken.trim()}` // Trim to remove any potential whitespace
     }
   });
+  
+  // Additional debug logging
+  console.log('[Teacher Classrooms] Auth header sent:', `Bearer ${authToken.substring(0, 10)}...`);
   
   // Log the full error details
   if (error) {
     console.error('[Teacher Classrooms Get Error]', { error, status });
+    
+    // Enhanced error reporting for auth issues
+    if (status === 401 || status === 403) {
+      console.error('[Auth Error] Possible authentication or authorization issue:');
+      console.error('- Token valid:', !!authToken);
+      console.error('- Token length:', authToken?.length || 0);
+      console.error('- User role:', getCurrentUserRole());
+      
+      // Attempt to decode the token
+      try {
+        const tokenParts = authToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          console.error('- Token payload:', payload);
+          console.error('- Token expiration:', new Date(payload.exp * 1000).toISOString());
+          console.error('- Token expired:', payload.exp * 1000 < Date.now());
+        }
+      } catch (e) {
+        console.error('- Could not decode token:', e);
+      }
+    }
+    
     throw new Error(error);
   }
   

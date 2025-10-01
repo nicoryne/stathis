@@ -47,11 +47,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: web/stathis-web/package-lock.json
+          # No npm cache because no lockfile exists in web/stathis-web
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Run linting
         run: npm run lint
@@ -61,6 +60,12 @@ jobs:
 
       - name: Build application
         run: npm run build
+      - name: Upload build output (web)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: web/stathis-web/.next
 
   # Mobile App Validation
   mobile-validation:
@@ -75,11 +80,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup JDK
+      - name: Setup JDK (with Gradle cache)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -87,15 +93,8 @@ jobs:
           api-level: 30
           build-tools: 34.0.0
 
-      - name: Cache Gradle dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Setup Gradle build action
+        uses: gradle/gradle-build-action@v3
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -105,6 +104,16 @@ jobs:
 
       - name: Build debug APK
         run: ./gradlew assembleDebug
+
+      - name: Run unit tests (debug)
+        run: ./gradlew testDebugUnitTest
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: mobile/stathis-mobile/app/build/outputs/apk/debug/*.apk
 
   # Backend API Validation
   backend-validation:
@@ -125,15 +134,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
+      - name: Enable Maven cache
+        uses: actions/setup-java@v4
         with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
 
-      - name: Build application
-        run: mvn clean package -DskipTests
+      - name: Build and test
+        run: mvn -B -ntp verify
 
   # Summary
   validation-summary:

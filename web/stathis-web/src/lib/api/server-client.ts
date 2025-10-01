@@ -1,5 +1,7 @@
 'use client';
 
+import { handleApiError } from './error-interceptor';
+
 /**
  * API client for backend requests
  */
@@ -51,13 +53,21 @@ async function fetchApi<T>(
         headers['Authorization'] = `Bearer ${authToken}`;
         
         // Log detailed info for debugging
-        console.log('Added auth token to request', { 
+        console.log('🔐 Auth Details', { 
           tokenType: 'Bearer', 
           tokenLength: authToken.length,
           tokenStart: authToken.substring(0, 10) + '...',
           tokenEnd: '...' + authToken.substring(authToken.length - 10),
-          headers: headers
+          endpoint,
+          headersPresent: Object.keys(headers),
+          method: options.method || 'GET',
+          authorization: headers['Authorization']?.substring(0, 20) + '...'
         });
+        
+        // Check if token might be malformed
+        if (!authToken.includes('.') || authToken.split('.').length !== 3) {
+          console.warn('⚠️ Token appears to be malformed - not in JWT format');
+        }
         
         try {
           // Try to decode the token to check its contents
@@ -90,12 +100,12 @@ async function fetchApi<T>(
       }
     }
 
-    // Always include credentials to ensure cookies are sent
+    // Log actual request configuration that will be sent
     console.log('[API] Sending request to:', url);
     console.log('[API] Request headers:', headers);
     console.log('[API] Request options:', {
       method: options.method,
-      credentials: 'include',
+      // credentials removed
       mode: 'cors',
       body: options.body
     });
@@ -105,7 +115,7 @@ async function fetchApi<T>(
       response = await fetch(url, {
         ...options,
         headers,
-        credentials: 'include', // This ensures cookies are sent with the request
+        // credentials: 'include', // Removing this as it may conflict with token auth
         mode: 'cors'           // Explicitly use CORS mode
       });
 
@@ -145,6 +155,10 @@ async function fetchApi<T>(
         url,
         method: options.method
       });
+      
+      // Use the error interceptor to handle common error cases
+      handleApiError(response.status, url);
+      
       return {
         error: data?.message || data?.error || JSON.stringify(data) || 'An unknown error occurred',
         status: response.status,
@@ -181,11 +195,21 @@ export const serverApiClient = {
   },
   
   async put<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {
-    return fetchApi<T>(endpoint, { 
+    // Ensure proper JSON content
+    const headers = options?.headers || {};
+    const combinedOptions = { 
       ...options, 
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
-    });
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...headers
+      }
+    };
+    
+    console.log(`[API Debug] PUT ${endpoint} payload:`, data);
+    return fetchApi<T>(endpoint, combinedOptions);
   },
   
   async patch<T>(endpoint: string, data?: any, options?: RequestInit): Promise<ApiResponse<T>> {

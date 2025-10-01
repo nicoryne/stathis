@@ -26,64 +26,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 
-@Composable
-fun LearnScreen(navController: NavHostController) {
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface))
-}
-
-@Composable
-fun PracticeScreen(navController: NavHostController) {
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Practice",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Your progress at a glance",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                // Simple progress overview placeholder (can be replaced with real data)
-                Text(
-                    text = "Streak: 0 days • Level: Beginner",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = { navController.navigate("practice_exercises") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                ) {
-                    Text(text = "Choose Exercises")
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = { navController.navigate("health_connect") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = true
-                ) {
-                    Text(text = "Health Connect Settings")
-                }
-            }
-        }
-    }
-}
+// Note: LearnScreen and PracticeScreen are now defined in their own files:
+// - LearnScreen.kt (with classroom enrollment features)
+// - PracticeScreen.kt (with dashboard features)
 
 // --- Practice Subscreens ---
 @Composable

@@ -1,8 +1,5 @@
 package citu.edu.stathis.mobile.features.vitals.data.model
 
-import kotlinx.serialization.Serializable
-
-@Serializable
 data class VitalsResponseDto(
     val physicalId: String, // from backend
     val studentId: String,

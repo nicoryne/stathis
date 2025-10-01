@@ -1,7 +1,6 @@
 package citu.edu.stathis.mobile.features.classroom.domain.repository
 
 import citu.edu.stathis.mobile.features.classroom.data.model.Classroom
-import citu.edu.stathis.mobile.features.classroom.data.model.ClassroomProgress
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import kotlinx.coroutines.flow.Flow
 
@@ -28,11 +27,6 @@ interface ClassroomRepository {
      * Get all tasks for a specific classroom
      */
     suspend fun getClassroomTasks(classroomId: String): Flow<List<Task>>
-    
-    /**
-     * Get the student's progress in a specific classroom
-     */
-    suspend fun getClassroomProgress(classroomId: String): Flow<ClassroomProgress>
     
     /**
      * Leave a classroom (unenroll)
