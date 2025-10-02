@@ -1,8 +1,9 @@
 package edu.cit.stathis.posture.controller;
 
-import edu.cit.stathis.posture.dto.LandmarkRequest;
-import edu.cit.stathis.posture.dto.PostureResponse;
+import edu.cit.stathis.posture.dto.ClassificationRequest;
+import edu.cit.stathis.posture.dto.ClassificationResult;
 import edu.cit.stathis.posture.service.PostureModelService;
+import edu.cit.stathis.posture.service.PostureRulesService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
@@ -14,28 +15,34 @@ import org.springframework.web.bind.annotation.*;
 public class PostureController {
 
   private final PostureModelService postureService;
+  private final PostureRulesService rulesService;
 
-  public PostureController(PostureModelService postureService) {
+  public PostureController(PostureModelService postureService, PostureRulesService rulesService) {
     this.postureService = postureService;
+    this.rulesService = rulesService;
   }
 
-  @PostMapping("/analyze")
-  public ResponseEntity<?> analyzePosture(@RequestBody LandmarkRequest request) {
+  @PostMapping("/classify")
+  public ResponseEntity<?> classify(@RequestBody ClassificationRequest request) {
     try {
-      if (request.getLandmarks() == null) {
-        return ResponseEntity.badRequest().body(Map.of("error", "Landmarks data is missing."));
+      if (request.getWindow() == null) {
+        return ResponseEntity.badRequest().body(Map.of("error", "Window data is missing."));
       }
-      
-      // Validate landmark format
-      if (request.getLandmarks().length != 33 || request.getLandmarks()[0].length != 2) {
-        return ResponseEntity.badRequest().body(Map.of(
-          "error", 
-          "Landmarks must be of shape [33][2] (33 landmarks with x,y coordinates)"
-        ));
+
+      ClassificationResult result = postureService.classify(request.getWindow());
+      float[] last = request.getWindow()[0][request.getWindow()[0].length - 1];
+      float[][] lastFrame = new float[33][4];
+      for (int i = 0; i < 33; i++) {
+        int base = i * 4;
+        lastFrame[i][0] = last[base];
+        lastFrame[i][1] = last[base + 1];
+        lastFrame[i][2] = last[base + 2];
+        lastFrame[i][3] = last[base + 3];
       }
-      
-      PostureResponse response = postureService.predict(request.getLandmarks());
-      return ResponseEntity.ok(response);
+      PostureRulesService.RulesResult rules = rulesService.evaluate(result.getPredictedClass(), lastFrame);
+      result.setFlags(rules.flags);
+      result.setMessages(rules.messages);
+      return ResponseEntity.ok(result);
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     } catch (Exception e) {
