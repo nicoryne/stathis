@@ -8,7 +8,14 @@ import citu.edu.stathis.mobile.features.exercise.data.Exercise
 import citu.edu.stathis.mobile.features.exercise.data.ExerciseSessionResult
 import citu.edu.stathis.mobile.features.exercise.data.ExerciseType
 import citu.edu.stathis.mobile.features.exercise.data.datasource.ExerciseApi
-import citu.edu.stathis.mobile.features.exercise.data.model.*
+import citu.edu.stathis.mobile.features.exercise.data.model.AnalyzePostureRequestDto
+import citu.edu.stathis.mobile.features.exercise.data.model.ExerciseDto
+import citu.edu.stathis.mobile.features.exercise.data.model.ExerciseSessionResultDto
+import citu.edu.stathis.mobile.features.exercise.data.model.PerformanceSummaryDto
+import citu.edu.stathis.mobile.features.exercise.data.model.PostureResponseDto
+import citu.edu.stathis.mobile.features.exercise.data.remote.api.PostureApi
+import citu.edu.stathis.mobile.features.exercise.data.remote.dto.ClassificationRequest
+import citu.edu.stathis.mobile.features.exercise.data.remote.dto.ClassificationResultDto
 import citu.edu.stathis.mobile.features.exercise.domain.ExerciseApiService
 import citu.edu.stathis.mobile.features.exercise.domain.model.PostureAnalysis
 import citu.edu.stathis.mobile.features.exercise.domain.repository.ExerciseRepository
@@ -28,7 +35,8 @@ class ExerciseRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val localApi: ExerciseApi,
     private val apiService: ExerciseApiService,
-    private val getCurrentUserIdUseCase: GetCurrentUserIdUseCase
+    private val getCurrentUserIdUseCase: GetCurrentUserIdUseCase,
+    private val postureApi: PostureApi
 ) : ExerciseRepository {
 
     // ML Kit configuration
@@ -257,6 +265,10 @@ class ExerciseRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             ClientResponse(success = false, data = null, message = "Network error: ${e.message ?: "Unknown error"}")
         }
+    }
+
+    override suspend fun classify(window: Array<Array<FloatArray>>): ClassificationResultDto {
+        return postureApi.classify(ClassificationRequest(window))
     }
 }
 

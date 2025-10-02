@@ -10,7 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseTestScreen
+import citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseLiveScreen
 import citu.edu.stathis.mobile.features.legal.ui.PrivacyScreen
 import citu.edu.stathis.mobile.features.legal.ui.TermsScreen
 import citu.edu.stathis.mobile.features.profile.ui.ProfileScreen
@@ -102,7 +102,7 @@ fun HomeNavHost(navController: NavHostController) {
                 )
             }
         ) { SettingsScreen(navController) }
-        composable("exercise_test") { ExerciseTestScreen(navController) }
+        composable("exercise_test") { ExerciseLiveScreen() }
         composable(
             route = "edit_profile",
             enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, animationSpec = tween(300)) },
