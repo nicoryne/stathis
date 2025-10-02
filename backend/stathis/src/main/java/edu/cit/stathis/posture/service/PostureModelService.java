@@ -50,53 +50,75 @@ public class PostureModelService {
     }
   }
 
-  public ClassificationResult classify(float[][][] window) throws OrtException {
+  public ClassificationResult classify(float[][][] window) {
     if (window == null || window.length != 1 || window[0].length != timeSteps || window[0][0].length != NUM_FEATURES) {
       throw new IllegalArgumentException("Input window must be shaped [1," + timeSteps + "," + NUM_FEATURES + "]");
     }
 
-    OnnxTensor tensor = OnnxTensor.createTensor(env, window);
+    OnnxTensor tensor = null;
+    try {
+      tensor = OnnxTensor.createTensor(env, window);
 
-    String inputName = getFirstInputName(session);
-    Map<String, OnnxTensor> inputs = Collections.singletonMap(inputName, tensor);
+      String inputName = getFirstInputName(session);
+      Map<String, OnnxTensor> inputs = Collections.singletonMap(inputName, tensor);
 
-    try (OrtSession.Result results = session.run(inputs)) {
-      OnnxValue outputValue = results.get(0);
-      float[][] logits = (float[][]) outputValue.getValue(); // [1][C]
+      OrtSession.Result results = null;
+      try {
+        results = session.run(inputs);
+        OnnxValue outputValue = results.get(0);
+        float[][] logits = readOnnxOutputAs2DFloatArray(outputValue);
 
-      float[] probs = softmax(logits[0]);
-      int bestIdx = argmax(probs);
-      String predicted = bestIdx >= 0 && bestIdx < classNames.size() ? classNames.get(bestIdx) : "unknown";
 
-      tensor.close();
+        float[] probs = softmax(logits[0]);
+        int bestIdx = argmax(probs);
+        String predicted = bestIdx >= 0 && bestIdx < classNames.size() ? classNames.get(bestIdx) : "unknown";
 
-      // Build last frame landmarks [33][4] from last time step for rules
-      float[] last = window[0][timeSteps - 1];
-      float[][] lastFrame = new float[33][4];
-      for (int i = 0; i < 33; i++) {
-        int base = i * 4;
-        lastFrame[i][0] = last[base];
-        lastFrame[i][1] = last[base + 1];
-        lastFrame[i][2] = last[base + 2];
-        lastFrame[i][3] = last[base + 3];
+        // Build last frame landmarks [33][4] from last time step for rules
+        float[] last = window[0][timeSteps - 1];
+        float[][] lastFrame = new float[33][4];
+        for (int i = 0; i < 33; i++) {
+          int base = i * 4;
+          lastFrame[i][0] = last[base];
+          lastFrame[i][1] = last[base + 1];
+          lastFrame[i][2] = last[base + 2];
+          lastFrame[i][3] = last[base + 3];
+        }
+
+        ClassificationResult result = new ClassificationResult();
+        result.setPredictedClass(predicted);
+        result.setScore(probs[bestIdx]);
+        result.setProbabilities(probs);
+        result.setClassNames(classNames);
+        return result;
+      } finally {
+        if (results != null) {
+          try {
+            results.close();
+          } catch (Exception ignored) {}
+        }
       }
-
-      // Rules are applied in controller where PostureRulesService is available; return base data here
-      ClassificationResult result = new ClassificationResult();
-      result.setPredictedClass(predicted);
-      result.setScore(probs[bestIdx]);
-      result.setProbabilities(probs);
-      result.setClassNames(classNames);
-      return result;
+    } catch (OrtException e) {
+      throw new IllegalStateException("ONNX inference failed", e);
+    } finally {
+      if (tensor != null) {
+        try {
+          tensor.close();
+        } catch (Exception ignored) {
+        }
+      }
     }
   }
 
   private static String getFirstInputName(OrtSession session) {
-    Iterator<String> it = session.getInputInfo().keySet().iterator();
-    if (!it.hasNext()) {
-      throw new IllegalStateException("ONNX model has no inputs");
+    try {
+      Iterator<String> it = session.getInputInfo().keySet().iterator();
+      if (!it.hasNext()) {
+        throw new IllegalStateException("ONNX model has no inputs");
+      }
+      return it.next();
+    } catch (OrtException e) {
+      throw new IllegalStateException("Failed to read ONNX model input info", e);
     }
-    return it.next();
   }
 
   private static int argmax(float[] a) {
@@ -109,6 +131,15 @@ public class PostureModelService {
       }
     }
     return idx;
+  }
+
+  private static float[][] readOnnxOutputAs2DFloatArray(OnnxValue value) {
+    try {
+      Object raw = value.getValue();
+      return (float[][]) raw;
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to read ONNX output tensor", e);
+    }
   }
 
   float[] softmax(float[] logits) {
