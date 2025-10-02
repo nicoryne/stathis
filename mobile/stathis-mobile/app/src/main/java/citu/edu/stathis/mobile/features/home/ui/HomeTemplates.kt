@@ -135,11 +135,7 @@ fun PracticeExercisePreviewScreen(exerciseId: String, navController: NavHostCont
 
 @Composable
 fun PracticeExerciseSessionScreen(exerciseId: String, navController: NavHostController) {
-    citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseTestScreen(
-        navController = navController,
-        enableVitalsIndicator = true,
-        enablePostureAnalysis = true
-    )
+    citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseLiveScreen()
 }
 
 

@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.exercise.domain.repository
 
+import citu.edu.stathis.mobile.features.exercise.data.remote.dto.ClassificationResultDto
 import citu.edu.stathis.mobile.core.data.models.ClientResponse
 import citu.edu.stathis.mobile.features.exercise.data.Exercise
 import citu.edu.stathis.mobile.features.exercise.data.ExerciseSessionResult
@@ -22,4 +23,7 @@ interface ExerciseRepository {
     suspend fun saveExerciseSession(sessionResult: ExerciseSessionResult): ClientResponse<Unit>
     suspend fun getExerciseHistory(userId: String): ClientResponse<List<ExerciseSessionResult>>
     suspend fun getPerformanceSummary(userId: String, exerciseId: String?): ClientResponse<List<PerformanceSummaryDto>>
+
+    // Pose classification
+    suspend fun classify(window: Array<Array<FloatArray>>): ClassificationResultDto
 }
