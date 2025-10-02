@@ -1,0 +1,13 @@
+{
+  "num_features": 132,
+  "time_steps": 30,
+  "class_names": [
+    "plank",
+    "push_up",
+    "rest",
+    "sit_up",
+    "squat"
+  ],
+  "architecture": "CNN1D",
+  "export_dir": "/content/exports/20251002_115416"
+}
