@@ -25,6 +25,7 @@ import citu.edu.stathis.mobile.features.onboarding.domain.model.ExperienceLevel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
+import androidx.navigation.compose.rememberNavController
 
 // Note: LearnScreen and PracticeScreen are now defined in their own files:
 // - LearnScreen.kt (with classroom enrollment features)
@@ -135,7 +136,7 @@ fun PracticeExercisePreviewScreen(exerciseId: String, navController: NavHostCont
 
 @Composable
 fun PracticeExerciseSessionScreen(exerciseId: String, navController: NavHostController) {
-    citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseLiveScreen()
+    citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseScreen(navController = rememberNavController())
 }
 
 
