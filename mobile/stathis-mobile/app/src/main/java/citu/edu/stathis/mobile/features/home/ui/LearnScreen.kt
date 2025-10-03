@@ -88,8 +88,10 @@ fun LearnScreen(
                 .padding(bottom = 100.dp) // Ensure content scrolls above nav bar
         ) {
     // Streak Header and Join Class
+    val streakManager = androidx.hilt.navigation.compose.hiltViewModel<citu.edu.stathis.mobile.features.home.viewmodel.LearnViewModel>().streakManager
+    val streak by streakManager.streak.collectAsState()
     StreakHeader(
-        streak = 7,
+        streak = streak,
         onJoinClassClick = { enrollDialog = true }
     )
 
