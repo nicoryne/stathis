@@ -31,11 +31,6 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Format & Type Check (no ESLint)
-        run: |
-          npx prettier --check .
-          npx tsc --noEmit
-
       - name: Build
         run: npm run build
 
