@@ -14,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TaskTemplateViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val streakManager: citu.edu.stathis.mobile.core.streak.StreakManager
 ) : ViewModel() {
 
     private val _templateState = MutableStateFlow<TemplateState>(TemplateState.Loading)
@@ -44,10 +45,16 @@ class TaskTemplateViewModel @Inject constructor(
 
                 val template = when (templateType) {
                     "LESSON" -> {
-                        if (!templateId.isNullOrBlank()) {
-                            taskRepository.getLessonTemplate(templateId).first()
-                        } else {
-                            createMockLessonTemplate()
+                        val embedded = _taskDetail.value?.lessonTemplate
+                        when {
+                            !templateId.isNullOrBlank() && templateId != "embedded" -> {
+                                runCatching { taskRepository.getLessonTemplate(templateId).first() }
+                                    .getOrElse {
+                                        embedded ?: throw it
+                                    }
+                            }
+                            embedded != null -> embedded
+                            else -> createMockLessonTemplate()
                         }
                     }
                     "QUIZ" -> {
@@ -80,6 +87,8 @@ class TaskTemplateViewModel @Inject constructor(
                     LessonAttemptsCache.increment(taskId)
                     // Refresh progress so UI and lists reflect completion immediately
                     runCatching { taskRepository.getTaskProgress(taskId).first() }
+                    // Record streak for daily activity
+                    streakManager.recordActivity()
                 }
             } catch (e: Exception) {
                 _error.value = e.message
@@ -116,6 +125,8 @@ class TaskTemplateViewModel @Inject constructor(
                     }
                     // Optimistically mark completion for immediate UI feedback
                     TaskCompletionCache.markCompleted(taskId)
+                    // Record streak
+                    streakManager.recordActivity()
                 }
             } catch (e: Exception) {
                 _error.value = e.message
@@ -132,6 +143,8 @@ class TaskTemplateViewModel @Inject constructor(
                 TaskCompletionCache.markCompleted(taskId)
                 // Refresh progress so list reflects completion immediately
                 runCatching { taskRepository.getTaskProgress(taskId).first() }
+                // Record streak
+                streakManager.recordActivity()
             } catch (e: Exception) {
                 _error.value = e.message
             }

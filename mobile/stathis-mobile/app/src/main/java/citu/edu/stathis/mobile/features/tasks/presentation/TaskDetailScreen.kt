@@ -24,13 +24,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
@@ -64,9 +67,12 @@ private fun FallbackComponentsSection(
         ) {
             // Lesson (use embedded template if present). Open in dedicated screen.
             task.lessonTemplate?.let { lesson ->
+                val attempts = LessonAttemptsCache.getAttempts(task.physicalId)
+                val isCompleted = attempts > 0
+                val canStart = attempts < task.maxAttempts
                 LessonCard(
-                    isCompleted = false,
-                    canStart = true,
+                    isCompleted = isCompleted,
+                    canStart = canStart,
                     onStartLesson = { onStartLesson(lesson.physicalId) }
                 )
                 Spacer(Modifier.height(8.dp))
@@ -112,6 +118,8 @@ fun TaskDetailScreen(
     val progress by viewModel.taskProgress.collectAsState()
     val error by viewModel.error.collectAsState()
     val quizTemplateState by viewModel.quizTemplate.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(taskId) {
         viewModel.loadTaskDetails(taskId)
@@ -127,6 +135,7 @@ fun TaskDetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { 
@@ -216,9 +225,57 @@ fun TaskDetailScreen(
                                    onLessonComplete = viewModel::completeLesson,
                                    onExerciseComplete = viewModel::completeExercise,
                                    onQuizSubmit = viewModel::submitQuizScore,
-                                   onStartLesson = { if (!isUnavailable) onStartLesson(it) },
-                                   onStartExercise = { if (!isUnavailable) onStartExercise(it) },
-                                   onStartQuiz = { if (!isUnavailable) onStartQuiz(it) },
+                                   onStartLesson = { 
+                                       if (!isUnavailable) onStartLesson(it) else {
+                                           coroutineScope.launch {
+                                               val reason = buildString {
+                                                   val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                                                       .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                                   val activeVal = currentTask.isActive ?: true
+                                                   if (!activeVal) append("Task is deactivated.")
+                                                   if (pastDeadline) {
+                                                       if (isNotEmpty()) append(" ")
+                                                       append("Deadline has passed.")
+                                                   }
+                                               }.ifBlank { "This task is unavailable." }
+                                               snackbarHostState.showSnackbar(reason)
+                                           }
+                                       }
+                                   },
+                                   onStartExercise = { 
+                                       if (!isUnavailable) onStartExercise(it) else {
+                                           coroutineScope.launch {
+                                               val reason = buildString {
+                                                   val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                                                       .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                                   val activeVal = currentTask.isActive ?: true
+                                                   if (!activeVal) append("Task is deactivated.")
+                                                   if (pastDeadline) {
+                                                       if (isNotEmpty()) append(" ")
+                                                       append("Deadline has passed.")
+                                                   }
+                                               }.ifBlank { "This task is unavailable." }
+                                               snackbarHostState.showSnackbar(reason)
+                                           }
+                                       }
+                                   },
+                                   onStartQuiz = { 
+                                       if (!isUnavailable) onStartQuiz(it) else {
+                                           coroutineScope.launch {
+                                               val reason = buildString {
+                                                   val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                                                       .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                                   val activeVal = currentTask.isActive ?: true
+                                                   if (!activeVal) append("Task is deactivated.")
+                                                   if (pastDeadline) {
+                                                       if (isNotEmpty()) append(" ")
+                                                       append("Deadline has passed.")
+                                                   }
+                                               }.ifBlank { "This task is unavailable." }
+                                               snackbarHostState.showSnackbar(reason)
+                                           }
+                                       }
+                                   },
                                    onBackAfterLesson = onNavigateBack,
                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                )
@@ -229,9 +286,57 @@ fun TaskDetailScreen(
                                FallbackComponentsSection(
                                    task = currentTask,
                                    viewModel = viewModel,
-                                   onStartLesson = { if (!isUnavailable) onStartLesson(it) },
-                                   onStartExercise = { if (!isUnavailable) onStartExercise(it) },
-                                   onStartQuiz = { if (!isUnavailable) onStartQuiz(it) },
+                                   onStartLesson = { 
+                                       if (!isUnavailable) onStartLesson(it) else {
+                                           coroutineScope.launch {
+                                               val reason = buildString {
+                                                   val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                                                       .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                                   val activeVal = currentTask.isActive ?: true
+                                                   if (!activeVal) append("Task is deactivated.")
+                                                   if (pastDeadline) {
+                                                       if (isNotEmpty()) append(" ")
+                                                       append("Deadline has passed.")
+                                                   }
+                                               }.ifBlank { "This task is unavailable." }
+                                               snackbarHostState.showSnackbar(reason)
+                                           }
+                                       }
+                                   },
+                                   onStartExercise = { 
+                                       if (!isUnavailable) onStartExercise(it) else {
+                                           coroutineScope.launch {
+                                               val reason = buildString {
+                                                   val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                                                       .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                                   val activeVal = currentTask.isActive ?: true
+                                                   if (!activeVal) append("Task is deactivated.")
+                                                   if (pastDeadline) {
+                                                       if (isNotEmpty()) append(" ")
+                                                       append("Deadline has passed.")
+                                                   }
+                                               }.ifBlank { "This task is unavailable." }
+                                               snackbarHostState.showSnackbar(reason)
+                                           }
+                                       }
+                                   },
+                                   onStartQuiz = { 
+                                       if (!isUnavailable) onStartQuiz(it) else {
+                                           coroutineScope.launch {
+                                               val reason = buildString {
+                                                   val pastDeadline = runCatching { OffsetDateTime.parse(currentTask.closingDate) }
+                                                       .getOrNull()?.isBefore(OffsetDateTime.now()) == true
+                                                   val activeVal = currentTask.isActive ?: true
+                                                   if (!activeVal) append("Task is deactivated.")
+                                                   if (pastDeadline) {
+                                                       if (isNotEmpty()) append(" ")
+                                                       append("Deadline has passed.")
+                                                   }
+                                               }.ifBlank { "This task is unavailable." }
+                                               snackbarHostState.showSnackbar(reason)
+                                           }
+                                       }
+                                   },
                                    onBackAfterLesson = onNavigateBack,
                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                )
@@ -667,18 +772,24 @@ private fun TaskProgressSection(
                    }
 
         // Components Section
-        if (!task.lessonTemplateId.isNullOrEmpty()) {
+        if (task.lessonTemplateId?.isNotEmpty() == true || task.lessonTemplate != null) {
             val lessonAttempts = remember(progress, task) {
                 if (progress.lessonCompleted == true) LessonAttemptsCache.ensureAtLeast(task.physicalId, 1)
                 LessonAttemptsCache.getAttempts(task.physicalId)
             }
             val canStartLesson = lessonAttempts < task.maxAttempts
-            val lessonTemplatePhysicalId = task.lessonTemplateId ?: task.lessonTemplate?.physicalId
+            val lessonCompleted = (lessonAttempts > 0) || (progress.lessonCompleted == true)
+            val lessonTemplatePhysicalId = task.lessonTemplate?.physicalId ?: task.lessonTemplateId
             LessonCard(
-                isCompleted = progress.lessonCompleted == true,
+                isCompleted = lessonCompleted,
                 canStart = canStartLesson,
                 onStartLesson = {
-                    lessonTemplatePhysicalId?.let { onStartLesson(it) }
+                    if (lessonTemplatePhysicalId != null) {
+                        onStartLesson(lessonTemplatePhysicalId)
+                    } else {
+                        // Fallback: navigate with placeholder and let template screen use embedded lesson
+                        onStartLesson("embedded")
+                    }
                 }
             )
             Spacer(Modifier.height(8.dp))

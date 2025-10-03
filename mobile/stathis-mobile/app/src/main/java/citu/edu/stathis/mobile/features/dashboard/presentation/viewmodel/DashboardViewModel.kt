@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -30,7 +31,8 @@ class DashboardViewModel @Inject constructor(
     private val progressRepository: ProgressRepository,
     private val classroomRepository: ClassroomRepository,
     private val taskRepository: TaskRepository,
-    private val vitalsRepository: VitalsRepository
+    private val vitalsRepository: VitalsRepository,
+    private val authTokenManager: citu.edu.stathis.mobile.core.data.AuthTokenManager
 ) : ViewModel() {
 
     // Student progress state
@@ -172,14 +174,32 @@ class DashboardViewModel @Inject constructor(
             _vitalsState.value = VitalsState.Loading
             
             try {
-                // TODO: Implement vitals data loading from the data layer repository
-                // The current data layer VitalsRepository doesn't have observe methods
-                // For now, provide mock data to prevent build errors
-                _vitalsState.value = VitalsState.Success(
-                    heartRate = 72f,
-                    oxygenSaturation = 98f,
-                    temperature = 36.5f
-                )
+                val userId = authTokenManager.physicalIdFlow.firstOrNull()
+                if (userId != null) {
+                    vitalsRepository.getVitalsHistory(userId)
+                        .catch { e ->
+                            Timber.e(e, "Error loading vitals history")
+                            _vitalsState.value = VitalsState.Error(e.message ?: "Unknown error")
+                        }
+                        .collectLatest { resp ->
+                            if (resp.success && resp.data != null) {
+                                val latest = resp.data.maxByOrNull { it.timestamp }
+                                if (latest != null) {
+                                    _vitalsState.value = VitalsState.Success(
+                                        heartRate = latest.heartRate.toFloat(),
+                                        oxygenSaturation = latest.oxygenSaturation,
+                                        temperature = latest.temperature
+                                    )
+                                } else {
+                                    _vitalsState.value = VitalsState.Error("No vitals yet")
+                                }
+                            } else {
+                                _vitalsState.value = VitalsState.Error(resp.message ?: "Failed to load vitals")
+                            }
+                        }
+                } else {
+                    _vitalsState.value = VitalsState.Error("Not logged in")
+                }
             } catch (e: Exception) {
                 Timber.e(e, "Error loading vitals")
                 _vitalsState.value = VitalsState.Error(e.message ?: "Unknown error")

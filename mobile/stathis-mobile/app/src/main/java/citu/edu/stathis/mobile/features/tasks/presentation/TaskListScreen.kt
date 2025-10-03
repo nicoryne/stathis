@@ -365,8 +365,14 @@ private fun TaskCard(
     android.util.Log.d("TaskCard", "  - Is unavailable: $isUnavailable")
     android.util.Log.d("TaskCard", "  - Progress completed: ${progress?.isCompleted}")
     android.util.Log.d("TaskCard", "  - Final completed: $isCompleted")
-    // Keep items clickable to allow viewing Task Detail even if unavailable; component starts are blocked there
-    val clickableModifier = Modifier.clickable(onClick = { if (isUnavailable) onUnavailableAttempt() else onClick() })
+    // Make deactivated or past-deadline tasks show banner when tapped
+    val clickableModifier = Modifier.clickable(onClick = { 
+        if (isUnavailable) {
+            onUnavailableAttempt()
+        } else {
+            onClick()
+        }
+    })
     Card(
         modifier = Modifier
             .fillMaxWidth()
