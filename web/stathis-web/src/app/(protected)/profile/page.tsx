@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import { motion } from 'framer-motion';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { AuthNavbar } from '@/components/auth-navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -38,7 +39,9 @@ import {
   Mail,
   Save,
   Upload,
-  X
+  X,
+  HeartPulse,
+  Sparkles
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
@@ -277,28 +280,82 @@ export default function ProfilePage() {
   // Handle loading and error states
   if (isLoading) {
     return (
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen relative overflow-hidden">
+        {/* Animated Background Particles */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5" />
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-2 h-2 bg-primary/20 rounded-full"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                y: [0, -20, 0],
+                opacity: [0.3, 0.8, 0.3],
+              }}
+              transition={{
+                duration: 3 + Math.random() * 2,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+              }}
+            />
+          ))}
+        </div>
+
         <Sidebar className="w-64 flex-shrink-0" />
         <div className="flex-1">
           <AuthNavbar />
-          <main className="p-6">
-            <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
-                <p className="text-muted-foreground mt-1">Manage your profile information</p>
-              </div>
-            </div>
-            <Card className="mx-auto max-w-lg">
-              <CardHeader>
-                <CardTitle>Loading...</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-center p-4">
-                  {/* Replace with proper loading spinner component later */}
-                  <p className="animate-pulse">Loading your profile information...</p>
+          <main className="p-6 relative">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-8"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="relative">
+                  <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                  <HeartPulse className="relative h-8 w-8 text-primary" />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Profile Management
+                  </h1>
+                  <p className="text-muted-foreground mt-1">Manage your profile information and settings</p>
+                </div>
+              </div>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+            >
+              <Card className="mx-auto max-w-lg rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <HeartPulse className="h-5 w-5 text-primary animate-pulse" />
+                    </div>
+                    Loading...
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-center p-8">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="relative">
+                        <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg animate-pulse" />
+                        <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 animate-spin" />
+                      </div>
+                      <p className="text-muted-foreground font-medium">Loading your profile information...</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </main>
         </div>
       </div>
@@ -306,88 +363,170 @@ export default function ProfilePage() {
   }
   
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen relative overflow-hidden">
+      {/* Animated Background Particles */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5" />
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-primary/20 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.3, 0.8, 0.3],
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+            }}
+          />
+        ))}
+      </div>
+
       <Sidebar className="w-64 flex-shrink-0" />
       
       <div className="flex-1">
         <AuthNavbar />
         
-        <main className="p-6">
-          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Profile Management</h1>
-              <p className="text-muted-foreground mt-1">Manage your profile information</p>
+        <main className="p-6 relative">
+          {/* Welcome Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                <HeartPulse className="relative h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Profile Management
+                </h1>
+                <p className="text-muted-foreground mt-1">Manage your profile information and settings</p>
+              </div>
             </div>
+            
             <div className="flex items-center gap-4">
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => queryClient.invalidateQueries({ queryKey: ['teacher-profile'] })}
+                className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90"
               >
+                <Sparkles className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
             </div>
-          </div>
+          </motion.div>
 
           <div className="grid gap-8">
         {/* Profile Summary */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-              <div className="flex-shrink-0">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={profileData?.profilePictureUrl || ''} alt={profileData?.firstName} />
-                  <AvatarFallback className="text-xl">
-                    {profileData?.firstName?.charAt(0)}{profileData?.lastName?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="flex-grow space-y-2 text-center md:text-left">
-                <h2 className="text-2xl font-bold">
-                  {profileData?.firstName} {profileData?.lastName}
-                </h2>
-                <div className="flex flex-col md:flex-row gap-4 text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    <span>{profileData?.email}</span>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <Card className="rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardContent className="p-8">
+              <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                <div className="flex-shrink-0 relative">
+                  <div className="relative">
+                    <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl" />
+                    <Avatar className="relative h-32 w-32 border-4 border-primary/20 shadow-xl">
+                      <AvatarImage src={profileData?.profilePictureUrl || ''} alt={profileData?.firstName} />
+                      <AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-primary/20 to-secondary/20">
+                        {profileData?.firstName?.charAt(0)}{profileData?.lastName?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
-                  {profileData?.school && (
-                    <div className="flex items-center gap-1">
-                      <School className="h-4 w-4" />
-                      <span>{profileData.school}</span>
+                </div>
+                <div className="flex-grow space-y-4 text-center md:text-left">
+                  <div>
+                    <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                      {profileData?.firstName} {profileData?.lastName}
+                    </h2>
+                    <div className="flex flex-col md:flex-row gap-6 text-muted-foreground mt-4">
+                      <div className="flex items-center gap-2 justify-center md:justify-start">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <Mail className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="font-medium">{profileData?.email}</span>
+                      </div>
+                      {profileData?.school && (
+                        <div className="flex items-center gap-2 justify-center md:justify-start">
+                          <div className="p-2 rounded-full bg-secondary/10">
+                            <School className="h-4 w-4 text-secondary" />
+                          </div>
+                          <span className="font-medium">{profileData.school}</span>
+                        </div>
+                      )}
+                      {profileData?.positionTitle && (
+                        <div className="flex items-center gap-2 justify-center md:justify-start">
+                          <div className="p-2 rounded-full bg-accent/10">
+                            <Award className="h-4 w-4 text-accent" />
+                          </div>
+                          <span className="font-medium">{profileData.positionTitle}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {profileData?.positionTitle && (
-                    <div className="flex items-center gap-1">
-                      <Award className="h-4 w-4" />
-                      <span>{profileData.positionTitle}</span>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Profile Edit Forms */}
-        <Tabs defaultValue="personal" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="personal">Personal Information</TabsTrigger>
-            <TabsTrigger value="teacher">Teaching Profile</TabsTrigger>
-          </TabsList>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <Tabs defaultValue="personal" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-2 max-w-md bg-card/80 backdrop-blur-xl border-border/50 rounded-xl">
+              <TabsTrigger 
+                value="personal" 
+                className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20"
+              >
+                Personal Information
+              </TabsTrigger>
+              <TabsTrigger 
+                value="teacher"
+                className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20"
+              >
+                Teaching Profile
+              </TabsTrigger>
+            </TabsList>
 
           {/* Personal Information Tab */}
           <TabsContent value="personal" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-xl">Personal Information</CardTitle>
-                    <CardDescription>Update your personal details</CardDescription>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
+              <Card className="rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <UserIcon className="h-5 w-5 text-primary" />
+                        </div>
+                        Personal Information
+                      </CardTitle>
+                      <CardDescription>Update your personal details</CardDescription>
+                    </div>
                   </div>
-                  <UserIcon className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </CardHeader>
+                </CardHeader>
               <CardContent>
                 <Form {...personalInfoForm}>
                   <form onSubmit={personalInfoForm.handleSubmit(onPersonalInfoSubmit)} className="space-y-6">
@@ -442,27 +581,35 @@ export default function ProfilePage() {
                       name="profilePictureUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Profile Picture</FormLabel>
+                          <FormLabel className="text-base font-semibold">Profile Picture</FormLabel>
                           <FormControl>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                               {/* Image Preview */}
                               {imagePreview && (
-                                <div className="relative w-32 h-32 mx-auto md:mx-0">
-                                  <img 
-                                    src={imagePreview} 
-                                    alt="Profile preview" 
-                                    className="w-full h-full object-cover rounded-full border-2 border-primary"
-                                  />
+                                <motion.div 
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ duration: 0.3 }}
+                                  className="relative w-40 h-40 mx-auto md:mx-0"
+                                >
+                                  <div className="relative">
+                                    <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                                    <img 
+                                      src={imagePreview} 
+                                      alt="Profile preview" 
+                                      className="relative w-full h-full object-cover rounded-full border-4 border-primary/30 shadow-xl"
+                                    />
+                                  </div>
                                   <Button
                                     type="button"
                                     variant="destructive"
                                     size="icon"
-                                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                    className="absolute -top-2 -right-2 h-8 w-8 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
                                     onClick={clearImage}
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
-                                </div>
+                                </motion.div>
                               )}
                               
                               {/* File Upload Input */}
@@ -479,60 +626,80 @@ export default function ProfilePage() {
                                   type="button"
                                   variant="outline"
                                   onClick={() => fileInputRef.current?.click()}
-                                  className="flex items-center gap-2"
+                                  className="flex items-center gap-2 bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90 hover:border-primary/50 transition-all duration-200"
                                 >
                                   <Upload className="h-4 w-4" />
                                   {imagePreview ? 'Change Image' : 'Upload Image'}
                                 </Button>
                               </div>
-                              <div className="text-xs text-muted-foreground">
-                                Images will be compressed to save bandwidth
+                              <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Sparkles className="h-4 w-4 text-primary" />
+                                  <span className="font-medium">Upload Guidelines</span>
+                                </div>
+                                <p>Images will be compressed to save bandwidth. Maximum file size: 5MB</p>
                               </div>
                             </div>
                           </FormControl>
-                          <FormDescription className="font-bold text-primary">
-                            NEW! Upload your profile picture here (Max: 2MB)
+                          <FormDescription className="font-bold text-primary bg-primary/10 rounded-lg p-2">
+                            ✨ NEW! Upload your profile picture here (Max: 5MB)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                     
-                    <Button 
-                      type="submit" 
-                      className="w-full md:w-auto"
-                      disabled={updatePersonalInfoMutation.isPending}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.4 }}
                     >
-                      {updatePersonalInfoMutation.isPending ? (
-                        <>
-                          <span className="animate-spin mr-2">⏳</span>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Personal Information
-                        </>
-                      )}
-                    </Button>
+                      <Button 
+                        type="submit" 
+                        className="w-full md:w-auto bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
+                        disabled={updatePersonalInfoMutation.isPending}
+                      >
+                        {updatePersonalInfoMutation.isPending ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Personal Information
+                          </>
+                        )}
+                      </Button>
+                    </motion.div>
                   </form>
                 </Form>
               </CardContent>
             </Card>
+            </motion.div>
           </TabsContent>
 
           {/* Teacher Profile Tab */}
           <TabsContent value="teacher" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-xl">Teaching Profile</CardTitle>
-                    <CardDescription>Update your professional teaching information</CardDescription>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <Card className="rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-3">
+                        <div className="p-2 rounded-full bg-secondary/10">
+                          <School className="h-5 w-5 text-secondary" />
+                        </div>
+                        Teaching Profile
+                      </CardTitle>
+                      <CardDescription>Update your professional teaching information</CardDescription>
+                    </div>
                   </div>
-                  <School className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </CardHeader>
+                </CardHeader>
               <CardContent>
                 <Form {...teacherProfileForm}>
                   <form onSubmit={teacherProfileForm.handleSubmit(onTeacherProfileSubmit)} className="space-y-6">
@@ -594,29 +761,37 @@ export default function ProfilePage() {
                       />
                     </div>
                     
-                    <Button 
-                      type="submit" 
-                      className="w-full md:w-auto"
-                      disabled={updateTeacherProfileMutation.isPending}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: 0.6 }}
                     >
-                      {updateTeacherProfileMutation.isPending ? (
-                        <>
-                          <span className="animate-spin mr-2">⏳</span>
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Teaching Profile
-                        </>
-                      )}
-                    </Button>
+                      <Button 
+                        type="submit" 
+                        className="w-full md:w-auto bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 shadow-lg hover:shadow-xl transition-all duration-200"
+                        disabled={updateTeacherProfileMutation.isPending}
+                      >
+                        {updateTeacherProfileMutation.isPending ? (
+                          <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Teaching Profile
+                          </>
+                        )}
+                      </Button>
+                    </motion.div>
                   </form>
                 </Form>
               </CardContent>
             </Card>
+            </motion.div>
           </TabsContent>
         </Tabs>
+        </motion.div>
           </div>
         </main>
       </div>

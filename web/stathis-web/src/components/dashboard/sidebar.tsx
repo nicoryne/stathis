@@ -6,23 +6,23 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import {
-  Activity,
-  BarChart3,
-  BookOpen,
-  GraduationCap,
-  Heart,
-  Home,
-  Menu,
-  School,
-  Settings,
-  Shield,
-  Users,
-  Video,
-  Award,
-  UserCircle,
-  HeartPulse
+import { 
+  Activity, 
+  BarChart3, 
+  BookOpen, 
+  GraduationCap, 
+  Heart, 
+  Home, 
+  Menu, 
+  School, 
+  Settings, 
+  Shield, 
+  Users, 
+  Video, 
+  Award, 
+  UserCircle
 } from 'lucide-react';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -130,7 +130,13 @@ export function Sidebar({ className }: SidebarProps) {
             <div className="flex items-center gap-3">
               <div className="relative">
                 <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-                <HeartPulse className="relative h-8 w-8 text-primary" />
+                <Image
+                  src="/images/logos/stathis.webp"
+                  alt="Stathis Logo"
+                  width={32}
+                  height={32}
+                  className="relative"
+                />
               </div>
               <span className="text-xl font-bold tracking-tight">Stathis</span>
             </div>
@@ -197,7 +203,13 @@ function MobileSidebar({ actives, setOpen }: MobileSidebarProps) {
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-            <HeartPulse className="relative h-8 w-8 text-primary" />
+            <Image
+              src="/images/logos/stathis.webp"
+              alt="Stathis Logo"
+              width={32}
+              height={32}
+              className="relative"
+            />
           </div>
           <span className="text-xl font-bold tracking-tight">Stathis</span>
         </div>
