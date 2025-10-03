@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { LessonTemplateResponseDTO, QuizTemplateResponseDTO, ExerciseTemplateResponseDTO } from '@/services/templates/api-template';
 import { Button } from '@/components/ui/button';
 import {
@@ -167,200 +168,292 @@ export function TemplateCreationTab({ classroomId }: TemplateCreationTabProps) {
       </div>
 
       {creatingTemplateType ? (
-        <Card className="max-h-[80vh] flex flex-col">
-          <CardHeader className="sticky top-0 z-10 bg-background border-b">
-            <CardTitle>
-              {creatingTemplateType === 'lesson' && 'Create Lesson Template'}
-              {creatingTemplateType === 'quiz' && 'Create Quiz Template'}
-              {creatingTemplateType === 'exercise' && 'Create Exercise Template'}
-            </CardTitle>
-            <CardDescription>
-              {creatingTemplateType === 'lesson' && 'Create a new lesson template for your classroom'}
-              {creatingTemplateType === 'quiz' && 'Create a new quiz template for your classroom'}
-              {creatingTemplateType === 'exercise' && 'Create a new exercise template for your classroom'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-y-auto flex-1 p-6">
-            {creatingTemplateType === 'lesson' && (
-              <CreateLessonForm 
-                onSuccess={handleTemplateCreated} 
-                onCancel={handleCancelCreation}
-              />
-            )}
-            {creatingTemplateType === 'quiz' && (
-              <CreateQuizForm 
-                onSuccess={handleTemplateCreated} 
-                onCancel={handleCancelCreation}
-              />
-            )}
-            {creatingTemplateType === 'exercise' && (
-              <CreateExerciseForm 
-                onSuccess={handleTemplateCreated} 
-                onCancel={handleCancelCreation}
-              />
-            )}
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <Card className="max-h-[80vh] flex flex-col rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+            <CardHeader className="sticky top-0 z-10 bg-card/80 backdrop-blur-xl border-b border-border/50">
+              <CardTitle className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  {creatingTemplateType === 'lesson' && <BookOpen className="h-5 w-5 text-primary" />}
+                  {creatingTemplateType === 'quiz' && <BookText className="h-5 w-5 text-primary" />}
+                  {creatingTemplateType === 'exercise' && <Activity className="h-5 w-5 text-primary" />}
+                </div>
+                {creatingTemplateType === 'lesson' && 'Create Lesson Template'}
+                {creatingTemplateType === 'quiz' && 'Create Quiz Template'}
+                {creatingTemplateType === 'exercise' && 'Create Exercise Template'}
+              </CardTitle>
+              <CardDescription>
+                {creatingTemplateType === 'lesson' && 'Create a new lesson template for your classroom'}
+                {creatingTemplateType === 'quiz' && 'Create a new quiz template for your classroom'}
+                {creatingTemplateType === 'exercise' && 'Create a new exercise template for your classroom'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="overflow-y-auto flex-1 p-6">
+              {creatingTemplateType === 'lesson' && (
+                <CreateLessonForm 
+                  onSuccess={handleTemplateCreated} 
+                  onCancel={handleCancelCreation}
+                />
+              )}
+              {creatingTemplateType === 'quiz' && (
+                <CreateQuizForm 
+                  onSuccess={handleTemplateCreated} 
+                  onCancel={handleCancelCreation}
+                />
+              )}
+              {creatingTemplateType === 'exercise' && (
+                <CreateExerciseForm 
+                  onSuccess={handleTemplateCreated} 
+                  onCancel={handleCancelCreation}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Lesson Templates</CardTitle>
-              <CardDescription>
-                Educational content for students
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {isLoadingLessonTemplates ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : !lessonTemplates || lessonTemplates.length === 0 ? (
-                <p className="text-muted-foreground">No lesson templates yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {lessonTemplates.map((template) => (
-                    <div 
-                      key={template.physicalId} 
-                      className={`p-2 rounded-md cursor-pointer border ${selectedTemplateId === template.physicalId ? 'border-primary bg-primary/10' : 'border-muted hover:border-primary/50'}`}
-                      onClick={() => handleSelectTemplate(template.physicalId, 'lesson')}
-                    >
-                      <p className="font-medium">{template.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{template.description}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
+            <Card className="col-span-1 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  Lesson Templates
+                </CardTitle>
+                <CardDescription>
+                  Educational content for students
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm">
+                {isLoadingLessonTemplates ? (
+                  <div className="flex justify-center py-4">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="relative">
+                        <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg animate-pulse" />
+                        <Loader2 className="relative h-4 w-4 animate-spin text-primary" />
+                      </div>
+                      <span className="text-muted-foreground text-xs">Loading...</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <div className="w-full space-y-2">
-                {selectedTemplateId && selectedTemplateType === 'lesson' && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start text-sm" 
-                    onClick={handleReviewTemplate}
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    Review Selected Template
-                  </Button>
+                  </div>
+                ) : !lessonTemplates || lessonTemplates.length === 0 ? (
+                  <div className="text-center py-4">
+                    <div className="relative mx-auto w-12 h-12 mb-2">
+                      <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                      <BookOpen className="relative mx-auto h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground">No lesson templates yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {lessonTemplates.map((template) => (
+                      <div 
+                        key={template.physicalId} 
+                        className={`p-3 rounded-xl cursor-pointer border transition-all duration-200 ${
+                          selectedTemplateId === template.physicalId 
+                            ? 'border-primary bg-primary/10 shadow-md' 
+                            : 'border-border/50 hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                        onClick={() => handleSelectTemplate(template.physicalId, 'lesson')}
+                      >
+                        <p className="font-medium">{template.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{template.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-sm" 
-                  onClick={() => handleCreateTemplate('lesson')}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Lesson Template
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter>
+                <div className="w-full space-y-2">
+                  {selectedTemplateId && selectedTemplateType === 'lesson' && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-sm bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90" 
+                      onClick={handleReviewTemplate}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Review Selected Template
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-sm bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200" 
+                    onClick={() => handleCreateTemplate('lesson')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Lesson Template
+                  </Button>
+                </div>
+              </CardFooter>
+            </Card>
+          </motion.div>
 
-          <Card className="col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Quiz Templates</CardTitle>
-              <CardDescription>
-                Assessments to test knowledge
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {isLoadingQuizTemplates ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : !quizTemplates || quizTemplates.length === 0 ? (
-                <p className="text-muted-foreground">No quiz templates yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {quizTemplates.map((template) => (
-                    <div 
-                      key={template.physicalId} 
-                      className={`p-2 rounded-md cursor-pointer border ${selectedTemplateId === template.physicalId ? 'border-primary bg-primary/10' : 'border-muted hover:border-primary/50'}`}
-                      onClick={() => handleSelectTemplate(template.physicalId, 'quiz')}
-                    >
-                      <p className="font-medium">{template.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{template.instruction}</p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card className="col-span-1 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-secondary/10">
+                    <BookText className="h-5 w-5 text-secondary" />
+                  </div>
+                  Quiz Templates
+                </CardTitle>
+                <CardDescription>
+                  Assessments to test knowledge
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm">
+                {isLoadingQuizTemplates ? (
+                  <div className="flex justify-center py-4">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="relative">
+                        <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg animate-pulse" />
+                        <Loader2 className="relative h-4 w-4 animate-spin text-secondary" />
+                      </div>
+                      <span className="text-muted-foreground text-xs">Loading...</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <div className="w-full space-y-2">
-                {selectedTemplateId && selectedTemplateType === 'quiz' && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start text-sm" 
-                    onClick={handleReviewTemplate}
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    Review Selected Template
-                  </Button>
+                  </div>
+                ) : !quizTemplates || quizTemplates.length === 0 ? (
+                  <div className="text-center py-4">
+                    <div className="relative mx-auto w-12 h-12 mb-2">
+                      <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-secondary/20 to-accent/20 blur-lg" />
+                      <BookText className="relative mx-auto h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground">No quiz templates yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {quizTemplates.map((template) => (
+                      <div 
+                        key={template.physicalId} 
+                        className={`p-3 rounded-xl cursor-pointer border transition-all duration-200 ${
+                          selectedTemplateId === template.physicalId 
+                            ? 'border-secondary bg-secondary/10 shadow-md' 
+                            : 'border-border/50 hover:border-secondary/50 hover:bg-secondary/5'
+                        }`}
+                        onClick={() => handleSelectTemplate(template.physicalId, 'quiz')}
+                      >
+                        <p className="font-medium">{template.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{template.instruction}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-sm" 
-                  onClick={() => handleCreateTemplate('quiz')}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Quiz Template
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter>
+                <div className="w-full space-y-2">
+                  {selectedTemplateId && selectedTemplateType === 'quiz' && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-sm bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90" 
+                      onClick={handleReviewTemplate}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Review Selected Template
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-sm bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 shadow-lg hover:shadow-xl transition-all duration-200" 
+                    onClick={() => handleCreateTemplate('quiz')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Quiz Template
+                  </Button>
+                </div>
+              </CardFooter>
+            </Card>
+          </motion.div>
 
-          <Card className="col-span-1">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Exercise Templates</CardTitle>
-              <CardDescription>
-                Physical activities for students
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {isLoadingExerciseTemplates ? (
-                <div className="flex justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : !exerciseTemplates || exerciseTemplates.length === 0 ? (
-                <p className="text-muted-foreground">No exercise templates yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {exerciseTemplates.map((template) => (
-                    <div 
-                      key={template.physicalId} 
-                      className={`p-2 rounded-md cursor-pointer border ${selectedTemplateId === template.physicalId ? 'border-primary bg-primary/10' : 'border-muted hover:border-primary/50'}`}
-                      onClick={() => handleSelectTemplate(template.physicalId, 'exercise')}
-                    >
-                      <p className="font-medium">{template.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{template.description}</p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+          >
+            <Card className="col-span-1 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-accent/10">
+                    <Activity className="h-5 w-5 text-accent" />
+                  </div>
+                  Exercise Templates
+                </CardTitle>
+                <CardDescription>
+                  Physical activities for students
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm">
+                {isLoadingExerciseTemplates ? (
+                  <div className="flex justify-center py-4">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="relative">
+                        <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-accent/20 to-primary/20 blur-lg animate-pulse" />
+                        <Loader2 className="relative h-4 w-4 animate-spin text-accent" />
+                      </div>
+                      <span className="text-muted-foreground text-xs">Loading...</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-            <CardFooter>
-              <div className="w-full space-y-2">
-                {selectedTemplateId && selectedTemplateType === 'exercise' && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start text-sm" 
-                    onClick={handleReviewTemplate}
-                  >
-                    <Eye className="mr-2 h-4 w-4" />
-                    Review Selected Template
-                  </Button>
+                  </div>
+                ) : !exerciseTemplates || exerciseTemplates.length === 0 ? (
+                  <div className="text-center py-4">
+                    <div className="relative mx-auto w-12 h-12 mb-2">
+                      <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-accent/20 to-primary/20 blur-lg" />
+                      <Activity className="relative mx-auto h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground">No exercise templates yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {exerciseTemplates.map((template) => (
+                      <div 
+                        key={template.physicalId} 
+                        className={`p-3 rounded-xl cursor-pointer border transition-all duration-200 ${
+                          selectedTemplateId === template.physicalId 
+                            ? 'border-accent bg-accent/10 shadow-md' 
+                            : 'border-border/50 hover:border-accent/50 hover:bg-accent/5'
+                        }`}
+                        onClick={() => handleSelectTemplate(template.physicalId, 'exercise')}
+                      >
+                        <p className="font-medium">{template.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{template.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-start text-sm" 
-                  onClick={() => handleCreateTemplate('exercise')}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Exercise Template
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
+              </CardContent>
+              <CardFooter>
+                <div className="w-full space-y-2">
+                  {selectedTemplateId && selectedTemplateType === 'exercise' && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start text-sm bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90" 
+                      onClick={handleReviewTemplate}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      Review Selected Template
+                    </Button>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start text-sm bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90 shadow-lg hover:shadow-xl transition-all duration-200" 
+                    onClick={() => handleCreateTemplate('exercise')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Exercise Template
+                  </Button>
+                </div>
+              </CardFooter>
+            </Card>
+          </motion.div>
         </div>
       )}
       {/* Template Review Dialog */}

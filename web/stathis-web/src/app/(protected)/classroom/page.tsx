@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Plus, Search, School2, ArrowRight, Bell, Users, Book, Calendar, Activity, Trash2, Power, PowerOff } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Loader2, Plus, Search, School2, ArrowRight, Bell, Users, Book, Calendar, Activity, Trash2, Power, PowerOff, Sparkles, HeartPulse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -38,18 +39,28 @@ const handlesignOut = async () => {
 }
 
 const StatCard = ({ title, value, description, icon: Icon, className = '' }: StatCardProps) => (
-  <Card className={`overflow-hidden ${className}`}>
-    <CardHeader className="pb-2">
-      <div className="flex items-center justify-between">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground mt-1">{description}</p>
-    </CardContent>
-  </Card>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6 }}
+    whileHover={{ scale: 1.02 }}
+    className="group"
+  >
+    <Card className={`overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 ${className}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
+        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+      </CardContent>
+    </Card>
+  </motion.div>
 );
 
 export default function ClassroomPage() {
@@ -215,13 +226,37 @@ export default function ClassroomPage() {
     'No activity';
   
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen relative overflow-hidden">
+      {/* Animated Background Particles */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5" />
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-primary/20 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.3, 0.8, 0.3],
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+            }}
+          />
+        ))}
+      </div>
+
       <Sidebar className="w-64 flex-shrink-0" />
       
       <div className="flex-1">
-        <header className="bg-background border-b">
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50">
           <div className="flex h-16 items-center justify-end gap-4 px-4">
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90">
               <Bell className="h-5 w-5" />
             </Button>
             <DropdownMenu>
@@ -236,7 +271,7 @@ export default function ClassroomPage() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent className="w-56 bg-card/80 backdrop-blur-xl border-border/50" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm leading-none font-medium">
@@ -257,23 +292,47 @@ export default function ClassroomPage() {
           </div>
         </header>
         
-        <main className="p-6">
-          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Classrooms</h1>
-              <p className="text-muted-foreground mt-1">Manage your physical education classrooms</p>
+        <main className="p-6 relative">
+          {/* Welcome Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                <School2 className="relative h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  Classrooms
+                </h1>
+                <p className="text-muted-foreground mt-1">Manage your physical education classrooms</p>
+              </div>
             </div>
             
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
-                <Button className="md:w-auto">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Classroom
-                </Button>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Button className="md:w-auto bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Classroom
+                  </Button>
+                </motion.div>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] bg-card/80 backdrop-blur-xl border-border/50">
                 <DialogHeader>
-                  <DialogTitle>Create New Classroom</DialogTitle>
+                  <DialogTitle className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Plus className="h-5 w-5 text-primary" />
+                    </div>
+                    Create New Classroom
+                  </DialogTitle>
                   <DialogDescription>
                     Fill in the details to create a new physical education classroom.
                   </DialogDescription>
@@ -285,10 +344,15 @@ export default function ClassroomPage() {
                 />
               </DialogContent>
             </Dialog>
-          </div>
+          </motion.div>
           
           {/* Dashboard Stats */}
-          <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="grid gap-6 mb-8 md:grid-cols-2 lg:grid-cols-4"
+          >
             <StatCard
               title="Total Classrooms"
               value={totalClassrooms.toString()}
@@ -313,177 +377,232 @@ export default function ClassroomPage() {
               description="Most recent classroom update"
               icon={Calendar}
             />
-          </div>
+          </motion.div>
           
           {/* Search and Filter */}
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-8"
+          >
             <div className="flex w-full max-w-sm items-center space-x-2">
-              <Input
-                placeholder="Search classrooms..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
-              <Button variant="outline" size="icon">
-                <Search className="h-4 w-4" />
-              </Button>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search classrooms..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-card/80 backdrop-blur-xl border-border/50 rounded-xl"
+                />
+              </div>
             </div>
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-xs">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="active">Active</TabsTrigger>
-                <TabsTrigger value="inactive">Inactive</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 bg-card/80 backdrop-blur-xl border-border/50 rounded-xl">
+                <TabsTrigger value="all" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">All</TabsTrigger>
+                <TabsTrigger value="active" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Active</TabsTrigger>
+                <TabsTrigger value="inactive" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Inactive</TabsTrigger>
               </TabsList>
             </Tabs>
-          </div>
+          </motion.div>
           
           {/* Classroom Cards */}
           {isLoading ? (
-            <div className="flex justify-center items-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2">Loading classrooms...</span>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex justify-center items-center py-12"
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg animate-pulse" />
+                  <Loader2 className="relative h-8 w-8 animate-spin text-primary" />
+                </div>
+                <span className="text-muted-foreground font-medium">Loading classrooms...</span>
+              </div>
+            </motion.div>
           ) : isError ? (
-            <div className="bg-destructive/10 p-4 rounded-md">
-              <p className="text-destructive">Error loading classrooms: {error?.message || 'Unknown error'}</p>
-              <Button variant="outline" className="mt-2" onClick={() => refetch()}>
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-destructive/10 p-6 rounded-2xl border border-destructive/20"
+            >
+              <p className="text-destructive font-medium">Error loading classrooms: {error?.message || 'Unknown error'}</p>
+              <Button variant="outline" className="mt-4 bg-card/80 backdrop-blur-xl border-border/50" onClick={() => refetch()}>
                 Try Again
               </Button>
-            </div>
+            </motion.div>
           ) : filteredClassrooms?.length === 0 ? (
-            <div className="text-center py-12 border rounded-lg bg-muted/20">
-              <School2 className="mx-auto h-12 w-12 text-muted-foreground" />
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-12 border rounded-2xl bg-card/80 backdrop-blur-xl border-border/50"
+            >
+              <div className="relative mx-auto w-16 h-16 mb-4">
+                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                <School2 className="relative mx-auto h-16 w-16 text-muted-foreground" />
+              </div>
               <h3 className="mt-4 text-lg font-medium">No classrooms found</h3>
               <p className="mt-1 text-muted-foreground">
                 {searchTerm ? 'No results match your search criteria.' : 'Create your first classroom to get started.'}
               </p>
               {searchTerm && (
-                <Button variant="outline" className="mt-4" onClick={() => setSearchTerm('')}>
+                <Button variant="outline" className="mt-4 bg-card/80 backdrop-blur-xl border-border/50" onClick={() => setSearchTerm('')}>
                   Clear Search
                 </Button>
               )}
-            </div>
+            </motion.div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredClassrooms.map((classroom: ClassroomResponseDTO) => (
-                <Card key={classroom.physicalId} className="overflow-hidden hover:shadow-md transition-shadow duration-300">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-xl">{classroom.name}</CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={classroom.active ? "default" : "secondary"}>
-                          {classroom.active ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-                                <circle cx="12" cy="12" r="1" />
-                                <circle cx="12" cy="5" r="1" />
-                                <circle cx="12" cy="19" r="1" />
-                              </svg>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Classroom Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedClassroom(classroom);
-                                setEditDialogOpen(true);
-                              }}
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                              </svg>
-                              Edit Classroom
-                            </DropdownMenuItem>
-                            {classroom.active ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              {filteredClassrooms.map((classroom: ClassroomResponseDTO, index: number) => (
+                <motion.div
+                  key={classroom.physicalId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 * index }}
+                  whileHover={{ scale: 1.02 }}
+                  className="group"
+                >
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                          {classroom.name}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={classroom.active ? "default" : "secondary"}
+                            className={classroom.active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted/50"}
+                          >
+                            {classroom.active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                                  <circle cx="12" cy="12" r="1" />
+                                  <circle cx="12" cy="5" r="1" />
+                                  <circle cx="12" cy="19" r="1" />
+                                </svg>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-card/80 backdrop-blur-xl border-border/50">
+                              <DropdownMenuLabel>Classroom Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => deactivateClassroomMutation.mutate(classroom.physicalId)}
-                                disabled={deactivateClassroomMutation.isPending}
+                                onClick={() => {
+                                  setSelectedClassroom(classroom);
+                                  setEditDialogOpen(true);
+                                }}
                               >
-                                <PowerOff className="mr-2 h-4 w-4" />
-                                Deactivate
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                Edit Classroom
                               </DropdownMenuItem>
-                            ) : (
+                              {classroom.active ? (
+                                <DropdownMenuItem
+                                  onClick={() => deactivateClassroomMutation.mutate(classroom.physicalId)}
+                                  disabled={deactivateClassroomMutation.isPending}
+                                >
+                                  <PowerOff className="mr-2 h-4 w-4" />
+                                  Deactivate
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => activateClassroomMutation.mutate(classroom.physicalId)}
+                                  disabled={activateClassroomMutation.isPending}
+                                >
+                                  <Power className="mr-2 h-4 w-4" />
+                                  Activate
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
-                                onClick={() => activateClassroomMutation.mutate(classroom.physicalId)}
-                                disabled={activateClassroomMutation.isPending}
+                                onClick={() => {
+                                  setSelectedClassroom(classroom);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                className="text-destructive focus:text-destructive"
                               >
-                                <Power className="mr-2 h-4 w-4" />
-                                Activate
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedClassroom(classroom);
-                                setDeleteDialogOpen(true);
-                              }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </div>
-                    <CardDescription className="line-clamp-2 h-10 mt-1">
-                      {classroom.description}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span className="text-muted-foreground">Students:</span>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                        <span className="font-medium">{classroom.studentCount || 0} students</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <Book className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span className="text-muted-foreground">Teacher:</span>
+                      <CardDescription className="line-clamp-2 h-10 mt-1 text-muted-foreground">
+                        {classroom.description}
+                      </CardDescription>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div className="p-1 rounded-full bg-primary/10 mr-2">
+                              <Users className="h-3 w-3 text-primary" />
+                            </div>
+                            <span className="text-muted-foreground">Students:</span>
+                          </div>
+                          <span className="font-medium">{classroom.studentCount || 0} students</span>
                         </div>
-                        <span className="font-medium">{classroom.teacherName || 'Not assigned'}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span className="text-muted-foreground">Created:</span>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div className="p-1 rounded-full bg-secondary/10 mr-2">
+                              <Book className="h-3 w-3 text-secondary" />
+                            </div>
+                            <span className="text-muted-foreground">Teacher:</span>
+                          </div>
+                          <span className="font-medium">{classroom.teacherName || 'Not assigned'}</span>
                         </div>
-                        <span className="font-medium">{new Date(classroom.createdAt).toLocaleDateString()}</span>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div className="p-1 rounded-full bg-accent/10 mr-2">
+                              <Calendar className="h-3 w-3 text-accent" />
+                            </div>
+                            <span className="text-muted-foreground">Created:</span>
+                          </div>
+                          <span className="font-medium">{new Date(classroom.createdAt).toLocaleDateString()}</span>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter className="pt-3 flex justify-end border-t">
-                    <Button 
-                      variant="ghost" 
-                      className="text-primary hover:text-primary/80" 
-                      onClick={() => router.push(`/classroom/${classroom.physicalId}`)}
-                    >
-                      View Details
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
+                    </CardContent>
+                    
+                    <CardFooter className="pt-3 flex justify-end border-t border-border/50">
+                      <Button 
+                        variant="ghost" 
+                        className="text-primary hover:text-primary/80 hover:bg-primary/10 transition-all duration-200" 
+                        onClick={() => router.push(`/classroom/${classroom.physicalId}`)}
+                      >
+                        View Details
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </main>
       </div>
       
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-card/80 backdrop-blur-xl border-border/50">
           <DialogHeader>
-            <DialogTitle>Delete Classroom</DialogTitle>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              Delete Classroom
+            </DialogTitle>
             <DialogDescription>
               Are you sure you want to delete the classroom "{selectedClassroom?.name}"? This action cannot be undone 
               and will permanently remove all classroom data, including student enrollments and tasks.
@@ -497,6 +616,7 @@ export default function ClassroomPage() {
                 setSelectedClassroom(null);
               }}
               disabled={deleteClassroomMutation.isPending}
+              className="bg-card/80 backdrop-blur-xl border-border/50"
             >
               Cancel
             </Button>
@@ -504,6 +624,7 @@ export default function ClassroomPage() {
               variant="destructive" 
               onClick={() => selectedClassroom && deleteClassroomMutation.mutate(selectedClassroom.physicalId)}
               disabled={deleteClassroomMutation.isPending}
+              className="bg-destructive hover:bg-destructive/90"
             >
               {deleteClassroomMutation.isPending ? (
                 <>
@@ -534,9 +655,17 @@ export default function ClassroomPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] bg-card/80 backdrop-blur-xl border-border/50">
           <DialogHeader>
-            <DialogTitle>Edit Classroom</DialogTitle>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </div>
+              Edit Classroom
+            </DialogTitle>
             <DialogDescription>
               Update the details of your classroom.
             </DialogDescription>

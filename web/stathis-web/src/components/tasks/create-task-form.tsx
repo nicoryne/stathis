@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -972,54 +973,75 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
       </Dialog>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full max-h-[70vh] min-h-[500px] overflow-hidden bg-background rounded-lg shadow-sm border border-border">
-        <div className="flex-1 overflow-y-auto px-5 pt-5 space-y-5">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Week 1 Assignment" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full max-h-[70vh] min-h-[500px] overflow-hidden bg-card/80 backdrop-blur-xl rounded-2xl shadow-lg border border-border/50">
+        <div className="flex-1 overflow-y-auto px-6 pt-6 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Title</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Week 1 Assignment" 
+                    className="h-12 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Task instructions and details..." 
-                  className="min-h-[100px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Description</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Task instructions and details..." 
+                    className="min-h-[120px] rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
           <FormField
             control={form.control}
             name="dueDate"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Due Date</FormLabel>
+                <FormLabel className="text-base font-semibold">Due Date</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
                         variant={"outline"}
                         className={cn(
-                          "w-full pl-3 text-left font-normal",
+                          "w-full pl-3 text-left font-normal h-12 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm",
                           !field.value && "text-muted-foreground"
                         )}
                       >
@@ -1032,7 +1054,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                       </Button>
                     </FormControl>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 bg-card/80 backdrop-blur-xl border-border/50" align="start">
                     <Calendar
                       date={field.value}
                       onDateChange={field.onChange}
@@ -1050,13 +1072,14 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
             name="points"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Max Attempts</FormLabel>
+                <FormLabel className="text-base font-semibold">Max Attempts</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
                     min={0} 
                     max={100} 
                     placeholder="10" 
+                    className="h-12 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
@@ -1068,39 +1091,45 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
               </FormItem>
             )}
           />
-        </div>
+        </motion.div>
 
-        <FormField
-          control={form.control}
-          name="templateType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Template Type</FormLabel>
-              <Select 
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  handleTemplateTypeChange(value);
-                }}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full bg-background">
-                    <SelectValue placeholder="Select template type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="LESSON">Lesson</SelectItem>
-                  <SelectItem value="QUIZ">Quiz</SelectItem>
-                  <SelectItem value="EXERCISE">Exercise</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Type of content to assign to students
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <FormField
+            control={form.control}
+            name="templateType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Template Type</FormLabel>
+                <Select 
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    handleTemplateTypeChange(value);
+                  }}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full bg-background/50 backdrop-blur-sm border-border/50 rounded-xl h-12">
+                      <SelectValue placeholder="Select template type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="bg-card/80 backdrop-blur-xl border-border/50">
+                    <SelectItem value="LESSON">Lesson</SelectItem>
+                    <SelectItem value="QUIZ">Quiz</SelectItem>
+                    <SelectItem value="EXERCISE">Exercise</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Type of content to assign to students
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
 
         {selectedTemplateType && (
           <FormField
@@ -1245,19 +1274,24 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
         )}
         </div>
 
-        <div className="flex justify-end gap-3 p-5 pt-4 mt-5 border-t border-border">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="flex justify-end gap-3 p-6 pt-4 mt-5 border-t border-border/50"
+        >
           <Button 
             type="button" 
             variant="outline" 
             onClick={onCancel}
-            className="px-5"
+            className="px-5 bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90"
           >
             Cancel
           </Button>
           <Button 
             type="submit" 
             disabled={createTaskMutation.isPending}
-            className="px-5"
+            className="px-5 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             {createTaskMutation.isPending ? (
               <>
@@ -1265,10 +1299,13 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                 Creating...
               </>
             ) : (
-              'Create Task'
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Task
+              </>
             )}
           </Button>
-        </div>
+        </motion.div>
       </form>
     </Form>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -620,21 +621,33 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
               </div>
             </div>
           ) : tasksError || !tasks || tasks.length === 0 ? (
-            <Card className="border-dashed">
-              <CardHeader>
-                <CardTitle className="text-center text-muted-foreground">No Tasks Created</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-center text-muted-foreground max-w-sm mb-4">
-                  You haven't created any tasks for this classroom yet. Tasks allow you to assign lessons, quizzes, and exercises to students.
-                </p>
-                <Button onClick={handleCreateTask}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First Task
-                </Button>
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Card className="border-dashed rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-center text-muted-foreground">No Tasks Created</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <div className="relative mx-auto w-16 h-16 mb-4">
+                    <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                    <ClipboardList className="relative mx-auto h-16 w-16 text-muted-foreground" />
+                  </div>
+                  <p className="text-center text-muted-foreground max-w-sm mb-4">
+                    You haven't created any tasks for this classroom yet. Tasks allow you to assign lessons, quizzes, and exercises to students.
+                  </p>
+                  <Button 
+                    onClick={handleCreateTask}
+                    className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Your First Task
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
           ) : (
             <div className="grid gap-4">
               {tasks.map((task) => (

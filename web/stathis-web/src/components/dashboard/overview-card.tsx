@@ -53,7 +53,7 @@ export function OverviewCard({ title, description, metrics, className }: Overvie
   };
 
   return (
-    <Card className={`rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 ${className}`}>
+    <Card className={`rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[280px] flex flex-col ${className}`}>
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <div className="relative">
@@ -64,7 +64,7 @@ export function OverviewCard({ title, description, metrics, className }: Overvie
         </CardTitle>
         {description && <CardDescription className="text-sm">{description}</CardDescription>}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 flex flex-col justify-between">
         <div className="space-y-6">
           {metrics.map((metric, index) => (
             <motion.div

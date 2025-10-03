@@ -41,7 +41,7 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
   };
 
   return (
-    <Card className={cn('overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300', className)}>
+    <Card className={cn('overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[280px] flex flex-col', className)}>
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <div className="relative">
@@ -51,7 +51,7 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
           Recent Activities
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-0 flex-1 flex flex-col">
         {activities.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <div className="relative mb-4">
@@ -62,7 +62,7 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
             <p className="text-muted-foreground text-sm">Activities will appear here once students start working</p>
           </div>
         ) : (
-          <div className="space-y-0">
+          <div className="space-y-0 flex-1">
             {activities.map((activity, index) => (
               <motion.div
                 key={activity.id}

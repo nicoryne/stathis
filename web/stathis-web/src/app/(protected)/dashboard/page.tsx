@@ -9,7 +9,7 @@ import { LineChart } from '@/components/dashboard/line-chart';
 import { BarChart } from '@/components/dashboard/bar-chart';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Activity, Heart, Users, Video, Bell, Trophy, AlertTriangle, HeartPulse, TrendingUp, BarChart3 } from 'lucide-react';
+import { Activity, Heart, Users, Video, Bell, Trophy, AlertTriangle, HeartPulse, TrendingUp, BarChart3, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -212,15 +212,17 @@ export default function DashboardPage() {
         <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={{ y: [0, -10, 0] }} transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY }} />
         <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY }} />
         <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={{ y: [0, -12, 0] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute top-1/2 left-1/4 h-16 w-16 rounded-full bg-primary/3" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute top-1/3 right-1/3 h-20 w-20 rounded-full bg-secondary/3" animate={{ y: [0, -15, 0] }} transition={{ duration: 9, repeat: Number.POSITIVE_INFINITY }} />
       </div>
 
       <div className="flex min-h-screen relative z-10">
         <Sidebar className="w-64 flex-shrink-0" />
 
         <div className="flex-1">
-          <header className="bg-card/80 backdrop-blur-xl border-b border-border/50">
+          <header className="bg-background/80 backdrop-blur-xl border-b border-border/50">
             <div className="flex h-16 items-center justify-end gap-4 px-4">
-              <Button variant="outline" size="icon" className="rounded-xl bg-background/50 border-border/50">
+              <Button variant="outline" size="icon" className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300">
                 <Bell className="h-5 w-5" />
               </Button>
               <DropdownMenu>
@@ -235,7 +237,7 @@ export default function DashboardPage() {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 rounded-xl border-border/50 bg-card/80 backdrop-blur-xl" align="end" forceMount>
+                <DropdownMenuContent className="w-56 rounded-xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm leading-none font-medium">
@@ -282,22 +284,25 @@ export default function DashboardPage() {
                 </div>
                 
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground">Welcome back, {userDetails.first_name || 'Teacher'}!</h1>
-                  <p className="text-muted-foreground">Monitor your students' progress and manage your classrooms</p>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Welcome back, {userDetails.first_name || 'Teacher'}!
+                  </h1>
+                  <p className="text-muted-foreground mt-2">Monitor your students' progress and manage your classrooms</p>
                 </div>
               </div>
               
               <div className="flex gap-3">
                 <Button 
                   onClick={() => router.push('/classroom')}
-                  className="rounded-xl bg-gradient-to-r from-primary to-primary/90 shadow-lg hover:shadow-xl transition-shadow"
+                  className="rounded-xl bg-gradient-to-r from-primary to-secondary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                 >
+                  <HeartPulse className="mr-2 h-4 w-4" />
                   Manage Classrooms
                 </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => router.push('/monitoring')}
-                  className="rounded-xl bg-background/50 border-border/50"
+                  className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300"
                 >
                   <Activity className="mr-2 h-4 w-4" />
                   View Monitoring
@@ -339,8 +344,9 @@ export default function DashboardPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => router.push('/classroom')}
-                    className="rounded-xl bg-background/50 border-border/50"
+                    className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300"
                   >
+                    <HeartPulse className="mr-2 h-4 w-4" />
                     Create Classroom
                   </Button>
                 </div>
@@ -527,13 +533,24 @@ export default function DashboardPage() {
                     className="md:col-span-1"
                   />
                 ) : (
-                  <Card className="md:col-span-1 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl">
+                  <Card className="md:col-span-1 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[280px] flex flex-col">
                     <CardHeader>
-                      <CardTitle>Task Performance</CardTitle>
+                      <CardTitle className="flex items-center gap-2">
+                        <div className="relative">
+                          <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-sm" />
+                          <TrendingUp className="relative h-5 w-5 text-primary" />
+                        </div>
+                        Task Performance
+                      </CardTitle>
                       <CardDescription>Scores by task</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex items-center justify-center min-h-[220px] text-muted-foreground">
-                      No score data available yet
+                    <CardContent className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
+                      <div className="relative mb-4">
+                        <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-2xl" />
+                        <BarChart3 className="relative h-12 w-12 text-muted-foreground/50" />
+                      </div>
+                      <p className="text-center">No score data available yet</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">Data will appear once students complete tasks</p>
                     </CardContent>
                   </Card>
                 )}
@@ -556,13 +573,24 @@ export default function DashboardPage() {
                   className="md:col-span-2"
                 />
               ) : (
-                <Card className="md:col-span-2 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl">
+                <Card className="md:col-span-2 rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[280px] flex flex-col">
                   <CardHeader>
-                    <CardTitle>Exercise Performance Analysis</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <div className="relative">
+                        <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-sm" />
+                        <BarChart3 className="relative h-5 w-5 text-primary" />
+                      </div>
+                      Exercise Performance Analysis
+                    </CardTitle>
                     <CardDescription>Average score by exercise type</CardDescription>
                   </CardHeader>
-                  <CardContent className="flex items-center justify-center min-h-[220px] text-muted-foreground">
-                    No score data available yet
+                  <CardContent className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
+                    <div className="relative mb-4">
+                      <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-2xl" />
+                      <BarChart3 className="relative h-12 w-12 text-muted-foreground/50" />
+                    </div>
+                    <p className="text-center">No score data available yet</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">Data will appear once students complete exercises</p>
                   </CardContent>
                 </Card>
               )}
