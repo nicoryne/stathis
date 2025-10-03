@@ -12,6 +12,7 @@ import citu.edu.stathis.mobile.features.tasks.presentation.TaskTemplateScreen
 const val taskListRoute = "task_list/{classroomId}"
 const val taskDetailRoute = "task_detail/{taskId}"
 const val taskQuizRoute = "task_quiz/{taskId}/{templateId}"
+const val taskLessonRoute = "task_lesson/{taskId}/{templateId}"
 const val taskExerciseRoute = "task_exercise/{taskId}/{templateId}"
 
 fun NavController.navigateToTaskList(classroomId: String) {
@@ -49,6 +50,9 @@ fun NavGraphBuilder.taskGraph(navController: NavController) {
             taskId = taskId,
             onNavigateBack = {
                 navController.popBackStack()
+            },
+            onStartLesson = { templateId ->
+                navController.navigate("task_lesson/$taskId/$templateId")
             },
             onStartQuiz = { templateId ->
                 navController.navigate("task_quiz/$taskId/$templateId")
@@ -91,6 +95,25 @@ fun NavGraphBuilder.taskGraph(navController: NavController) {
         TaskTemplateScreen(
             taskId = taskId,
             templateType = "EXERCISE",
+            templateId = templateId,
+            onNavigateBack = { navController.popBackStack() },
+            onTaskCompleted = { navController.popBackStack() }
+        )
+    }
+
+    // Student-only lesson screen
+    composable(
+        route = taskLessonRoute,
+        arguments = listOf(
+            navArgument("taskId") { type = NavType.StringType },
+            navArgument("templateId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val taskId = backStackEntry.arguments?.getString("taskId") ?: return@composable
+        val templateId = backStackEntry.arguments?.getString("templateId") ?: return@composable
+        TaskTemplateScreen(
+            taskId = taskId,
+            templateType = "LESSON",
             templateId = templateId,
             onNavigateBack = { navController.popBackStack() },
             onTaskCompleted = { navController.popBackStack() }

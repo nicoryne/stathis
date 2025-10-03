@@ -66,6 +66,7 @@ private fun FallbackComponentsSection(
             task.lessonTemplate?.let { lesson ->
                 LessonCard(
                     isCompleted = false,
+                    canStart = true,
                     onStartLesson = { onStartLesson(lesson.physicalId) }
                 )
                 Spacer(Modifier.height(8.dp))
@@ -87,7 +88,9 @@ private fun FallbackComponentsSection(
             embeddedQuizId?.let { templateId ->
                 QuizCard(
                     score = null,
+                    maxScore = task.quizTemplate?.maxScore,
                     maxAttempts = task.maxAttempts,
+                    attempts = 0,
                     onTakeQuiz = { onStartQuiz(templateId) }
                 )
             }
@@ -108,10 +111,19 @@ fun TaskDetailScreen(
     val task by viewModel.selectedTask.collectAsState()
     val progress by viewModel.taskProgress.collectAsState()
     val error by viewModel.error.collectAsState()
+    val quizTemplateState by viewModel.quizTemplate.collectAsState()
 
     LaunchedEffect(taskId) {
         viewModel.loadTaskDetails(taskId)
         viewModel.loadTaskProgress(taskId)
+    }
+
+    // If the task doesn't embed the quiz template but has an ID, fetch it to obtain maxScore from backend
+    LaunchedEffect(task?.quizTemplateId, task?.quizTemplate) {
+        val templateId = task?.quizTemplateId
+        if (templateId != null && task?.quizTemplate == null) {
+            viewModel.loadQuizTemplate(templateId)
+        }
     }
 
     Scaffold(
@@ -187,6 +199,7 @@ fun TaskDetailScreen(
                                TaskQuickStatsSection(
                                    task = currentTask,
                                    progress = progress,
+                                   templateMaxScore = quizTemplateState?.maxScore,
                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                )
                            }
@@ -327,24 +340,32 @@ private fun TaskHeroSection(
 private fun TaskQuickStatsSection(
     task: Task,
     progress: TaskProgressResponse?,
+    templateMaxScore: Int?,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(horizontal = 8.dp)) {
         val quizId = task.quizTemplateId ?: task.quizTemplate?.physicalId
         if (quizId != null) {
-            val score = progress?.quizScores?.get(quizId)
+            val score = progress?.quizScore
+            val maxScore = (
+                task.quizTemplate?.maxScore
+                    ?: templateMaxScore
+                    ?: progress?.maxQuizScore
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Show latest attempt score (backend returns latest in progress.quizScore)
+                val latestScore = score
                 StatCard(
-                    title = "Highest Score",
-                    value = score?.toString() ?: "-",
+                    title = "Score",
+                    value = if (latestScore != null && maxScore != null && maxScore > 0) "${latestScore}/${maxScore}" else "-",
                     icon = Icons.Default.EmojiEvents,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
-                val attemptsVal = if (score != null) "1/${task.maxAttempts}" else "0/${task.maxAttempts}"
+                val attemptsVal = "${progress?.quizAttempts ?: 0}/${task.maxAttempts}"
                 StatCard(
                     title = "Attempts",
                     value = attemptsVal,
@@ -613,39 +634,67 @@ private fun TaskProgressSection(
 
                    Spacer(modifier = Modifier.height(16.dp))
 
-                   // Progress Bar with percentage
-                   Row(
-                       modifier = Modifier.fillMaxWidth(),
-                       horizontalArrangement = Arrangement.SpaceBetween,
-                       verticalAlignment = Alignment.CenterVertically
-                   ) {
-                       Text(
-                           text = "${((progress.progress ?: 0f) * 100).toInt()}% Complete",
-                           style = MaterialTheme.typography.bodyMedium,
-                           fontWeight = FontWeight.Medium,
-                           color = MaterialTheme.colorScheme.onSurface
+                   // Remove overall progress bar from this screen per spec
+                   val isQuizOnly = task.lessonTemplateId.isNullOrEmpty() && task.exerciseTemplateId.isNullOrEmpty() && !task.quizTemplateId.isNullOrEmpty()
+                   if (false) {
+                       Row(
+                           modifier = Modifier.fillMaxWidth(),
+                           horizontalArrangement = Arrangement.SpaceBetween,
+                           verticalAlignment = Alignment.CenterVertically
+                       ) {
+                           Text(
+                               text = "${((progress.progress ?: 0f) * 100).toInt()}% Complete",
+                               style = MaterialTheme.typography.bodyMedium,
+                               fontWeight = FontWeight.Medium,
+                               color = MaterialTheme.colorScheme.onSurface
+                           )
+                       }
+
+                       Spacer(modifier = Modifier.height(8.dp))
+
+                       LinearProgressIndicator(
+                           progress = { progress.progress ?: 0f },
+                           modifier = Modifier
+                               .fillMaxWidth()
+                               .height(8.dp),
+                           color = MaterialTheme.colorScheme.primary,
+                           trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                        )
+
+                       Spacer(modifier = Modifier.height(20.dp))
+                   } else {
+                       Spacer(modifier = Modifier.height(8.dp))
                    }
-
-                   Spacer(modifier = Modifier.height(8.dp))
-
-                   LinearProgressIndicator(
-                       progress = { progress.progress ?: 0f },
-                       modifier = Modifier
-                           .fillMaxWidth()
-                           .height(8.dp),
-                       color = MaterialTheme.colorScheme.primary,
-                       trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                   )
-
-                   Spacer(modifier = Modifier.height(20.dp))
 
         // Components Section
         if (!task.lessonTemplateId.isNullOrEmpty()) {
+            val lessonAttempts = remember(progress, task) {
+                if (progress.lessonCompleted == true) LessonAttemptsCache.ensureAtLeast(task.physicalId, 1)
+                LessonAttemptsCache.getAttempts(task.physicalId)
+            }
+            val canStartLesson = lessonAttempts < task.maxAttempts
+            val lessonTemplatePhysicalId = task.lessonTemplateId ?: task.lessonTemplate?.physicalId
             LessonCard(
-                isCompleted = task.lessonTemplateId in (progress.completedLessons ?: emptyList()),
-                onStartLesson = { onStartLesson(task.lessonTemplateId!!) }
+                isCompleted = progress.lessonCompleted == true,
+                canStart = canStartLesson,
+                onStartLesson = {
+                    lessonTemplatePhysicalId?.let { onStartLesson(it) }
+                }
             )
+            Spacer(Modifier.height(8.dp))
+            // Attempts stat similar to quiz
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    title = "Attempts",
+                    value = "${lessonAttempts}/${task.maxAttempts}",
+                    icon = Icons.Default.History,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         val exerciseTemplatePhysicalId = task.exerciseTemplateId ?: task.exerciseTemplate?.physicalId
@@ -659,14 +708,23 @@ private fun TaskProgressSection(
 
         val quizTemplatePhysicalId = task.quizTemplateId ?: task.quizTemplate?.physicalId
         if (!quizTemplatePhysicalId.isNullOrEmpty()) {
-            val quizScore = progress.quizScores?.get(quizTemplatePhysicalId)
+            val quizScore = progress.quizScore
+            val maxQuizScore = progress.maxQuizScore
+            val attempts = progress.quizAttempts ?: 0
             QuizCard(
                 score = quizScore,
+                maxScore = maxQuizScore,
                 maxAttempts = task.maxAttempts,
+                attempts = attempts,
                 onTakeQuiz = { onStartQuiz(quizTemplatePhysicalId!!) }
             )
             Spacer(Modifier.height(8.dp))
-            // Quiz content now opens in dedicated screen
+            // For quiz-only tasks, show a simple completion badge if at least one attempt exists
+            val isQuizOnly = task.lessonTemplateId.isNullOrEmpty() && task.exerciseTemplateId.isNullOrEmpty()
+            val quizCompletedOnce = attempts > 0
+            if (isQuizOnly && quizCompletedOnce) {
+                QuizCompletedBanner()
+            }
         }
         }
     }
@@ -762,12 +820,64 @@ private fun ComponentCard(
 }
 
 @Composable
+private fun QuizCompletedBanner() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Quiz Completed",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = "You can retake until you reach the max attempts.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun QuizCard(
     score: Int?,
+    maxScore: Int?,
     maxAttempts: Int,
+    attempts: Int = 0,
     onTakeQuiz: () -> Unit
 ) {
-    val attemptsText = if (score == null) "0/$maxAttempts attempts" else "1/$maxAttempts attempts"
+    val attemptsText = "$attempts/$maxAttempts attempts"
+    val attemptsExhausted = attempts >= maxAttempts
 
     Card(
         modifier = Modifier
@@ -827,10 +937,10 @@ private fun QuizCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    if (score != null) {
+                    if (score != null && maxScore != null && maxScore > 0) {
                         AssistChip(
                             onClick = {},
-                            label = { Text("Score $score") },
+                            label = { Text("Score $score/$maxScore") },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.EmojiEvents,
@@ -846,22 +956,26 @@ private fun QuizCard(
             Box(modifier = Modifier.padding(16.dp)) {
                 Button(
                     onClick = onTakeQuiz,
-                    enabled = score == null,
+                    enabled = maxAttempts > 0 && !attemptsExhausted,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
                     shape = RoundedCornerShape(999.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (score == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (score == null) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = if (maxAttempts > 0 && !attemptsExhausted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (maxAttempts > 0 && !attemptsExhausted) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Text(
-                        if (score == null) "Take Quiz" else "Completed",
+                        when {
+                            maxAttempts <= 0 -> "Unavailable"
+                            attemptsExhausted -> "Max attempts reached"
+                            else -> "Take Quiz"
+                        },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
-                    if (score == null) {
+                    if (maxAttempts > 0 && !attemptsExhausted) {
                         Spacer(Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Default.ArrowForward,
@@ -986,6 +1100,7 @@ private fun DueDateWideCard(
 @Composable
 private fun LessonCard(
     isCompleted: Boolean,
+    canStart: Boolean,
     onStartLesson: () -> Unit
 ) {
     Card(
@@ -1051,22 +1166,22 @@ private fun LessonCard(
             Box(modifier = Modifier.padding(16.dp)) {
                 Button(
                     onClick = onStartLesson,
-                    enabled = !isCompleted,
+                    enabled = canStart,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
                     shape = RoundedCornerShape(999.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (!isCompleted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (!isCompleted) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = if (canStart) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (canStart) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Text(
-                        if (!isCompleted) "Start Lesson" else "Completed",
+                        if (canStart) "Start Lesson" else "Max attempts reached",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
-                    if (!isCompleted) {
+                    if (canStart) {
                         Spacer(Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Default.ArrowForward,

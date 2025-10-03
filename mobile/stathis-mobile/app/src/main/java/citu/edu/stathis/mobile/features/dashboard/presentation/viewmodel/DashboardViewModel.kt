@@ -148,10 +148,9 @@ class DashboardViewModel @Inject constructor(
                     allTasks.addAll(tasks)
                 }
                 
-                // Sort by closing date and take the 5 most urgent
+                // Sort by closing date; do NOT truncate. Let UI decide how many to show.
                 val upcomingTasks = allTasks
                     .sortedBy { it.closingDate }
-                    .take(5)
                 
                 if (upcomingTasks.isEmpty()) {
                     _tasksState.value = TasksState.Empty
