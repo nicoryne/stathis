@@ -3,6 +3,64 @@
 import { serverApiClient } from '@/lib/api/server-client';
 
 /**
+ * Function to test the aggregated student progress API endpoint
+ * @param studentId The student ID to test with
+ * @param classroomId Optional classroom ID to filter by
+ */
+export async function testStudentProgressEndpoint(studentId: string, classroomId?: string) {
+  console.log(`Testing student progress API endpoint for student: ${studentId}`);
+  
+  // Build the URL with optional classroom parameter
+  let url = `/v1/student-progress/${studentId}`;
+  if (classroomId) {
+    url += `?classroomId=${encodeURIComponent(classroomId)}`;
+  } else if (studentId.includes('-')) {
+    // Try to extract classroom ID from student ID
+    const parts = studentId.split('-');
+    if (parts.length >= 2) {
+      const extractedClassroomId = `${parts[0]}-${parts[1]}`;
+      url += `?classroomId=${encodeURIComponent(extractedClassroomId)}`;
+      console.log(`Using extracted classroom ID: ${extractedClassroomId}`);
+    }
+  }
+  
+  try {
+    console.log(`Sending request to: ${url}`);
+    const result = await serverApiClient.get(url);
+    
+    console.log(`Response status: ${result.status}`);
+    console.log(`Data is array: ${Array.isArray(result.data)}`);
+    console.log(`Number of items: ${Array.isArray(result.data) ? result.data.length : 0}`);
+    
+    if (Array.isArray(result.data) && result.data.length > 0) {
+      // Log the structure of the first item
+      const firstItem = result.data[0];
+      console.log('Sample item structure:', {
+        taskId: firstItem.taskId,
+        taskName: firstItem.taskName,
+        taskType: firstItem.taskType,
+        completed: firstItem.completed,
+        score: firstItem.score,
+        maxScore: firstItem.maxScore
+      });
+    }
+    
+    return {
+      success: result.status < 400,
+      status: result.status,
+      itemCount: Array.isArray(result.data) ? result.data.length : 0,
+      data: result.data
+    };
+  } catch (error) {
+    console.error('Error testing student progress endpoint:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
  * Function to test multiple API endpoints and find which one works
  */
 export async function testUserProfileEndpoints() {

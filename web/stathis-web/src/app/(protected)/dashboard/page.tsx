@@ -54,6 +54,7 @@ interface UserDetails {
   first_name: string;
   last_name: string;
   email: string;
+  profilePictureUrl?: string;
   [key: string]: any; // For any additional properties
 }
 
@@ -94,41 +95,48 @@ export default function DashboardPage() {
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState('');
   
-  // Get user email from JWT token or localStorage using the utility function
-  const [userDetails, setUserDetails] = useState<UserDetails>({
-    first_name: '',
-    last_name: '',
-    email: userEmail || ''
+  // Fetch teacher profile with all details including profile picture
+  const { data: teacherProfile } = useQuery({
+    queryKey: ['teacher-profile'],
+    queryFn: async () => {
+      const response = await fetch('https://api-stathis.ryne.dev/api/users/profile/teacher', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch teacher profile');
+      return response.json();
+    },
+    enabled: !!userEmail,
+    staleTime: 1000 * 60 * 10 // 10 minutes
   });
 
-  // Fetch user details
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await getUserDetails();
-        
-        if (user && typeof user === 'object') {
-          // Type assertion to allow property access
-          const userObj = user as Record<string, any>;
-          setUserDetails({
-            first_name: userObj.first_name || '',
-            last_name: userObj.last_name || '',
-            email: userObj.email || '',
-            ...userObj // Include any other properties
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching user details:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+  // Map teacher profile to user details format
+  const userDetails: UserDetails = {
+    first_name: teacherProfile?.firstName || '',
+    last_name: teacherProfile?.lastName || '',
+    email: teacherProfile?.email || userEmail || '',
+    profilePictureUrl: teacherProfile?.profilePictureUrl
+  };
 
   // Fetch all classrooms for the current teacher
   const { data: classrooms, isLoading: isLoadingClassrooms } = useQuery<ClassroomResponseDTO[]>({
     queryKey: ['teacher-classrooms'],
     queryFn: () => getTeacherClassrooms(),
     enabled: !!userEmail,
+    staleTime: 1000 * 60 * 5 // 5 minutes
+  });
+
+  // Fetch students in the selected classroom to get student names
+  const { data: classroomStudentsData } = useQuery({
+    queryKey: ['classroom-students', selectedClassroomId],
+    queryFn: async () => {
+      if (!selectedClassroomId) return null;
+      const { getClassroomStudents } = await import('@/services/api-classroom-client');
+      return getClassroomStudents(selectedClassroomId);
+    },
+    enabled: !!selectedClassroomId,
     staleTime: 1000 * 60 * 5 // 5 minutes
   });
   
@@ -157,8 +165,37 @@ export default function DashboardPage() {
     }
   }, [tasksData, selectedTask]);
 
-  // Fetch task scores
-  const { data: rawTaskScoresData, isLoading: isTaskScoresLoading } = useQuery<Score[]>({
+  // Fetch scores for all tasks in the classroom
+  const { data: allTasksScores, isLoading: isTaskScoresLoading } = useQuery({
+    queryKey: ['all-tasks-scores', selectedClassroomId, tasksData?.length],
+    queryFn: async () => {
+      if (!tasksData || tasksData.length === 0) return {};
+      
+      const scoresPromises = tasksData.map(async (task: Task) => {
+        try {
+          const scores = await getTaskScores(task.physicalId);
+          const analytics = analyzeTaskScores(scores, task.name);
+          return { taskId: task.physicalId, scores, analytics };
+        } catch (error) {
+          console.error(`Error fetching scores for task ${task.physicalId}:`, error);
+          return { taskId: task.physicalId, scores: [], analytics: null };
+        }
+      });
+      
+      const results = await Promise.all(scoresPromises);
+      const scoresMap: Record<string, { scores: Score[], analytics: TaskScoreAnalytics | null }> = {};
+      results.forEach(result => {
+        scoresMap[result.taskId] = { scores: result.scores, analytics: result.analytics };
+      });
+      
+      return scoresMap;
+    },
+    enabled: !!selectedClassroomId && !!tasksData && tasksData.length > 0,
+    staleTime: 1000 * 60 * 2 // 2 minutes
+  });
+
+  // Fetch task scores for selected task (for detailed view if needed)
+  const { data: rawTaskScoresData } = useQuery<Score[]>({
     queryKey: ['task-scores', selectedTask],
     queryFn: () => getTaskScores(selectedTask),
     enabled: !!selectedTask,
@@ -195,31 +232,37 @@ export default function DashboardPage() {
   const recentActivities: Activity[] = tasksData ? tasksData
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()) // Sort by most recent
     .slice(0, 5) // Get top 5 most recent tasks
-    .map(task => ({
-      id: task.physicalId,
-      name: task.name,
-      time: new Date(task.updatedAt || task.createdAt).toLocaleString(),
-      status: !task.started ? "not-started" as const : 
-              (task.started && task.active) ? "ongoing" as const : 
-              "completed" as const,
-      score: taskScoresData?.averageScore
-    })) : [];
+    .map(task => {
+      // Determine status based on task state (teacher-managed)
+      // Completed = deactivated by teacher, Ongoing = active, Not Started = not started yet
+      const status: "completed" | "ongoing" | "not-started" = 
+        !task.started ? "not-started" : 
+        (task.started && task.active) ? "ongoing" : 
+        "completed";
+      
+      return {
+        id: task.physicalId,
+        name: task.name,
+        time: new Date(task.updatedAt || task.createdAt).toLocaleString(),
+        status
+      };
+    }) : [];
 
-  // Only show real task scores if there's actual student score data
-  // Otherwise show tasks with 'No Data' or 0 scores
-  const hasStudentScores = !!(taskScoresData?.averageScore);
+  // Check if we have any score data across all tasks
+  const hasStudentScores = allTasksScores && Object.values(allTasksScores).some(
+    taskData => taskData.analytics && taskData.analytics.averageScore > 0
+  );
   
-  const exerciseScoreData = (tasksData) 
+  // Exercise/Task score data for charts - shows class-wide average for each task
+  // Each score is the average of ALL students' scores for that specific task
+  const exerciseScoreData = (tasksData && allTasksScores) 
     ? tasksData.slice(0, 5).map((task: Task) => {
-        // Only use real scores if available, otherwise show 0
+        const taskScore = allTasksScores[task.physicalId];
+        // analytics.averageScore is the mean of all student scores for this task
         return {
           exercise: task.name || 'Unknown',
-          score: hasStudentScores ? 
-            (task.started ? 
-              (task.active ? Math.round(taskScoresData.averageScore * 0.7) : taskScoresData.averageScore) 
-              : 0) 
-            : 0, // If no student scores exist yet, all scores are 0
-          hasData: hasStudentScores
+          score: taskScore?.analytics?.averageScore || 0,
+          hasData: !!(taskScore?.analytics && taskScore.analytics.averageScore > 0)
         };
       })
     : [];
@@ -232,6 +275,94 @@ export default function DashboardPage() {
            'completed' as const,
     score: taskScoresData.averageScore
   })) : [];
+
+  // Calculate aggregated statistics from all tasks
+  const totalActiveStudents = allTasksScores ? (() => {
+    const uniqueStudents = new Set<string>();
+    Object.values(allTasksScores).forEach(taskData => {
+      taskData.scores.forEach((score: Score) => uniqueStudents.add(score.studentId));
+    });
+    return uniqueStudents.size;
+  })() : 0;
+
+  const studentCompletionRate = allTasksScores ? (() => {
+    let totalStudents = 0;
+    let completedStudents = 0;
+    Object.values(allTasksScores).forEach(taskData => {
+      if (taskData.analytics) {
+        totalStudents = Math.max(totalStudents, taskData.analytics.totalStudents);
+        completedStudents = Math.max(completedStudents, taskData.analytics.completedStudents);
+      }
+    });
+    return totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+  })() : 0;
+
+  const overallAverageScore = allTasksScores ? (() => {
+    const validAnalytics = Object.values(allTasksScores)
+      .map(taskData => taskData.analytics)
+      .filter(a => a && a.averageScore > 0);
+    if (validAnalytics.length === 0) return 0;
+    const sum = validAnalytics.reduce((acc, a) => acc + (a?.averageScore || 0), 0);
+    return Math.round(sum / validAnalytics.length);
+  })() : 0;
+
+  // Calculate task completion (deactivated tasks)
+  const taskCompletionStats = tasksData ? (() => {
+    const completedTasks = tasksData.filter(t => t.started && !t.active).length;
+    const totalTasks = tasksData.length;
+    const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    return {
+      completed: completedTasks,
+      total: totalTasks,
+      percentage
+    };
+  })() : { completed: 0, total: 0, percentage: 0 };
+
+  // Calculate top student based on overall performance across all tasks
+  const topStudent = allTasksScores ? (() => {
+    const studentPerformance: Record<string, { totalScore: number, count: number }> = {};
+    
+    // Aggregate scores for each student across all tasks
+    Object.values(allTasksScores).forEach(taskData => {
+      taskData.scores.forEach((score: Score) => {
+        if (score.completed) {
+          if (!studentPerformance[score.studentId]) {
+            studentPerformance[score.studentId] = { totalScore: 0, count: 0 };
+          }
+          studentPerformance[score.studentId].totalScore += score.score;
+          studentPerformance[score.studentId].count += 1;
+        }
+      });
+    });
+    
+    // Find student with highest average score
+    let topStudentId = '';
+    let highestAverage = 0;
+    
+    Object.entries(studentPerformance).forEach(([studentId, data]) => {
+      const average = data.totalScore / data.count;
+      if (average > highestAverage) {
+        highestAverage = average;
+        topStudentId = studentId;
+      }
+    });
+    
+    // Get student name from classroom students data
+    let topStudentName = 'No data';
+    if (topStudentId && classroomStudentsData?.students) {
+      const student = classroomStudentsData.students.find(s => s.physicalId === topStudentId);
+      if (student) {
+        topStudentName = `${student.firstName} ${student.lastName}`;
+      }
+    }
+    
+    return { 
+      studentId: topStudentId, 
+      studentName: topStudentName,
+      averageScore: Math.round(highestAverage) 
+    };
+  })() : { studentId: '', studentName: 'No data', averageScore: 0 };
 
   return (
     <div className="flex min-h-screen">
@@ -248,7 +379,7 @@ export default function DashboardPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="User" />
+                    <AvatarImage src={userDetails.profilePictureUrl || undefined} alt={`${userDetails.first_name} ${userDetails.last_name}`} />
                     <AvatarFallback>
                       {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
                       {userDetails.last_name.charAt(0).toUpperCase() || ''}
@@ -325,11 +456,11 @@ export default function DashboardPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
               title="Active Students"
-              value={taskScoresData?.totalStudents?.toString() || '0'}
+              value={totalActiveStudents.toString()}
               description="Students participating in tasks"
               icon={Users}
               trend={{ 
-                value: taskScoresData?.totalStudents ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0, 
+                value: studentCompletionRate, 
                 positive: true 
               }}
             />
@@ -347,21 +478,21 @@ export default function DashboardPage() {
             />
             <StatCard
               title="Average Score"
-              value={taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A'}
+              value={overallAverageScore > 0 ? `${overallAverageScore}%` : 'N/A'}
               description="Class average score"
               icon={Heart}
-              trend={taskScoresData?.averageScore ? { 
-                value: taskScoresData.averageScore, 
+              trend={overallAverageScore > 0 ? { 
+                value: overallAverageScore, 
                 positive: true
               } : undefined}
             />
             <StatCard
               title="Completion Rate"
-              value={tasksData ? `${tasksData.filter(t => t.started && !t.active).length}/${tasksData.length}` : '0/0'}
+              value={`${taskCompletionStats.completed}/${taskCompletionStats.total}`}
               description="Tasks completed by students"
               icon={Activity}
               trend={{ 
-                value: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0, 
+                value: taskCompletionStats.percentage, 
                 positive: true 
               }}
             />
@@ -370,60 +501,55 @@ export default function DashboardPage() {
           <div className="mt-6 grid gap-6 md:grid-cols-2">
             <OverviewCard
               title="Class Performance Overview"
-              description="Current metrics for today's PE session"
+              description="Current metrics for all classroom tasks"
               metrics={[
                 {
                   label: 'Average Task Score',
-                  value: taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A',
-                  progress: taskScoresData?.averageScore || 0,
-                  status: 'neutral' // Default to neutral when no data is available
+                  value: overallAverageScore > 0 ? `${overallAverageScore}%` : 'N/A',
+                  progress: overallAverageScore || 0,
+                  status: overallAverageScore === 0 ? 'neutral' : 
+                          overallAverageScore >= 70 ? 'positive' : 'warning'
                 },
                 {
                   label: 'Task Completion Rate',
-                  value: tasksData ? `${tasksData.filter(t => t.started && !t.active).length}/${tasksData.length}` : '0/0',
-                  progress: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0,
+                  value: `${taskCompletionStats.completed}/${taskCompletionStats.total}`,
+                  progress: taskCompletionStats.percentage,
                   trend: { 
-                    value: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0, 
+                    value: taskCompletionStats.percentage, 
                     positive: true 
                   }
                 },
                 {
-                  label: 'Leaderboard Entries',
-                  value: `${leaderboardData?.length || 0}`,
-                  progress: leaderboardData ? Math.min(100, leaderboardData.length * 10) : 0,
-                  status: !leaderboardData || leaderboardData.length === 0 ? 'neutral' : (leaderboardData.length > 5 ? 'positive' : 'warning')
+                  label: 'Active Students',
+                  value: totalActiveStudents.toString(),
+                  progress: studentCompletionRate,
+                  status: totalActiveStudents === 0 ? 'neutral' : 'positive'
                 }
               ]}
               className="md:col-span-1"
             />
             <OverviewCard
               title="Leaderboard Overview"
-              description={"Top students by performance"}
+              description={"Top students by overall performance"}
               metrics={[
                 {
-                  label: 'Top Student ID',
-                  value: leaderboardData && leaderboardData.length > 0 ? leaderboardData[0].studentId || 'Unknown' : 'No data',
+                  label: 'Top Student',
+                  value: topStudent.studentName,
                   // Only show positive status if we have data
-                  status: leaderboardData && leaderboardData.length > 0 ? 'positive' : 'neutral'
-                },
-                {
-                  label: 'Top Score',
-                  value: leaderboardData && leaderboardData.length > 0 ? `${leaderboardData[0].score}%` : 'No data',
-                  // Only show positive status if we have data
-                  status: leaderboardData && leaderboardData.length > 0 ? 'positive' : 'neutral'
+                  status: topStudent.studentId ? 'positive' : 'neutral'
                 },
                 {
                   label: 'Participants',
-                  value: `${taskScoresData?.totalStudents || 0}`,
+                  value: `${totalActiveStudents}`,
                   // Show neutral if no participants, positive if there are participants
-                  status: (taskScoresData?.totalStudents || 0) > 0 ? 'positive' : 'neutral'
+                  status: totalActiveStudents > 0 ? 'positive' : 'neutral'
                 },
                 {
                   label: 'Average Score',
-                  value: taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A',
+                  value: overallAverageScore > 0 ? `${overallAverageScore}%` : 'N/A',
                   // Always show neutral when no data is available
-                  status: !taskScoresData?.averageScore ? 'neutral' : 
-                           taskScoresData.averageScore > 80 ? 'positive' : 'warning'
+                  status: overallAverageScore === 0 ? 'neutral' : 
+                           overallAverageScore > 80 ? 'positive' : 'warning'
                 }
               ]}
               className="md:col-span-1"

@@ -136,9 +136,27 @@ export function TaskScoresTab({ taskId, taskType, templateId }: TaskScoresTabPro
       return;
     }
 
-    // Create CSV content
-    const headers = ['Student ID', 'Score', 'Max Score', 'Attempts', 'Remaining Attempts', 'Submission Date', 'Status', 'Feedback'];
-    const rows = scores.map(score => [
+    // Create CSV content with exercise-specific fields
+    const isExerciseTask = taskType === 'EXERCISE' || scores.some(s => s.exerciseTemplateId);
+    
+    const headers = isExerciseTask 
+      ? ['Student ID', 'Reps', 'Goal Reps', 'Accuracy (%)', 'Goal Accuracy (%)', 'Score', 'Max Score', 'Attempts', 'Remaining Attempts', 'Submission Date', 'Status', 'Feedback']
+      : ['Student ID', 'Score', 'Max Score', 'Attempts', 'Remaining Attempts', 'Submission Date', 'Status', 'Feedback'];
+    
+    const rows = scores.map(score => isExerciseTask ? [
+      score.studentId,
+      score.reps || 0,
+      score.goalReps || 'N/A',
+      score.accuracy !== undefined ? score.accuracy.toFixed(1) : 'N/A',
+      score.goalAccuracy || 'N/A',
+      score.score,
+      score.maxScore,
+      score.attempts,
+      score.remainingAttempts,
+      score.submissionDate,
+      score.status,
+      score.feedback || ''
+    ] : [
       score.studentId,
       score.score,
       score.maxScore,
@@ -242,13 +260,21 @@ export function TaskScoresTab({ taskId, taskType, templateId }: TaskScoresTabPro
           
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Average Score</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {taskType === 'EXERCISE' ? 'Average Accuracy' : 'Average Score'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {isLoadingAverage ? (
                   <Loader2 className="h-6 w-6 animate-spin" />
+                ) : taskType === 'EXERCISE' ? (
+                  // For exercises, show average accuracy
+                  scores.length > 0 && scores.some(s => s.accuracy !== undefined) ? 
+                  `${(scores.reduce((sum, s) => sum + (s.accuracy || 0), 0) / scores.length).toFixed(1)}%` : 
+                  'N/A'
                 ) : (
+                  // For quizzes and lessons, show average score
                   averageScore !== null && averageScore !== undefined ? 
                   `${Number(averageScore).toFixed(1)}%` : 
                   scores.length > 0 ? 
@@ -285,7 +311,7 @@ export function TaskScoresTab({ taskId, taskType, templateId }: TaskScoresTabPro
               <TableHeader>
                 <TableRow>
                   <TableHead>Student ID</TableHead>
-                  <TableHead>Score</TableHead>
+                  <TableHead>{taskType === 'EXERCISE' ? 'Performance' : 'Score'}</TableHead>
                   <TableHead>Attempts</TableHead>
                   <TableHead>Submission Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -293,27 +319,47 @@ export function TaskScoresTab({ taskId, taskType, templateId }: TaskScoresTabPro
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {scores.map((score) => (
-                  <TableRow key={score.physicalId}>
-                    <TableCell className="font-medium">{score.studentId}</TableCell>
-                    <TableCell>
-                      {score.score} / {score.maxScore} ({score.maxScore > 0 ? ((score.score / score.maxScore) * 100).toFixed(1) : 0}%)
-                    </TableCell>
-                    <TableCell>{score.attempts} / {score.remainingAttempts + score.attempts}</TableCell>
-                    <TableCell>{formatDate(score.submissionDate)}</TableCell>
-                    <TableCell>{getStatusBadge(score.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => openGradeDialog(score)}
-                        title="Grade submission"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {scores.map((score) => {
+                  // For exercises, display reps and accuracy instead of generic score
+                  const isExercise = taskType === 'EXERCISE' || score.exerciseTemplateId;
+                  
+                  return (
+                    <TableRow key={score.physicalId}>
+                      <TableCell className="font-medium">{score.studentId}</TableCell>
+                      <TableCell>
+                        {isExercise ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Reps:</span>
+                              <span className="font-medium">{score.reps || 0}/{score.goalReps || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Accuracy:</span>
+                              <span className="font-medium">{score.accuracy !== undefined ? `${score.accuracy.toFixed(1)}%` : 'N/A'}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span>
+                            {score.score} / {score.maxScore} ({score.maxScore > 0 ? ((score.score / score.maxScore) * 100).toFixed(1) : 0}%)
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{score.attempts} / {score.remainingAttempts + score.attempts}</TableCell>
+                      <TableCell>{formatDate(score.submissionDate)}</TableCell>
+                      <TableCell>{getStatusBadge(score.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => openGradeDialog(score)}
+                          title="Grade submission"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -350,8 +396,26 @@ export function TaskScoresTab({ taskId, taskType, templateId }: TaskScoresTabPro
               </div>
             </div>
             
+            {/* Show exercise-specific info if it's an exercise */}
+            {(taskType === 'EXERCISE' || selectedScore?.exerciseTemplateId) && (
+              <div className="grid grid-cols-2 gap-4 p-3 bg-muted rounded-lg">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Repetitions</p>
+                  <p className="text-sm font-medium">{selectedScore?.reps || 0} / {selectedScore?.goalReps || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Accuracy</p>
+                  <p className="text-sm font-medium">
+                    {selectedScore?.accuracy !== undefined ? `${selectedScore.accuracy.toFixed(1)}%` : 'N/A'}
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <div className="grid gap-2">
-              <label htmlFor="score" className="text-sm font-medium">Score</label>
+              <label htmlFor="score" className="text-sm font-medium">
+                {taskType === 'EXERCISE' ? 'Final Score (based on accuracy)' : 'Score'}
+              </label>
               <Input
                 id="score"
                 type="number"
@@ -361,7 +425,10 @@ export function TaskScoresTab({ taskId, taskType, templateId }: TaskScoresTabPro
                 onChange={(e) => setManualScore(Number(e.target.value))}
               />
               <p className="text-xs text-muted-foreground">
-                Maximum score: {selectedScore?.maxScore || 'N/A'}
+                {taskType === 'EXERCISE' 
+                  ? `Score is calculated from accuracy. Maximum: ${selectedScore?.maxScore || 100}` 
+                  : `Maximum score: ${selectedScore?.maxScore || 'N/A'}`
+                }
               </p>
             </div>
             

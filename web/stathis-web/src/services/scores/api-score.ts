@@ -20,6 +20,11 @@ export interface ScoreResponseDTO {
   manuallyGraded: boolean;
   status: 'PENDING' | 'COMPLETED' | 'GRADED';
   feedback?: string;
+  // Exercise-specific fields
+  reps?: number;              // Repetitions completed
+  goalReps?: number;          // Target repetitions
+  accuracy?: number;          // Accuracy percentage (0-100)
+  goalAccuracy?: number;      // Target accuracy percentage
 }
 
 export interface ScoreBodyDTO {
@@ -36,6 +41,11 @@ export interface ScoreBodyDTO {
   manuallyGraded?: boolean;
   status?: 'PENDING' | 'COMPLETED' | 'GRADED';
   feedback?: string;
+  // Exercise-specific fields
+  reps?: number;
+  goalReps?: number;
+  accuracy?: number;
+  goalAccuracy?: number;
 }
 
 export interface ManualGradeDTO {

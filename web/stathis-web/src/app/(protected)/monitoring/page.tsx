@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { AuthNavbar } from '@/components/auth-navbar';
 import { WebSocketManager } from '@/lib/websocket/websocket-client';
+import { useHeartRateAlerts } from '@/lib/websocket/use-heart-rate-alerts';
 import { getTeacherClassrooms, getClassroomStudents } from '@/services/api-classroom';
 import { cn } from '@/lib/utils';
 import {
@@ -49,26 +50,26 @@ interface Student {
   heartRate?: number;
   isActive: boolean;
   lastUpdate: string;
+  lastUpdateTimestamp?: Date; // Track actual timestamp for offline detection
   status: "excellent" | "good" | "warning" | "inactive";
   profilePictureUrl?: string;
 }
 
-// WebSocket message types
-interface WebSocketHeartRateData {
+// WebSocket message types - matching mobile app's VitalsWebSocketDTO
+interface VitalsWebSocketData {
+  physicalId: string;
   studentId: string;
+  classroomId: string;
+  taskId: string;
   heartRate: number;
+  oxygenSaturation: number;
   timestamp: string;
-}
-
-interface WebSocketStudentStatusData {
-  studentId: string;
-  isActive: boolean;
-  lastSeen: string;
+  isPreActivity: boolean;
+  isPostActivity: boolean;
 }
 
 // Constants for status and thresholds
-const HEART_RATE_THRESHOLD = 90;
-const EXCELLENT_THRESHOLD = 70;
+const OFFLINE_TIMEOUT_MS = 30000; // 30 seconds - mark as offline if no vitals received
 
 // Function to transform API data to our Student model
 function mapApiDataToStudent(apiStudent: any): Student {
@@ -78,9 +79,10 @@ function mapApiDataToStudent(apiStudent: any): Student {
     lastName: apiStudent.lastName,
     studentNumber: apiStudent.email?.split('@')[0] || 'Unknown', // Use part of email as student number
     heartRate: undefined,
-    isActive: apiStudent.verified,
-    lastUpdate: "Just now",
-    status: apiStudent.verified ? "good" : "inactive",
+    isActive: false, // Initially offline until we receive vitals
+    lastUpdate: "No data yet",
+    lastUpdateTimestamp: undefined,
+    status: "inactive", // Start as inactive
     profilePictureUrl: apiStudent.profilePictureUrl
   };
 }
@@ -101,15 +103,14 @@ function formatRelativeTime(timestamp: string): string {
   return `${diffHours} hr ago`;
 }
 
-// Function to determine heart rate status
+// Function to determine heart rate status (visual indicator only)
+// WARNING status is determined by backend alerts based on age-specific thresholds (85% of max HR)
 function getHeartRateStatus(
-  heartRate: number | undefined, 
-  threshold = HEART_RATE_THRESHOLD
+  heartRate: number | undefined
 ): "excellent" | "good" | "warning" | "inactive" {
   if (!heartRate) return "inactive";
-  if (heartRate < EXCELLENT_THRESHOLD) return "excellent";
-  if (heartRate <= threshold) return "good";
-  return "warning";
+  if (heartRate < 70) return "excellent"; // Resting heart rate range
+  return "good"; // Normal active heart rate (warning determined by backend)
 }
 
 // Determine status color CSS classes
@@ -151,12 +152,14 @@ function useWebSocketMonitor(classroomId: string | null) {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   
-  // Buffer for incoming WebSocket data to prevent excessive updates
-  const heartRateBuffer = useRef<Record<string, WebSocketHeartRateData>>({});
-  const statusBuffer = useRef<Record<string, WebSocketStudentStatusData>>({});
+  // Buffer for incoming WebSocket vitals data
+  const vitalsBuffer = useRef<Record<string, VitalsWebSocketData>>({});
   const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastUpdateTimeRef = useRef<Date>(new Date());
   const { toast } = useToast();
+  
+  // Subscribe to heart rate alerts from backend (85% of max HR based on age)
+  const { alerts } = useHeartRateAlerts(classroomId || '');
 
   // Throttled function to process buffered updates
   const processBufferedUpdates = useCallback(() => {
@@ -168,8 +171,7 @@ function useWebSocketMonitor(classroomId: string | null) {
     // Schedule update with 500ms throttle
     updateTimeoutRef.current = setTimeout(() => {
       // Only process if we have data
-      if (Object.keys(heartRateBuffer.current).length === 0 && 
-          Object.keys(statusBuffer.current).length === 0) {
+      if (Object.keys(vitalsBuffer.current).length === 0) {
         return;
       }
       
@@ -178,44 +180,37 @@ function useWebSocketMonitor(classroomId: string | null) {
         const studentMap = new Map(prevStudents.map(student => [student.id, student]));
         let hasChanges = false;
         
-        // Process heart rate updates
-        Object.values(heartRateBuffer.current).forEach(data => {
+        // Process vitals updates
+        Object.values(vitalsBuffer.current).forEach(data => {
           const student = studentMap.get(data.studentId);
           if (student) {
-            // Skip update if data hasn't changed
-            if (student.heartRate === data.heartRate) {
-              return;
+            let status = getHeartRateStatus(data.heartRate);
+            const now = new Date();
+            
+            // Check if student is in backend alerts (exceeding age-based threshold)
+            const hasAlert = alerts.some(alert => alert.studentId === data.studentId);
+            if (hasAlert) {
+              status = 'warning'; // Override status if backend sent an alert
             }
             
-            const status = getHeartRateStatus(data.heartRate);
+            // ALWAYS update timestamp and online status when receiving vitals
+            // Even if heart rate hasn't changed, we need to keep the student marked as online
             studentMap.set(data.studentId, {
               ...student,
               heartRate: data.heartRate,
               lastUpdate: formatRelativeTime(data.timestamp),
+              lastUpdateTimestamp: now, // CRITICAL: Always update timestamp to prevent false offline status
               status,
-              isActive: true
+              isActive: true // Mark as active when receiving vitals
             });
             hasChanges = true;
+            
+            console.log(`Updated vitals for ${data.studentId}: HR=${data.heartRate}, O2=${data.oxygenSaturation}%, Status=${status}${hasAlert ? ' (ALERT)' : ''}`);
           }
         });
         
-        // Process status updates
-        Object.values(statusBuffer.current).forEach(data => {
-          const student = studentMap.get(data.studentId);
-          if (student && student.isActive !== data.isActive) {
-            studentMap.set(data.studentId, {
-              ...student,
-              isActive: data.isActive,
-              lastUpdate: formatRelativeTime(data.lastSeen),
-              status: data.isActive ? (student.status !== 'inactive' ? student.status : 'good') : 'inactive'
-            });
-            hasChanges = true;
-          }
-        });
-        
-        // Clear buffers
-        heartRateBuffer.current = {};
-        statusBuffer.current = {};
+        // Clear buffer
+        vitalsBuffer.current = {};
         
         // Update the timestamp
         if (hasChanges) {
@@ -226,29 +221,94 @@ function useWebSocketMonitor(classroomId: string | null) {
         return hasChanges ? Array.from(studentMap.values()) : prevStudents;
       });
     }, 500);
-  }, []);
+  }, [alerts]); // Re-run when alerts change to update warning status
 
-  // Handle WebSocket heart rate updates
-  const handleHeartRateUpdate = useCallback((data: any) => {
+  // Handle WebSocket vitals updates (from mobile app)
+  const handleVitalsUpdate = useCallback((data: any) => {
+    console.log('Received vitals data:', data);
+    
     if (!data || !data.studentId || typeof data.heartRate !== 'number') {
+      console.warn('Invalid vitals data received:', data);
       return;
     }
     
     // Store in buffer instead of updating state directly
-    heartRateBuffer.current[data.studentId] = data;
+    vitalsBuffer.current[data.studentId] = data as VitalsWebSocketData;
     processBufferedUpdates();
   }, [processBufferedUpdates]);
-  
-  // Handle WebSocket student status updates
-  const handleStudentStatusUpdate = useCallback((data: any) => {
-    if (!data || !data.studentId || typeof data.isActive !== 'boolean') {
-      return;
-    }
+
+  // Update student status when backend alerts are received
+  useEffect(() => {
+    if (alerts.length === 0) return;
     
-    // Store in buffer instead of updating state directly
-    statusBuffer.current[data.studentId] = data;
-    processBufferedUpdates();
-  }, [processBufferedUpdates]);
+    setStudents(prevStudents => {
+      let hasChanges = false;
+      const alertStudentIds = new Set(alerts.map(alert => alert.studentId));
+      
+      const updatedStudents = prevStudents.map(student => {
+        const shouldBeWarning = alertStudentIds.has(student.id);
+        
+        // Set to warning if in alerts, otherwise keep current status unless it was warning
+        if (shouldBeWarning && student.status !== 'warning') {
+          hasChanges = true;
+          return { ...student, status: 'warning' as const };
+        } else if (!shouldBeWarning && student.status === 'warning') {
+          // Alert cleared, recalculate status from heart rate
+          const newStatus = getHeartRateStatus(student.heartRate);
+          hasChanges = true;
+          return { ...student, status: newStatus };
+        }
+        
+        return student;
+      });
+      
+      return hasChanges ? updatedStudents : prevStudents;
+    });
+  }, [alerts]);
+
+  // Check for offline students periodically
+  useEffect(() => {
+    const checkOfflineStudents = () => {
+      setStudents(prevStudents => {
+        const now = new Date();
+        let hasChanges = false;
+        
+        const updatedStudents = prevStudents.map(student => {
+          // If student has a lastUpdateTimestamp, check if they've gone offline
+          if (student.lastUpdateTimestamp && student.isActive) {
+            const timeSinceUpdate = now.getTime() - student.lastUpdateTimestamp.getTime();
+            
+            if (timeSinceUpdate > OFFLINE_TIMEOUT_MS) {
+              hasChanges = true;
+              return {
+                ...student,
+                isActive: false,
+                status: 'inactive' as const,
+                lastUpdate: formatRelativeTime(student.lastUpdateTimestamp.toISOString())
+              };
+            }
+          }
+          
+          // Update relative time for all students
+          if (student.lastUpdateTimestamp) {
+            return {
+              ...student,
+              lastUpdate: formatRelativeTime(student.lastUpdateTimestamp.toISOString())
+            };
+          }
+          
+          return student;
+        });
+        
+        return hasChanges ? updatedStudents : prevStudents;
+      });
+    };
+    
+    // Check every 5 seconds
+    const intervalId = setInterval(checkOfflineStudents, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Set up WebSocket connection
   useEffect(() => {
@@ -281,13 +341,10 @@ function useWebSocketMonitor(classroomId: string | null) {
       });
     }));
     
-    // Subscribe to heart rate updates
-    const heartRateTopic = `/topic/classroom/${classroomId}/vitals`;
-    subscriptions.push(wsManager.subscribe(heartRateTopic, handleHeartRateUpdate));
-    
-    // Subscribe to student status updates
-    const statusTopic = `/topic/classroom/${classroomId}/status`;
-    subscriptions.push(wsManager.subscribe(statusTopic, handleStudentStatusUpdate));
+    // Subscribe to vitals updates (heart rate + oxygen saturation from mobile)
+    const vitalsTopic = `/topic/classroom/${classroomId}/vitals`;
+    console.log(`Subscribing to vitals topic: ${vitalsTopic}`);
+    subscriptions.push(wsManager.subscribe(vitalsTopic, handleVitalsUpdate));
     
     // Fetch initial student list and start WebSocket if needed
     const fetchStudents = async () => {
@@ -322,7 +379,7 @@ function useWebSocketMonitor(classroomId: string | null) {
         clearTimeout(updateTimeoutRef.current);
       }
     };
-  }, [classroomId, handleHeartRateUpdate, handleStudentStatusUpdate, toast]);
+  }, [classroomId, handleVitalsUpdate, toast]);
   
   // Return the state and helper functions
   return {

@@ -73,9 +73,6 @@ export function useVitalSigns(studentId: string, taskId: string) {
       setIsConnected(true);
       setError(null);
       console.log('WebSocket connected - ready to receive vital signs');
-      
-      // Initial data fetch when connected
-      refreshData();
     }));
     
     subscriptions.push(wsManager.subscribe('$SYSTEM/disconnected', () => {
@@ -126,15 +123,13 @@ export function useVitalSigns(studentId: string, taskId: string) {
       wsManager.connect(token || undefined);
     } else {
       setIsConnected(true);
-      // Initial data fetch if already connected
-      refreshData();
     }
 
     // Cleanup all subscriptions
     return () => {
       subscriptions.forEach(unsub => unsub());
     };
-  }, [studentId, taskId]);
+  }, [studentId, taskId, handleVitalSignsMessage]);
 
   // Method to refresh the connection by reconnecting the WebSocket
   const refreshData = () => {

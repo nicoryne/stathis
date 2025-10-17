@@ -108,7 +108,11 @@ export function analyzeTaskScores(scores: Score[], taskName: string): TaskScoreA
   const averageScore = scoreValues.length > 0 
     ? Math.round(scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length) 
     : 0;
-  const maxScore = scoreValues.length > 0 ? Math.max(...scoreValues) : 0;
+  
+  // Get the task's maximum possible score (should be consistent across all submissions)
+  const taskMaxScore = scores.length > 0 ? scores[0].maxScore : 100;
+  
+  const maxScore = taskMaxScore; // Use the task's max score, not the highest student score
   const minScore = scoreValues.length > 0 ? Math.min(...scoreValues) : 0;
   const completionRate = totalStudents > 0 ? (completedStudents / totalStudents) * 100 : 0;
   
