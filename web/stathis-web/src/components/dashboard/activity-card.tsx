@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { CheckCircle, Clock, PlayCircle } from 'lucide-react';
+import Image from 'next/image';
 
 interface Activity {
   id: string;
@@ -56,7 +57,13 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <div className="relative mb-4">
               <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-lg" />
-              <Clock className="relative h-12 w-12 text-muted-foreground" />
+              <Image
+                src="/images/mascots/mascot_cheer.png"
+                alt="Stathis Cheer Mascot"
+                width={48}
+                height={48}
+                className="relative mx-auto drop-shadow-lg"
+              />
             </div>
             <p className="text-muted-foreground font-medium">No activities yet</p>
             <p className="text-muted-foreground text-sm">Activities will appear here once students start working</p>

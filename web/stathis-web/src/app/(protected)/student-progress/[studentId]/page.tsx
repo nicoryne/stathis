@@ -253,7 +253,7 @@ export default function StudentProgressDetailPage() {
     <div className="flex min-h-screen">
       <Sidebar className="w-64 flex-shrink-0" />
       
-      <div className="flex-1">
+      <div className="flex-1 md:ml-64">
         <AuthNavbar />
         
         <main className="p-6">

@@ -219,8 +219,8 @@ export default function DashboardPage() {
       <div className="flex min-h-screen relative z-10">
         <Sidebar className="w-64 flex-shrink-0" />
 
-        <div className="flex-1">
-          <header className="bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="flex-1 md:ml-64">
+          <header className="bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30">
             <div className="flex h-16 items-center justify-end gap-4 px-4">
               <Button variant="outline" size="icon" className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300">
                 <Bell className="h-5 w-5" />
@@ -273,13 +273,13 @@ export default function DashboardPage() {
                     transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
                     className="relative"
                   >
-                    <Image
-                      src="/images/mascots/mascot_teacher.png"
-                      alt="Stathis Teacher Mascot"
-                      width={80}
-                      height={80}
-                      className="drop-shadow-lg"
-                    />
+                  <Image
+                    src="/images/mascots/mascot_cheer.png"
+                    alt="Stathis Cheer Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
                   </motion.div>
                 </div>
                 
@@ -547,7 +547,13 @@ export default function DashboardPage() {
                     <CardContent className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
                       <div className="relative mb-4">
                         <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-2xl" />
-                        <BarChart3 className="relative h-12 w-12 text-muted-foreground/50" />
+                        <Image
+                          src="/images/mascots/mascot_muscles.png"
+                          alt="Stathis Muscles Mascot"
+                          width={48}
+                          height={48}
+                          className="relative mx-auto drop-shadow-lg"
+                        />
                       </div>
                       <p className="text-center">No score data available yet</p>
                       <p className="text-xs text-muted-foreground/70 mt-1">Data will appear once students complete tasks</p>
@@ -587,7 +593,13 @@ export default function DashboardPage() {
                   <CardContent className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
                     <div className="relative mb-4">
                       <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-2xl" />
-                      <BarChart3 className="relative h-12 w-12 text-muted-foreground/50" />
+                      <Image
+                        src="/images/mascots/mascot_celebrate.png"
+                        alt="Stathis Celebrate Mascot"
+                        width={48}
+                        height={48}
+                        className="relative mx-auto drop-shadow-lg"
+                      />
                     </div>
                     <p className="text-center">No score data available yet</p>
                     <p className="text-xs text-muted-foreground/70 mt-1">Data will appear once students complete exercises</p>

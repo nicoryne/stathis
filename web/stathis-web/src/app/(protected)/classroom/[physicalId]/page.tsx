@@ -3,6 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock, Award, Check, ChevronDown, ClipboardList, MoreHorizontal, Plus, Settings, UserPlus, CheckCircle, HeartPulse, Sparkles, Clipboard, Check as CheckIcon } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -367,8 +368,15 @@ export default function ClassroomDetailPage() {
   if (isErrorClassroom) {
     return renderErrorOrLoadingState(
       <div className="flex flex-col items-center justify-center text-center max-w-md">
-        <div className="text-destructive mb-4 text-5xl">
-          <ClipboardCheck className="h-12 w-12 mx-auto" />
+        <div className="relative mb-4">
+          <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 blur-2xl" />
+          <Image
+            src="/images/mascots/mascot_error.png"
+            alt="Stathis Error Mascot"
+            width={64}
+            height={64}
+            className="relative mx-auto drop-shadow-lg"
+          />
         </div>
         <h1 className="text-2xl font-bold mb-2">Error Loading Classroom</h1>
         <p className="text-muted-foreground mb-6">
@@ -395,8 +403,15 @@ export default function ClassroomDetailPage() {
   if (!classroom) {
     return renderErrorOrLoadingState(
       <div className="flex flex-col items-center justify-center text-center max-w-md">
-        <div className="text-muted-foreground mb-4 text-5xl">
-          <Book className="h-12 w-12 mx-auto" />
+        <div className="relative mb-4">
+          <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 blur-2xl" />
+          <Image
+            src="/images/mascots/mascot_error.png"
+            alt="Stathis Error Mascot"
+            width={64}
+            height={64}
+            className="relative mx-auto drop-shadow-lg"
+          />
         </div>
         <h1 className="text-2xl font-bold mb-2">Classroom Not Found</h1>
         <p className="text-muted-foreground mb-6">
@@ -438,8 +453,8 @@ export default function ClassroomDetailPage() {
 
       <Sidebar className="w-64 flex-shrink-0" />
       
-      <div className="flex-1">
-        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50">
+      <div className="flex-1 md:ml-64">
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30">
           <div className="flex h-16 items-center justify-end gap-4 px-4">
             <Button variant="outline" size="icon" className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90">
               <Bell className="h-5 w-5" />
@@ -508,10 +523,22 @@ export default function ClassroomDetailPage() {
             </div>
             
             {/* Classroom header */}
-            <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center gap-6 mb-6">
               <div className="relative">
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-                <Book className="relative h-8 w-8 text-primary" />
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                  className="relative"
+                >
+                  <Image
+                    src="/images/mascots/mascot_celebrate.png"
+                    alt="Stathis Celebrate Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                </motion.div>
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -866,7 +893,16 @@ export default function ClassroomDetailPage() {
                     ) : (
                       <div className="text-center py-12">
                         <div className="flex flex-col items-center justify-center text-center">
-                          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                          <div className="relative mb-4">
+                            <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-2xl" />
+                            <Image
+                              src="/images/mascots/mascot_cheer.png"
+                              alt="Stathis Cheer Mascot"
+                              width={48}
+                              height={48}
+                              className="relative mx-auto drop-shadow-lg"
+                            />
+                          </div>
                           <h3 className="text-lg font-medium">No tasks found</h3>
                           <p className="text-muted-foreground mt-1">
                             Create tasks to start tracking student scores

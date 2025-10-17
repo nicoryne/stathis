@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { motion } from 'framer-motion';
 import { Sidebar } from '@/components/dashboard/sidebar';
+import Image from 'next/image';
 import { AuthNavbar } from '@/components/auth-navbar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -390,7 +391,7 @@ export default function ProfilePage() {
 
       <Sidebar className="w-64 flex-shrink-0" />
       
-      <div className="flex-1">
+      <div className="flex-1 md:ml-64">
         <AuthNavbar />
         
         <main className="p-6 relative">
@@ -401,10 +402,22 @@ export default function ProfilePage() {
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-6 mb-4">
               <div className="relative">
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-                <HeartPulse className="relative h-8 w-8 text-primary" />
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                  className="relative"
+                >
+                  <Image
+                    src="/images/mascots/mascot_teacher.png"
+                    alt="Stathis Teacher Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                </motion.div>
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">

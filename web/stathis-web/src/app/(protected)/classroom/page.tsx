@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, Plus, Search, School2, ArrowRight, Bell, Users, Book, Calendar, Activity, Trash2, Power, PowerOff, Sparkles, HeartPulse } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -253,8 +254,8 @@ export default function ClassroomPage() {
 
       <Sidebar className="w-64 flex-shrink-0" />
       
-      <div className="flex-1">
-        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50">
+      <div className="flex-1 md:ml-64">
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30">
           <div className="flex h-16 items-center justify-end gap-4 px-4">
             <Button variant="outline" size="icon" className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90">
               <Bell className="h-5 w-5" />
@@ -300,10 +301,22 @@ export default function ClassroomPage() {
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-6 mb-4">
               <div className="relative">
-                <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-                <School2 className="relative h-8 w-8 text-primary" />
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                  className="relative"
+                >
+                  <Image
+                    src="/images/mascots/mascot_muscles.png"
+                    alt="Stathis Muscles Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                </motion.div>
               </div>
               <div>
                 <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
@@ -313,18 +326,13 @@ export default function ClassroomPage() {
               </div>
             </div>
             
-            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-              <DialogTrigger asChild>
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button className="md:w-auto bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Classroom
-                  </Button>
-                </motion.div>
-              </DialogTrigger>
+             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+               <DialogTrigger asChild>
+                 <Button className="md:w-auto bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200">
+                   <Plus className="mr-2 h-4 w-4" />
+                   Create Classroom
+                 </Button>
+               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px] bg-card/80 backdrop-blur-xl border-border/50">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-3">
@@ -441,7 +449,13 @@ export default function ClassroomPage() {
             >
               <div className="relative mx-auto w-16 h-16 mb-4">
                 <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-                <School2 className="relative mx-auto h-16 w-16 text-muted-foreground" />
+                <Image
+                  src="/images/mascots/mascot_teacher.png"
+                  alt="Stathis Teacher Mascot"
+                  width={64}
+                  height={64}
+                  className="relative mx-auto drop-shadow-lg"
+                />
               </div>
               <h3 className="mt-4 text-lg font-medium">No classrooms found</h3>
               <p className="mt-1 text-muted-foreground">

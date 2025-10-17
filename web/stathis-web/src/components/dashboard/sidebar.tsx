@@ -123,7 +123,7 @@ export function Sidebar({ className }: SidebarProps) {
         </SheetContent>
       </Sheet>
 
-      <div className={cn('bg-card/80 backdrop-blur-xl hidden border-r border-border/50 md:block', className)}>
+      <div className={cn('bg-card/80 backdrop-blur-xl hidden border-r border-border/50 md:block fixed left-0 top-0 z-40 h-screen', className)}>
         <div className="flex h-full flex-col">
           {/* Logo Section */}
           <div className="flex h-16 items-center border-b border-border/50 px-6">
