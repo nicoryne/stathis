@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -60,6 +59,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskResponseDTO | null>(null);
+  const [taskTypeFilter, setTaskTypeFilter] = useState<'ALL' | 'LESSON' | 'QUIZ' | 'EXERCISE'>('ALL');
   
   // Template type selection state
   const [selectedTemplateType, setSelectedTemplateType] = useState<string | null>(null);
@@ -363,15 +363,15 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   
   // Helper function to get status badge variant
   const getStatusBadge = (task: TaskResponseDTO) => {
-    if (!task) return <Badge variant="outline">Unknown</Badge>;
+    if (!task) return <Badge variant="outline" className="text-muted-foreground">Unknown</Badge>;
     
     // Determine status based on active and started flags
     if (task.active && task.started) {
-      return <Badge variant="default">Active</Badge>;
+      return <Badge variant="default" className="bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400">Active</Badge>;
     } else if (task.active && !task.started) {
-      return <Badge variant="secondary">Not Started</Badge>;
+      return <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">Not Started</Badge>;
     } else {
-      return <Badge variant="outline">Inactive</Badge>;
+      return <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>;
     }
   };
 
@@ -389,6 +389,86 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     }
   };
 
+  // Helper function to get task type color
+  const getTaskTypeColor = (type: string) => {
+    switch (type) {
+      case 'LESSON':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400';
+      case 'QUIZ':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400';
+      case 'EXERCISE':
+        return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-950/40 dark:text-gray-400';
+    }
+  };
+
+  // Filter and sort tasks
+  const filteredAndSortedTasks = useMemo(() => {
+    if (!tasks) return [];
+    
+    // Filter by type
+    let filtered = tasks;
+    if (taskTypeFilter !== 'ALL') {
+      filtered = tasks.filter(task => getTemplateType(task) === taskTypeFilter);
+    }
+    
+    // Sort by submission date (earliest first)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.submissionDate).getTime();
+      const dateB = new Date(b.submissionDate).getTime();
+      return dateA - dateB;
+    });
+  }, [tasks, taskTypeFilter]);
+
+  // Helper function to check if a task is overdue
+  const isTaskOverdue = (task: TaskResponseDTO): boolean => {
+    if (!task.closingDate) return false;
+    
+    try {
+      const closingDate = new Date(task.closingDate);
+      const now = new Date();
+      return closingDate < now;
+    } catch (e) {
+      console.error('Error parsing closing date:', e);
+      return false;
+    }
+  };
+
+  // Auto-deactivate overdue tasks
+  useEffect(() => {
+    if (!tasks || tasks.length === 0) return;
+
+    // Check for overdue tasks that are still active
+    const overdueTasks = tasks.filter(task => 
+      task.active && isTaskOverdue(task)
+    );
+
+    // Deactivate each overdue task
+    overdueTasks.forEach(task => {
+      console.log(`Auto-deactivating overdue task: ${task.name} (closing date: ${task.closingDate})`);
+      deactivateTaskMutation.mutate(task.physicalId);
+    });
+  }, [tasks]); // Run when tasks change
+
+  // Set up periodic check for overdue tasks (every minute)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (!tasks || tasks.length === 0) return;
+
+      const overdueTasks = tasks.filter(task => 
+        task.active && isTaskOverdue(task)
+      );
+
+      overdueTasks.forEach(task => {
+        console.log(`Auto-deactivating overdue task (periodic check): ${task.name}`);
+        deactivateTaskMutation.mutate(task.physicalId);
+      });
+    }, 60000); // Check every 60 seconds
+
+    return () => clearInterval(intervalId);
+  }, [tasks]);
+
   return (
     <div className="space-y-6">
       {/* Delete Confirmation Dialog */}
@@ -405,7 +485,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeleteTask}
-              className="bg-red-500 hover:bg-red-600"
+              className="bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
             >
               {deleteTaskMutation.isPending ? (
                 <span className="flex items-center">
@@ -579,15 +659,56 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
       
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
-        {!creatingTask && (
-          <Button
-            onClick={handleCreateTask}
-            className="h-9"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Task
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          {!creatingTask && tasks && tasks.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Filter:</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={taskTypeFilter === 'ALL' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskTypeFilter('ALL')}
+                  className="h-8 px-3"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={taskTypeFilter === 'LESSON' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskTypeFilter('LESSON')}
+                  className="h-8 px-3"
+                >
+                  Lessons
+                </Button>
+                <Button
+                  variant={taskTypeFilter === 'QUIZ' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskTypeFilter('QUIZ')}
+                  className="h-8 px-3"
+                >
+                  Quizzes
+                </Button>
+                <Button
+                  variant={taskTypeFilter === 'EXERCISE' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTaskTypeFilter('EXERCISE')}
+                  className="h-8 px-3"
+                >
+                  Exercises
+                </Button>
+              </div>
+            </div>
+          )}
+          {!creatingTask && (
+            <Button
+              onClick={handleCreateTask}
+              className="h-9"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create Task
+            </Button>
+          )}
+        </div>
       </div>
 
       {creatingTask ? (
@@ -621,83 +742,97 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
               </div>
             </div>
           ) : tasksError || !tasks || tasks.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card className="border-dashed rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
-                <CardHeader>
-                  <CardTitle className="text-center text-muted-foreground">No Tasks Created</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="relative mx-auto w-16 h-16 mb-4">
-                    <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-                    <ClipboardList className="relative mx-auto h-16 w-16 text-muted-foreground" />
-                  </div>
-                  <p className="text-center text-muted-foreground max-w-sm mb-4">
-                    You haven't created any tasks for this classroom yet. Tasks allow you to assign lessons, quizzes, and exercises to students.
-                  </p>
-                  <Button 
-                    onClick={handleCreateTask}
-                    className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Your First Task
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <Card className="border-dashed">
+              <CardHeader>
+                <CardTitle className="text-center text-muted-foreground">No Tasks Created</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-center text-muted-foreground max-w-sm mb-4">
+                  You haven't created any tasks for this classroom yet. Tasks allow you to assign lessons, quizzes, and exercises to students.
+                </p>
+                <Button onClick={handleCreateTask}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Your First Task
+                </Button>
+              </CardContent>
+            </Card>
+          ) : filteredAndSortedTasks.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-center text-muted-foreground">
+                  No {taskTypeFilter.toLowerCase()} tasks found
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid gap-4">
-              {tasks.map((task) => (
-                <Card key={task.physicalId}>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between">
-                      <div>
-                        <CardTitle>{task.name}</CardTitle>
-                        <CardDescription>
-                          {getTemplateTypeLabel(getTemplateType(task))} • Due {formatDate(task.submissionDate)}
-                        </CardDescription>
+            <div className="grid gap-3">
+              {filteredAndSortedTasks.map((task) => {
+                const taskType = getTemplateType(task);
+                return (
+                  <Card key={task.physicalId}>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary" className={`text-xs px-2 py-0.5 ${getTaskTypeColor(taskType)}`}>
+                              {getTemplateTypeLabel(taskType)}
+                            </Badge>
+                            <CardTitle className="text-base">{task.name}</CardTitle>
+                          </div>
+                          <CardDescription className="text-xs">
+                            Due {formatDate(task.submissionDate)}
+                            {task.closingDate && (
+                              <>
+                                <span className="text-muted-foreground/60 mx-1.5">•</span>
+                                <span className="text-muted-foreground">
+                                  {task.active ? 'Closes' : 'Closed'} {formatDate(task.closingDate)}
+                                </span>
+                              </>
+                            )}
+                          </CardDescription>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {getStatusBadge(task)}
+                        </div>
                       </div>
-                      <div>
-                        {getStatusBadge(task)}
-                      </div>
+                    </CardHeader>
+                    <CardContent className="pb-2 pt-1">
+                      <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+                    </CardContent>
+                  <CardFooter className="flex justify-between items-center border-t pt-2 pb-2">
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium">{task.maxAttempts || '∞'}</span> attempts
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{task.description}</p>
-                  </CardContent>
-                  <CardFooter className="flex justify-between border-t pt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Max Attempts: <span className="font-medium">{task.maxAttempts || 'Unlimited'}</span>
-                    </div>
-                    <div className="flex space-x-2">
-                      {/* Start Task button - always visible but disabled based on state */}
+                    <div className="flex items-center gap-1.5">
+                      {/* Start Task button */}
                       <Button
                         variant={task.started ? "outline" : "default"}
                         size="sm"
                         onClick={() => handleStartTask(task.physicalId)}
                         disabled={task.started || startTaskMutation.isPending || !task.active}
+                        className="h-7 px-2 text-xs"
                       >
                         {startTaskMutation.isPending && startTaskMutation.variables === task.physicalId ? (
                           <span className="flex items-center">
-                            <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
+                            <span className="mr-1 h-2.5 w-2.5 animate-spin rounded-full border-2 border-r-transparent"></span>
                             Starting...
                           </span>
                         ) : task.started ? 'Started' : 'Start'}
                       </Button>
                       
-                      {/* Deactivate Task button - always visible but disabled based on state */}
+                      {/* Deactivate Task button */}
                       <Button
-                        variant={!task.active ? "outline" : "destructive"}
+                        variant="outline"
                         size="sm"
                         onClick={() => handleDeactivateTask(task.physicalId)}
                         disabled={!task.active || deactivateTaskMutation.isPending}
+                        className={`h-7 px-2 text-xs ${!task.active ? "" : "text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 border-orange-200 dark:border-orange-800"}`}
                       >
                         {deactivateTaskMutation.isPending && deactivateTaskMutation.variables === task.physicalId ? (
                           <span className="flex items-center">
-                            <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
+                            <span className="mr-1 h-2.5 w-2.5 animate-spin rounded-full border-2 border-r-transparent"></span>
                             Deactivating...
                           </span>
                         ) : !task.active ? 'Inactive' : 'Deactivate'}
@@ -708,6 +843,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                         variant="outline" 
                         size="sm"
                         onClick={() => openEditDialog(task)}
+                        className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border-blue-200 dark:border-blue-800"
                       >
                         Edit
                       </Button>
@@ -717,11 +853,11 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                         variant="outline" 
                         size="sm"
                         onClick={() => openDeleteDialog(task)}
-                        className="text-red-500 hover:text-red-700"
+                        className="h-7 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-800"
                       >
                         {deleteTaskMutation.isPending && deleteTaskMutation.variables === task.physicalId ? (
                           <span className="flex items-center">
-                            <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
+                            <span className="mr-1 h-2.5 w-2.5 animate-spin rounded-full border-2 border-r-transparent"></span>
                             Deleting...
                           </span>
                         ) : 'Delete'}
@@ -729,7 +865,8 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                     </div>
                   </CardFooter>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

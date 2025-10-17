@@ -11,6 +11,7 @@ interface Activity {
   time: string;
   status: 'completed' | 'not-started' | 'ongoing';
   score?: number;
+  maxScore?: number;
 }
 
 interface ActivityCardProps {
@@ -52,62 +53,39 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
           Recent Activities
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 flex-1 flex flex-col">
-        {activities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <div className="relative mb-4">
-              <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-lg" />
-              <Image
-                src="/images/mascots/mascot_cheer.png"
-                alt="Stathis Cheer Mascot"
-                width={48}
-                height={48}
-                className="relative mx-auto drop-shadow-lg"
-              />
-            </div>
-            <p className="text-muted-foreground font-medium">No activities yet</p>
-            <p className="text-muted-foreground text-sm">Activities will appear here once students start working</p>
-          </div>
-        ) : (
-          <div className="space-y-0 flex-1">
-            {activities.map((activity, index) => (
-              <motion.div
-                key={activity.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-                className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors duration-200"
-              >
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(activity.status)}
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium leading-none">{activity.name}</p>
-                    <p className="text-muted-foreground text-xs">{activity.time}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {activity.score !== undefined && (
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-primary">{activity.score}%</span>
-                    </div>
-                  )}
-                  <Badge
-                    className={cn(
-                      'text-xs font-medium px-2 py-1 rounded-lg',
-                      getStatusColor(activity.status)
-                    )}
-                  >
-                    {activity.status === 'completed'
-                      ? 'Completed'
+      <CardContent className="p-0">
+        <div className="space-y-0 divide-y">
+          {activities.map((activity) => (
+            <div key={activity.id} className="flex items-center justify-between p-4">
+              <div className="space-y-1">
+                <p className="text-sm leading-none font-medium">{activity.name}</p>
+                <p className="text-muted-foreground text-xs">{activity.time}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {activity.score !== undefined && (
+                  <span className="text-sm font-medium">
+                    {activity.score}/{activity.maxScore || 100}
+                  </span>
+                )}
+                <Badge
+                  variant={
+                    activity.status === 'completed'
+                      ? 'default'
                       : activity.status === 'ongoing'
-                        ? 'Ongoing'
-                        : 'Not Started'}
-                  </Badge>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+                        ? 'secondary'
+                        : 'outline'
+                  }
+                >
+                  {activity.status === 'completed'
+                    ? 'Completed'
+                    : activity.status === 'ongoing'
+                      ? 'Ongoing'
+                      : 'Not Started'}
+                </Badge>
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

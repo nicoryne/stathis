@@ -1,5 +1,8 @@
 'use client';
 
+import { Client, StompSubscription, IFrame, IMessage } from '@stomp/stompjs';
+// @ts-ignore - sockjs-client types are not perfect
+import SockJS from 'sockjs-client';
 import { API_BASE_URL } from '@/lib/api/server-client';
 
 // Constants
@@ -8,17 +11,22 @@ const WEBSOCKET_INITIAL_RECONNECT_DELAY = 2000;
 
 /**
  * WebSocket Manager for handling STOMP over SockJS connections
+ * Matches the mobile app's WebSocket implementation using STOMP protocol
+ * Receives vitals data from mobile devices via /topic/classroom/{classroomId}/vitals
  */
 export class WebSocketManager {
   private static instance: WebSocketManager;
-  private socket: WebSocket | null = null;
+  private client: Client | null = null;
   private subscriptions: Map<string, Set<(message: any) => void>> = new Map();
+  private stompSubscriptions: Map<string, StompSubscription> = new Map();
   private connected = false;
   private connecting = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = WEBSOCKET_RECONNECT_MAX_ATTEMPTS;
-  private reconnectDelay = WEBSOCKET_INITIAL_RECONNECT_DELAY; // Start with 2 seconds
+  private reconnectDelay = WEBSOCKET_INITIAL_RECONNECT_DELAY;
   private messageBuffer: { topic: string; data: any }[] = [];
+  private authToken: string | null = null;
+  private manualDisconnect = false; // Flag to prevent auto-reconnect after manual disconnect
 
   private constructor() {}
 
@@ -33,61 +41,75 @@ export class WebSocketManager {
   }
 
   /**
-   * Initialize the WebSocket connection with rate limiting
+   * Initialize the STOMP over SockJS connection (matching mobile app's backend)
    */
   public connect(token?: string): void {
     if (this.connected || this.connecting) return;
     
     this.connecting = true;
+    this.authToken = token || null;
+    this.manualDisconnect = false; // Clear manual disconnect flag when connecting
     
     try {
-      // Use standard WebSocket with URL from API_BASE_URL
-      // Format: Convert http://domain/api to ws://domain/ws
-      let wsUrl = API_BASE_URL.replace(/^http/, 'ws');
-      
-      // Remove 'api' from the end if present and add 'ws'
+      // Create WebSocket URL for STOMP endpoint
+      // Convert http://domain/api to http://domain/ws
+      let wsUrl = API_BASE_URL;
       if (wsUrl.endsWith('/api')) {
         wsUrl = wsUrl.replace(/api$/, 'ws');
-      } else if (!wsUrl.endsWith('/ws')) {
-        // If no 'api' at the end, ensure it ends with '/ws'
+      } else {
         wsUrl = wsUrl.endsWith('/') ? `${wsUrl}ws` : `${wsUrl}/ws`;
       }
       
-      console.log(`Connecting to WebSocket at ${wsUrl}`);
+      console.log(`Connecting to STOMP WebSocket at ${wsUrl}`);
       
-      this.socket = new WebSocket(wsUrl);
+      // Create STOMP client with SockJS
+      this.client = new Client({
+        webSocketFactory: () => new SockJS(wsUrl) as any,
+        connectHeaders: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {},
+        debug: (str) => {
+          console.debug('STOMP:', str);
+        },
+        reconnectDelay: this.reconnectDelay,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: this.onConnect.bind(this),
+        onStompError: (frame: IFrame) => {
+          console.error('STOMP error:', frame);
+          this.notifySubscribers('$SYSTEM/error', { frame });
+        },
+        onWebSocketClose: (event: any) => {
+          this.onClose(event);
+        },
+        onWebSocketError: (event: any) => {
+          console.error('WebSocket error:', event);
+        },
+      });
       
-      this.socket.onopen = this.onConnect.bind(this);
-      this.socket.onmessage = this.onMessage.bind(this);
-      this.socket.onerror = this.onError.bind(this);
-      this.socket.onclose = this.onClose.bind(this);
+      // Activate the client
+      this.client.activate();
       
-      // Log connection status changes
-      console.log(`WebSocket connection state: ${this.getReadyStateText()}`);
-      
-      // Add authentication if provided
-      if (token) {
-        // For custom authentication headers, you might need to use a handshake mechanism
-        // or query parameters depending on your server configuration
-        this.sendMessage('AUTH', { token });
-      }
     } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
+      console.error('Error connecting to STOMP WebSocket:', error);
       this.connecting = false;
       this.handleReconnect();
     }
   }
 
   /**
-   * Callback when connection is established
+   * Callback when STOMP connection is established
    */
-  private onConnect(event: Event): void {
+  private onConnect(frame: IFrame): void {
     this.connected = true;
     this.connecting = false;
     this.reconnectAttempts = 0;
-    this.reconnectDelay = 2000; // Reset delay
+    this.reconnectDelay = WEBSOCKET_INITIAL_RECONNECT_DELAY;
     
-    console.log('Connected to WebSocket');
+    console.log('Connected to STOMP WebSocket', frame);
+    
+    // Re-subscribe to all topics
+    this.resubscribeAll();
     
     // Notify subscribers that we're connected
     this.notifySubscribers('$SYSTEM/connected', {});
@@ -97,12 +119,60 @@ export class WebSocketManager {
   }
 
   /**
+   * Re-subscribe to all previously subscribed topics
+   */
+  private resubscribeAll(): void {
+    if (!this.client || !this.connected) return;
+    
+    // Clear old STOMP subscriptions
+    this.stompSubscriptions.forEach(sub => sub.unsubscribe());
+    this.stompSubscriptions.clear();
+    
+    // Re-subscribe to each topic
+    this.subscriptions.forEach((callbacks, topic) => {
+      // Skip system topics
+      if (topic.startsWith('$SYSTEM/')) return;
+      
+      this.subscribeToTopic(topic);
+    });
+  }
+
+  /**
+   * Actually subscribe to a STOMP topic
+   */
+  private subscribeToTopic(topic: string): void {
+    if (!this.client || !this.connected) return;
+    
+    // Don't subscribe if already subscribed
+    if (this.stompSubscriptions.has(topic)) return;
+    
+    console.log(`Subscribing to STOMP topic: ${topic}`);
+    
+    const subscription = this.client.subscribe(topic, (message: IMessage) => {
+      try {
+        const data = JSON.parse(message.body);
+        console.log(`Received message on topic ${topic}:`, data);
+        this.notifySubscribers(topic, data);
+      } catch (error) {
+        console.error(`Error parsing message from ${topic}:`, error);
+      }
+    });
+    
+    this.stompSubscriptions.set(topic, subscription);
+  }
+
+  /**
    * Subscribe to a specific topic
    */
   public subscribe(topic: string, callback: (data: any) => void): () => void {
     // Add to our local subscriptions map
     if (!this.subscriptions.has(topic)) {
       this.subscriptions.set(topic, new Set());
+      
+      // Subscribe to the STOMP topic if connected and not a system topic
+      if (this.connected && !topic.startsWith('$SYSTEM/')) {
+        this.subscribeToTopic(topic);
+      }
     }
     
     const subscribers = this.subscriptions.get(topic)!;
@@ -115,83 +185,18 @@ export class WebSocketManager {
         subscribers.delete(callback);
         if (subscribers.size === 0) {
           this.subscriptions.delete(topic);
+          
+          // Unsubscribe from STOMP topic if no more subscribers
+          const stompSub = this.stompSubscriptions.get(topic);
+          if (stompSub) {
+            stompSub.unsubscribe();
+            this.stompSubscriptions.delete(topic);
+          }
         }
       }
     };
   }
 
-  /**
-   * Handle incoming WebSocket messages
-   */
-  private onMessage(event: MessageEvent): void {
-    try {
-      // Log raw message for debugging
-      console.debug('Raw WebSocket message received:', event.data);
-      
-      const data = JSON.parse(event.data);
-      
-      // Spring STOMP messages have a structure we need to parse
-      if (data && typeof data === 'object') {
-        // Extract topic and payload from the message
-        // This handles both our custom format and potential STOMP messages
-        const topic = data.topic || data.destination || '';
-        let payload: any;
-        
-        try {
-          // Handle different message formats
-          if (data.body && typeof data.body === 'string') {
-            payload = JSON.parse(data.body);
-          } else {
-            payload = data.data || data;
-          }
-          
-          console.log(`WebSocket message received on topic: ${topic}`, payload);
-          
-          if (topic) {
-            // Notify direct topic subscribers
-            this.notifySubscribers(topic, payload);
-            
-            // Also notify any wildcard subscribers that match this topic
-            this.notifyWildcardSubscribers(topic, payload);
-          } else {
-            console.warn('WebSocket message received without topic');
-            // Broadcast to all subscribers if no topic is specified
-            this.subscriptions.forEach((subscribers, registeredTopic) => {
-              this.notifySubscribers(registeredTopic, payload as any);
-            });
-          }
-        } catch (parseError) {
-          console.error('Error parsing message body:', parseError, data);
-          // Try to notify with the raw data as fallback
-          if (topic) {
-            this.notifySubscribers(topic, data);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing WebSocket message:', error, event.data);
-    }
-  }
-
-  /**
-   * Handle WebSocket errors
-   */
-  private onError(event: Event): void {
-    const errorDetails = {
-      timestamp: new Date().toISOString(),
-      connectionState: this.connected ? 'connected' : 'disconnected',
-      reconnectAttempts: this.reconnectAttempts,
-      eventType: 'error'
-    };
-    
-    console.error('WebSocket error:', errorDetails);
-    
-    // Notify subscribers of the error
-    this.notifySubscribers('$SYSTEM/error', errorDetails);
-    
-    // Wait for the close event which will trigger reconnection
-    console.warn('WebSocket encountered an error. Waiting for connection to close before reconnecting.');
-  }
 
   /**
    * Handle WebSocket closure
@@ -207,7 +212,14 @@ export class WebSocketManager {
       reason: event.reason 
     });
     
-    this.handleReconnect();
+    // Only attempt reconnection if it was not a normal closure or intentional disconnect
+    // Code 1000 = Normal Closure (user initiated)
+    // Code 1001 = Going Away (browser navigating away)
+    if (event.code !== 1000 && event.code !== 1001) {
+      this.handleReconnect();
+    } else {
+      console.log('WebSocket closed normally, not reconnecting');
+    }
   }
 
   /**
@@ -319,6 +331,12 @@ export class WebSocketManager {
    * Handle reconnection logic with exponential backoff
    */
   private handleReconnect(): void {
+    // Don't reconnect if it was a manual disconnect
+    if (this.manualDisconnect) {
+      console.log('Manual disconnect detected, not reconnecting');
+      return;
+    }
+    
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log(`Maximum reconnect attempts (${this.maxReconnectAttempts}) reached. Giving up.`);
       return;
@@ -339,24 +357,23 @@ export class WebSocketManager {
   }
 
   /**
-   * Send a message to a specific topic
+   * Send a message to a specific STOMP destination
    */
   public send(topic: string, data: any): void {
-    if (!this.connected || !this.socket) {
+    if (!this.connected || !this.client) {
       // Buffer the message for later
       this.messageBuffer.push({ topic, data });
       return;
     }
     
     try {
-      // Format message in a way that Spring's STOMP handlers can understand
-      const message = JSON.stringify({
+      // Send via STOMP protocol
+      this.client.publish({
         destination: topic,
         body: JSON.stringify(data),
         headers: { 'content-type': 'application/json' }
       });
-      
-      this.socket.send(message);
+      console.log(`Sent message to ${topic}:`, data);
     } catch (error) {
       console.error(`Error sending message to ${topic}:`, error);
       // Add to buffer in case of error
@@ -382,17 +399,22 @@ export class WebSocketManager {
   }
 
   /**
-   * Disconnect the WebSocket connection
+   * Disconnect the STOMP WebSocket connection
    */
   public disconnect(): void {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
+    this.manualDisconnect = true; // Set flag to prevent auto-reconnect
+    
+    if (this.client) {
+      this.client.deactivate();
+      this.client = null;
     }
+    
+    // Clear all STOMP subscriptions
+    this.stompSubscriptions.clear();
     
     this.connected = false;
     this.connecting = false;
-    console.log('WebSocket disconnected by user');
+    console.log('STOMP WebSocket disconnected by user');
   }
 
   // Function already defined above
@@ -409,12 +431,21 @@ export class WebSocketManager {
    * This can be used to manually refresh the connection
    */
   public reconnect(): void {
-    console.log('Manually reconnecting WebSocket...');
+    console.log('Manually reconnecting STOMP WebSocket...');
+    
+    // Temporarily disable auto-reconnect during manual reconnection
+    const wasManualDisconnect = this.manualDisconnect;
+    this.manualDisconnect = true;
     
     // Disconnect if currently connected
-    if (this.socket) {
-      this.disconnect();
+    if (this.client) {
+      this.client.deactivate();
+      this.client = null;
+      this.stompSubscriptions.clear();
     }
+    
+    this.connected = false;
+    this.connecting = false;
     
     // Wait a short time to ensure cleanup completes
     setTimeout(() => {
@@ -425,7 +456,7 @@ export class WebSocketManager {
       // Get token from localStorage if available
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
       
-      // Connect with the token
+      // Connect with the token (this will clear manualDisconnect flag)
       this.connect(token || undefined);
     }, 500);
   }
@@ -434,14 +465,10 @@ export class WebSocketManager {
    * Get human-readable WebSocket ready state
    */
   private getReadyStateText(): string {
-    if (!this.socket) return 'CLOSED (No socket)';
+    if (!this.client) return 'CLOSED (No client)';
     
-    switch (this.socket.readyState) {
-      case WebSocket.CONNECTING: return 'CONNECTING';
-      case WebSocket.OPEN: return 'OPEN';
-      case WebSocket.CLOSING: return 'CLOSING';
-      case WebSocket.CLOSED: return 'CLOSED';
-      default: return `UNKNOWN (${this.socket.readyState})`;
-    }
+    if (this.connected) return 'CONNECTED';
+    if (this.connecting) return 'CONNECTING';
+    return 'DISCONNECTED';
   }
 }

@@ -130,15 +130,19 @@ export default function StudentProgressPage() {
       try {
         if (!selectedClassroom || !studentsData?.students.length) return [];
         
+        // Log classroom information
+        console.log(`Selected classroom for progress: ${selectedClassroom}`);
+        
         // Only fetch progress for verified students to prevent 403 errors
         const progressPromises = studentsData.students
           .filter((student: ClassroomStudentDTO) => student.verified || student.isVerified) // Skip unverified students
           .map((student: ClassroomStudentDTO) => {
             console.log(`Fetching progress for student ${student.physicalId} in classroom ${selectedClassroom}`);
+            // Pass the explicit classroom ID to ensure consistent access pattern
             return fetchStudentProgressItems(student.physicalId, selectedClassroom);
           });
         
-        console.log(`Starting ${progressPromises.length} progress fetch operations`);
+        console.log(`Starting ${progressPromises.length} progress fetch operations for classroom ${selectedClassroom}`);
         const results = await Promise.allSettled(progressPromises);
         
         // Log any failures to help with debugging
@@ -154,10 +158,10 @@ export default function StudentProgressPage() {
             result.status === 'fulfilled')
           .flatMap(result => result.value);
           
-        console.log(`Successfully fetched ${successfulResults.length} progress items`);
+        console.log(`Successfully fetched ${successfulResults.length} progress items from classroom ${selectedClassroom}`);
         return successfulResults;
       } catch (error) {
-        console.error('Error fetching classroom progress data:', error);
+        console.error(`Error fetching progress data for classroom ${selectedClassroom}:`, error);
         return [];
       }
     },
@@ -202,7 +206,9 @@ export default function StudentProgressPage() {
 
   // Handle view student details
   const handleViewStudent = (studentId: string) => {
-    router.push(`/student-progress/${studentId}`);
+    // Pass the selected classroom ID as a query parameter
+    router.push(`/student-progress/${studentId}?classroomId=${selectedClassroom}`);
+    console.log(`Navigating to student ${studentId} with classroom ${selectedClassroom}`);
   };
   
   // Handle export report

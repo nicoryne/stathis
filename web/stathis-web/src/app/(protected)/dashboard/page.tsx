@@ -54,7 +54,8 @@ interface UserDetails {
   first_name: string;
   last_name: string;
   email: string;
-  [key: string]: any;
+  profilePictureUrl?: string;
+  [key: string]: any; // For any additional properties
 }
 
 interface Classroom {
@@ -91,38 +92,48 @@ export default function DashboardPage() {
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState('');
   
-  const [userDetails, setUserDetails] = useState<UserDetails>({
-    first_name: '',
-    last_name: '',
-    email: userEmail || ''
+  // Fetch teacher profile with all details including profile picture
+  const { data: teacherProfile } = useQuery({
+    queryKey: ['teacher-profile'],
+    queryFn: async () => {
+      const response = await fetch('https://api-stathis.ryne.dev/api/users/profile/teacher', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch teacher profile');
+      return response.json();
+    },
+    enabled: !!userEmail,
+    staleTime: 1000 * 60 * 10 // 10 minutes
   });
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await getUserDetails();
-        
-        if (user && typeof user === 'object') {
-          const userObj = user as Record<string, any>;
-          setUserDetails({
-            first_name: userObj.first_name || '',
-            last_name: userObj.last_name || '',
-            email: userObj.email || '',
-            ...userObj
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching user details:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+  // Map teacher profile to user details format
+  const userDetails: UserDetails = {
+    first_name: teacherProfile?.firstName || '',
+    last_name: teacherProfile?.lastName || '',
+    email: teacherProfile?.email || userEmail || '',
+    profilePictureUrl: teacherProfile?.profilePictureUrl
+  };
 
   const { data: classrooms, isLoading: isLoadingClassrooms } = useQuery<ClassroomResponseDTO[]>({
     queryKey: ['teacher-classrooms'],
     queryFn: () => getTeacherClassrooms(),
     enabled: !!userEmail,
-    staleTime: 1000 * 60 * 5
+    staleTime: 1000 * 60 * 5 // 5 minutes
+  });
+
+  // Fetch students in the selected classroom to get student names
+  const { data: classroomStudentsData } = useQuery({
+    queryKey: ['classroom-students', selectedClassroomId],
+    queryFn: async () => {
+      if (!selectedClassroomId) return null;
+      const { getClassroomStudents } = await import('@/services/api-classroom-client');
+      return getClassroomStudents(selectedClassroomId);
+    },
+    enabled: !!selectedClassroomId,
+    staleTime: 1000 * 60 * 5 // 5 minutes
   });
   
   useEffect(() => {
@@ -147,7 +158,37 @@ export default function DashboardPage() {
     }
   }, [tasksData, selectedTask]);
 
-  const { data: rawTaskScoresData, isLoading: isTaskScoresLoading } = useQuery<Score[]>({
+  // Fetch scores for all tasks in the classroom
+  const { data: allTasksScores, isLoading: isTaskScoresLoading } = useQuery({
+    queryKey: ['all-tasks-scores', selectedClassroomId, tasksData?.length],
+    queryFn: async () => {
+      if (!tasksData || tasksData.length === 0) return {};
+      
+      const scoresPromises = tasksData.map(async (task: Task) => {
+        try {
+          const scores = await getTaskScores(task.physicalId);
+          const analytics = analyzeTaskScores(scores, task.name);
+          return { taskId: task.physicalId, scores, analytics };
+        } catch (error) {
+          console.error(`Error fetching scores for task ${task.physicalId}:`, error);
+          return { taskId: task.physicalId, scores: [], analytics: null };
+        }
+      });
+      
+      const results = await Promise.all(scoresPromises);
+      const scoresMap: Record<string, { scores: Score[], analytics: TaskScoreAnalytics | null }> = {};
+      results.forEach(result => {
+        scoresMap[result.taskId] = { scores: result.scores, analytics: result.analytics };
+      });
+      
+      return scoresMap;
+    },
+    enabled: !!selectedClassroomId && !!tasksData && tasksData.length > 0,
+    staleTime: 1000 * 60 * 2 // 2 minutes
+  });
+
+  // Fetch task scores for selected task (for detailed view if needed)
+  const { data: rawTaskScoresData } = useQuery<Score[]>({
     queryKey: ['task-scores', selectedTask],
     queryFn: () => getTaskScores(selectedTask),
     enabled: !!selectedTask,
@@ -177,33 +218,139 @@ export default function DashboardPage() {
   };
 
   const recentActivities: Activity[] = tasksData ? tasksData
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5)
-    .map(task => ({
-      id: task.physicalId,
-      name: task.name,
-      time: new Date(task.updatedAt || task.createdAt).toLocaleString(),
-      status: !task.started ? "not-started" as const : 
-              (task.started && task.active) ? "ongoing" as const : 
-              "completed" as const,
-      score: taskScoresData?.averageScore
-    })) : [];
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()) // Sort by most recent
+    .slice(0, 5) // Get top 5 most recent tasks
+    .map(task => {
+      // Determine status based on task state (teacher-managed)
+      // Completed = deactivated by teacher, Ongoing = active, Not Started = not started yet
+      const status: "completed" | "ongoing" | "not-started" = 
+        !task.started ? "not-started" : 
+        (task.started && task.active) ? "ongoing" : 
+        "completed";
+      
+      return {
+        id: task.physicalId,
+        name: task.name,
+        time: new Date(task.updatedAt || task.createdAt).toLocaleString(),
+        status
+      };
+    }) : [];
 
-  const hasStudentScores = !!(taskScoresData?.averageScore);
+  // Check if we have any score data across all tasks
+  const hasStudentScores = allTasksScores && Object.values(allTasksScores).some(
+    taskData => taskData.analytics && taskData.analytics.averageScore > 0
+  );
   
-  const exerciseScoreData = (tasksData) 
+  // Exercise/Task score data for charts - shows class-wide average for each task
+  // Each score is the average of ALL students' scores for that specific task
+  const exerciseScoreData = (tasksData && allTasksScores) 
     ? tasksData.slice(0, 5).map((task: Task) => {
+        const taskScore = allTasksScores[task.physicalId];
+        // analytics.averageScore is the mean of all student scores for this task
         return {
           exercise: task.name || 'Unknown',
-          score: hasStudentScores ? 
-            (task.started ? 
-              (task.active ? Math.round(taskScoresData.averageScore * 0.7) : taskScoresData.averageScore) 
-              : 0) 
-            : 0,
-          hasData: hasStudentScores
+          score: taskScore?.analytics?.averageScore || 0,
+          hasData: !!(taskScore?.analytics && taskScore.analytics.averageScore > 0)
         };
       })
     : [];
+      
+  // Generate task score metrics from real task data
+  const taskScoreMetrics = (tasksData && taskScoresData) ? tasksData.map((task: Task) => ({
+    name: task.name,
+    status: !task.started ? 'not-started' as const : 
+           (task.started && task.active) ? 'ongoing' as const : 
+           'completed' as const,
+    score: taskScoresData.averageScore
+  })) : [];
+
+  // Calculate aggregated statistics from all tasks
+  const totalActiveStudents = allTasksScores ? (() => {
+    const uniqueStudents = new Set<string>();
+    Object.values(allTasksScores).forEach(taskData => {
+      taskData.scores.forEach((score: Score) => uniqueStudents.add(score.studentId));
+    });
+    return uniqueStudents.size;
+  })() : 0;
+
+  const studentCompletionRate = allTasksScores ? (() => {
+    let totalStudents = 0;
+    let completedStudents = 0;
+    Object.values(allTasksScores).forEach(taskData => {
+      if (taskData.analytics) {
+        totalStudents = Math.max(totalStudents, taskData.analytics.totalStudents);
+        completedStudents = Math.max(completedStudents, taskData.analytics.completedStudents);
+      }
+    });
+    return totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+  })() : 0;
+
+  const overallAverageScore = allTasksScores ? (() => {
+    const validAnalytics = Object.values(allTasksScores)
+      .map(taskData => taskData.analytics)
+      .filter(a => a && a.averageScore > 0);
+    if (validAnalytics.length === 0) return 0;
+    const sum = validAnalytics.reduce((acc, a) => acc + (a?.averageScore || 0), 0);
+    return Math.round(sum / validAnalytics.length);
+  })() : 0;
+
+  // Calculate task completion (deactivated tasks)
+  const taskCompletionStats = tasksData ? (() => {
+    const completedTasks = tasksData.filter(t => t.started && !t.active).length;
+    const totalTasks = tasksData.length;
+    const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    return {
+      completed: completedTasks,
+      total: totalTasks,
+      percentage
+    };
+  })() : { completed: 0, total: 0, percentage: 0 };
+
+  // Calculate top student based on overall performance across all tasks
+  const topStudent = allTasksScores ? (() => {
+    const studentPerformance: Record<string, { totalScore: number, count: number }> = {};
+    
+    // Aggregate scores for each student across all tasks
+    Object.values(allTasksScores).forEach(taskData => {
+      taskData.scores.forEach((score: Score) => {
+        if (score.completed) {
+          if (!studentPerformance[score.studentId]) {
+            studentPerformance[score.studentId] = { totalScore: 0, count: 0 };
+          }
+          studentPerformance[score.studentId].totalScore += score.score;
+          studentPerformance[score.studentId].count += 1;
+        }
+      });
+    });
+    
+    // Find student with highest average score
+    let topStudentId = '';
+    let highestAverage = 0;
+    
+    Object.entries(studentPerformance).forEach(([studentId, data]) => {
+      const average = data.totalScore / data.count;
+      if (average > highestAverage) {
+        highestAverage = average;
+        topStudentId = studentId;
+      }
+    });
+    
+    // Get student name from classroom students data
+    let topStudentName = 'No data';
+    if (topStudentId && classroomStudentsData?.students) {
+      const student = classroomStudentsData.students.find(s => s.physicalId === topStudentId);
+      if (student) {
+        topStudentName = `${student.firstName} ${student.lastName}`;
+      }
+    }
+    
+    return { 
+      studentId: topStudentId, 
+      studentName: topStudentName,
+      averageScore: Math.round(highestAverage) 
+    };
+  })() : { studentId: '', studentName: 'No data', averageScore: 0 };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
@@ -219,44 +366,45 @@ export default function DashboardPage() {
       <div className="flex min-h-screen relative z-10">
         <Sidebar className="w-64 flex-shrink-0" />
 
-        <div className="flex-1 md:ml-64">
-          <header className="bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30">
-            <div className="flex h-16 items-center justify-end gap-4 px-4">
-              <Button variant="outline" size="icon" className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300">
-                <Bell className="h-5 w-5" />
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="/placeholder.svg" alt="User" />
-                      <AvatarFallback>
-                        {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
-                        {userDetails.last_name.charAt(0).toUpperCase() || ''}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 rounded-xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm leading-none font-medium">
-                        {userDetails.first_name || userEmail || 'User'}
-                      </p>
-                      <p className="text-muted-foreground text-xs leading-none">
-                        {userDetails.email || userEmail || ''}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => router.push('/profile')} className="rounded-lg">Profile</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handlesignOut} className="rounded-lg">Sign out</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <ThemeSwitcher />
-            </div>
-          </header>
+      <div className="flex-1">
+        <header className="bg-background border-b">
+          <div className="flex h-16 items-center justify-end gap-4 px-4">
+            
+            <Button variant="outline" size="icon">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={userDetails.profilePictureUrl || undefined} alt={`${userDetails.first_name} ${userDetails.last_name}`} />
+                    <AvatarFallback>
+                      {userDetails.first_name.charAt(0).toUpperCase() || userEmail?.charAt(0).toUpperCase() || 'U'}
+                      {userDetails.last_name.charAt(0).toUpperCase() || ''}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm leading-none font-medium">
+                      {userDetails.first_name || userEmail || 'User'}
+                    </p>
+                    <p className="text-muted-foreground text-xs leading-none">
+                      {userDetails.email || userEmail || ''}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/profile')}>Profile</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handlesignOut}>Sign out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ThemeSwitcher />
+          </div>
+        </header>
 
           <main className="p-6">
             <motion.div
@@ -351,156 +499,118 @@ export default function DashboardPage() {
                   </Button>
                 </div>
               )}
-            </motion.div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={() => router.push('/classroom')}>Manage Classrooms</Button>
+              <Button variant="outline" onClick={() => router.push('/monitoring')}>
+                <Activity className="mr-2 h-4 w-4" />
+                View Monitoring
+              </Button>
+            </div>
+          </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8"
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-              >
-                <StatCard
-                  title="Active Students"
-                  value={taskScoresData?.totalStudents?.toString() || '0'}
-                  description="Students participating in tasks"
-                  icon={Users}
-                  trend={{ 
-                    value: taskScoresData?.totalStudents ? Math.round((taskScoresData.completedStudents / taskScoresData.totalStudents) * 100) : 0, 
-                    positive: true 
-                  }}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                <StatCard
-                  title="Exercise Activities"
-                  value={(tasksData?.length || 0).toString()}
-                  description="Total activities available"
-                  icon={Video}
-                  trend={{ 
-                    value: tasksData && tasksData.length > 0 ? 
-                      Math.round((tasksData.filter((t: Task) => t.started).length / tasksData.length) * 100) : 0, 
-                    positive: true 
-                  }}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
-              >
-                <StatCard
-                  title="Average Score"
-                  value={taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A'}
-                  description="Class average score"
-                  icon={Heart}
-                  trend={taskScoresData?.averageScore ? { 
-                    value: taskScoresData.averageScore, 
-                    positive: true
-                  } : undefined}
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.6 }}
-              >
-                <StatCard
-                  title="Completion Rate"
-                  value={tasksData ? `${tasksData.filter(t => t.started && !t.active).length}/${tasksData.length}` : '0/0'}
-                  description="Tasks completed by students"
-                  icon={Activity}
-                  trend={{ 
-                    value: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0, 
-                    positive: true 
-                  }}
-                />
-              </motion.div>
-            </motion.div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Active Students"
+              value={totalActiveStudents.toString()}
+              description="Students participating in tasks"
+              icon={Users}
+              trend={{ 
+                value: studentCompletionRate, 
+                positive: true 
+              }}
+            />
+            <StatCard
+              title="Exercise Activities"
+              value={(tasksData?.length || 0).toString()}
+              description="Total activities available"
+              icon={Video}
+              trend={{ 
+                // Calculate percentage of activities that are in progress or completed
+                value: tasksData && tasksData.length > 0 ? 
+                  Math.round((tasksData.filter((t: Task) => t.started).length / tasksData.length) * 100) : 0, 
+                positive: true 
+              }}
+            />
+            <StatCard
+              title="Average Score"
+              value={overallAverageScore > 0 ? `${overallAverageScore}%` : 'N/A'}
+              description="Class average score"
+              icon={Heart}
+              trend={overallAverageScore > 0 ? { 
+                value: overallAverageScore, 
+                positive: true
+              } : undefined}
+            />
+            <StatCard
+              title="Completion Rate"
+              value={`${taskCompletionStats.completed}/${taskCompletionStats.total}`}
+              description="Tasks completed by students"
+              icon={Activity}
+              trend={{ 
+                value: taskCompletionStats.percentage, 
+                positive: true 
+              }}
+            />
+          </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.7 }}
-              className="grid gap-6 md:grid-cols-2 mb-8"
-            >
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.8 }}
-              >
-                <OverviewCard
-                  title="Class Performance Overview"
-                  description="Current metrics for today's PE session"
-                  metrics={[
-                    {
-                      label: 'Average Task Score',
-                      value: taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A',
-                      progress: taskScoresData?.averageScore || 0,
-                      status: 'neutral'
-                    },
-                    {
-                      label: 'Task Completion Rate',
-                      value: tasksData ? `${tasksData.filter(t => t.started && !t.active).length}/${tasksData.length}` : '0/0',
-                      progress: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0,
-                      trend: { 
-                        value: tasksData && tasksData.length > 0 ? Math.round((tasksData.filter(t => t.started && !t.active).length / tasksData.length) * 100) : 0, 
-                        positive: true 
-                      }
-                    },
-                    {
-                      label: 'Leaderboard Entries',
-                      value: `${leaderboardData?.length || 0}`,
-                      progress: leaderboardData ? Math.min(100, leaderboardData.length * 10) : 0,
-                      status: !leaderboardData || leaderboardData.length === 0 ? 'neutral' : (leaderboardData.length > 5 ? 'positive' : 'warning')
-                    }
-                  ]}
-                  className="md:col-span-1"
-                />
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.9 }}
-              >
-                <OverviewCard
-                  title="Leaderboard Overview"
-                  description="Top students by performance"
-                  metrics={[
-                    {
-                      label: 'Top Student ID',
-                      value: leaderboardData && leaderboardData.length > 0 ? leaderboardData[0].studentId || 'Unknown' : 'No data',
-                      status: leaderboardData && leaderboardData.length > 0 ? 'positive' : 'neutral'
-                    },
-                    {
-                      label: 'Top Score',
-                      value: leaderboardData && leaderboardData.length > 0 ? `${leaderboardData[0].score}%` : 'No data',
-                      status: leaderboardData && leaderboardData.length > 0 ? 'positive' : 'neutral'
-                    },
-                    {
-                      label: 'Participants',
-                      value: `${taskScoresData?.totalStudents || 0}`,
-                      status: (taskScoresData?.totalStudents || 0) > 0 ? 'positive' : 'neutral'
-                    },
-                    {
-                      label: 'Average Score',
-                      value: taskScoresData?.averageScore ? `${taskScoresData.averageScore}%` : 'N/A',
-                      status: !taskScoresData?.averageScore ? 'neutral' : 
-                               taskScoresData.averageScore > 80 ? 'positive' : 'warning'
-                    }
-                  ]}
-                  className="md:col-span-1"
-                />
-              </motion.div>
-            </motion.div>
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <OverviewCard
+              title="Class Performance Overview"
+              description="Current metrics for all classroom tasks"
+              metrics={[
+                {
+                  label: 'Average Task Score',
+                  value: overallAverageScore > 0 ? `${overallAverageScore}%` : 'N/A',
+                  progress: overallAverageScore || 0,
+                  status: overallAverageScore === 0 ? 'neutral' : 
+                          overallAverageScore >= 70 ? 'positive' : 'warning'
+                },
+                {
+                  label: 'Task Completion Rate',
+                  value: `${taskCompletionStats.completed}/${taskCompletionStats.total}`,
+                  progress: taskCompletionStats.percentage,
+                  trend: { 
+                    value: taskCompletionStats.percentage, 
+                    positive: true 
+                  }
+                },
+                {
+                  label: 'Active Students',
+                  value: totalActiveStudents.toString(),
+                  progress: studentCompletionRate,
+                  status: totalActiveStudents === 0 ? 'neutral' : 'positive'
+                }
+              ]}
+              className="md:col-span-1"
+            />
+            <OverviewCard
+              title="Leaderboard Overview"
+              description={"Top students by overall performance"}
+              metrics={[
+                {
+                  label: 'Top Student',
+                  value: topStudent.studentName,
+                  // Only show positive status if we have data
+                  status: topStudent.studentId ? 'positive' : 'neutral'
+                },
+                {
+                  label: 'Participants',
+                  value: `${totalActiveStudents}`,
+                  // Show neutral if no participants, positive if there are participants
+                  status: totalActiveStudents > 0 ? 'positive' : 'neutral'
+                },
+                {
+                  label: 'Average Score',
+                  value: overallAverageScore > 0 ? `${overallAverageScore}%` : 'N/A',
+                  // Always show neutral when no data is available
+                  status: overallAverageScore === 0 ? 'neutral' : 
+                           overallAverageScore > 80 ? 'positive' : 'warning'
+                }
+              ]}
+              className="md:col-span-1"
+            />
+          </div>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
