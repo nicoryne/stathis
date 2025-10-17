@@ -8,6 +8,7 @@ interface Activity {
   time: string;
   status: 'completed' | 'not-started' | 'ongoing';
   score?: number;
+  maxScore?: number;
 }
 
 interface ActivityCardProps {
@@ -31,7 +32,9 @@ export function ActivityCard({ activities, className }: ActivityCardProps) {
               </div>
               <div className="flex items-center gap-2">
                 {activity.score !== undefined && (
-                  <span className="text-sm font-medium">{activity.score}/100</span>
+                  <span className="text-sm font-medium">
+                    {activity.score}/{activity.maxScore || 100}
+                  </span>
                 )}
                 <Badge
                   variant={
