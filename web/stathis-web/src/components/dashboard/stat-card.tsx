@@ -30,24 +30,24 @@ export function StatCard({
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.2 }}
     >
-      <Card className={cn('overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[220px] flex flex-col', className)}>
+      <Card className={cn('overflow-hidden rounded-2xl border-border/50 bg-card/90 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[200px] flex flex-col', className)}>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground tracking-tight">{title}</CardTitle>
           <div className="relative">
-            <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
-            <Icon className="relative text-primary h-5 w-5" />
+            <div className="absolute -inset-1.5 rounded-full bg-gradient-to-br from-primary/15 to-secondary/15 blur-md" />
+            <Icon className="relative text-primary h-4 w-4" />
           </div>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col gap-2">
-          <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
+          <div className="text-3xl md:text-4xl font-bold tabular-nums bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
           {description && <div className="text-muted-foreground text-sm leading-relaxed">{description}</div>}
           {trend && (
             <div className="mt-1 flex items-center gap-2">
               <div className={cn(
                 'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium',
                 trend.positive 
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' 
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                  ? 'bg-success/10 text-success border border-success/20' 
+                  : 'bg-destructive/10 text-destructive border border-destructive/20'
               )}>
                 {trend.positive ? (
                   <TrendingUp className="h-3 w-3" />

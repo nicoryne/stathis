@@ -328,7 +328,7 @@ export default function ClassroomPage() {
             
              <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                <DialogTrigger asChild>
-                 <Button className="md:w-auto bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200">
+                 <Button className="md:w-auto gradient-hero hover:opacity-90 shadow-lg hover:shadow-xl transition-all duration-200 text-white">
                    <Plus className="mr-2 h-4 w-4" />
                    Create Classroom
                  </Button>
@@ -483,7 +483,7 @@ export default function ClassroomPage() {
                   whileHover={{ scale: 1.02 }}
                   className="group"
                 >
-                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/90 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
                     <CardHeader className="pb-3">
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">

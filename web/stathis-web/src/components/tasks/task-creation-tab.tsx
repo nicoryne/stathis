@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Search, Filter, Grid3X3, List, X, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getClassroomTasks, startTask, deactivateTask, deleteTask, updateTask } from '@/services/tasks/api-task-client';
 import { getTeacherLessonTemplates, getTeacherQuizTemplates, getTeacherExerciseTemplates } from '@/services/templates/api-template-client';
@@ -49,6 +49,13 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus } from 'lucide-react';
 import { TemplateCreationModal } from '../templates/template-creation-modal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TaskCreationTabProps {
   classroomId: string;
@@ -60,6 +67,11 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskResponseDTO | null>(null);
   const [taskTypeFilter, setTaskTypeFilter] = useState<'ALL' | 'LESSON' | 'QUIZ' | 'EXERCISE'>('ALL');
+  
+  // New UX state variables
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [tasksPerPage] = useState(10);
   
   // Template type selection state
   const [selectedTemplateType, setSelectedTemplateType] = useState<string | null>(null);
@@ -403,7 +415,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     }
   };
 
-  // Filter and sort tasks
+  // Filter, search, and sort tasks with pagination
   const filteredAndSortedTasks = useMemo(() => {
     if (!tasks) return [];
     
@@ -413,13 +425,34 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
       filtered = tasks.filter(task => getTemplateType(task) === taskTypeFilter);
     }
     
+    // Search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(task => 
+        task.name.toLowerCase().includes(searchLower) ||
+        (task.description && task.description.toLowerCase().includes(searchLower))
+      );
+    }
+    
     // Sort by submission date (earliest first)
     return filtered.sort((a, b) => {
       const dateA = new Date(a.submissionDate).getTime();
       const dateB = new Date(b.submissionDate).getTime();
       return dateA - dateB;
     });
-  }, [tasks, taskTypeFilter]);
+  }, [tasks, taskTypeFilter, searchTerm]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedTasks.length / tasksPerPage);
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * tasksPerPage;
+    return filteredAndSortedTasks.slice(startIndex, startIndex + tasksPerPage);
+  }, [filteredAndSortedTasks, currentPage, tasksPerPage]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [taskTypeFilter, searchTerm]);
 
   // Helper function to check if a task is overdue
   const isTaskOverdue = (task: TaskResponseDTO): boolean => {
@@ -657,58 +690,77 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
         </DialogContent>
       </Dialog>
       
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
-        <div className="flex items-center gap-3">
-          {!creatingTask && tasks && tasks.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Filter:</span>
-              <div className="flex gap-1">
-                <Button
-                  variant={taskTypeFilter === 'ALL' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTaskTypeFilter('ALL')}
-                  className="h-8 px-3"
-                >
-                  All
-                </Button>
-                <Button
-                  variant={taskTypeFilter === 'LESSON' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTaskTypeFilter('LESSON')}
-                  className="h-8 px-3"
-                >
-                  Lessons
-                </Button>
-                <Button
-                  variant={taskTypeFilter === 'QUIZ' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTaskTypeFilter('QUIZ')}
-                  className="h-8 px-3"
-                >
-                  Quizzes
-                </Button>
-                <Button
-                  variant={taskTypeFilter === 'EXERCISE' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTaskTypeFilter('EXERCISE')}
-                  className="h-8 px-3"
-                >
-                  Exercises
-                </Button>
-              </div>
-            </div>
-          )}
+      {/* Enhanced Header with Search and Controls */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Tasks</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {filteredAndSortedTasks.length} of {tasks?.length || 0} tasks
+              {searchTerm && ` matching "${searchTerm}"`}
+            </p>
+          </div>
           {!creatingTask && (
             <Button
               onClick={handleCreateTask}
-              className="h-9"
+              className="h-9 gradient-hero text-white hover:opacity-90"
             >
               <Plus className="mr-2 h-4 w-4" />
               Create Task
             </Button>
           )}
         </div>
+
+        {/* Search and Filter Controls */}
+        {!creatingTask && tasks && tasks.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search Bar */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks by name or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-9 bg-card/90 backdrop-blur-xl border-border/50"
+              />
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+
+            {/* Filter Chips */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">Filter:</span>
+              <div className="flex gap-1 flex-wrap">
+                {(['ALL', 'LESSON', 'QUIZ', 'EXERCISE'] as const).map((filter) => (
+                  <Button
+                    key={filter}
+                    variant={taskTypeFilter === filter ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTaskTypeFilter(filter)}
+                    className={`h-8 px-3 text-xs ${
+                      taskTypeFilter === filter 
+                        ? 'gradient-primary text-white' 
+                        : 'bg-card/90 backdrop-blur-xl border-border/50 hover:bg-card/95'
+                    }`}
+                  >
+                    {filter === 'ALL' ? 'All' : 
+                     filter === 'LESSON' ? 'Lessons' :
+                     filter === 'QUIZ' ? 'Quizzes' : 'Exercises'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
       </div>
 
       {creatingTask ? (
@@ -767,106 +819,144 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3">
-              {filteredAndSortedTasks.map((task) => {
-                const taskType = getTemplateType(task);
-                return (
-                  <Card key={task.physicalId}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="secondary" className={`text-xs px-2 py-0.5 ${getTaskTypeColor(taskType)}`}>
-                              {getTemplateTypeLabel(taskType)}
-                            </Badge>
-                            <CardTitle className="text-base">{task.name}</CardTitle>
+            <div className="space-y-4">
+              {/* Task List - Compact Grid Only */}
+              <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                {paginatedTasks.map((task) => {
+                  const taskType = getTemplateType(task);
+                  return (
+                    <Card key={task.physicalId} className="bg-card/90 backdrop-blur-xl border-border/50 hover:shadow-lg transition-all duration-200">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="secondary" className={`text-xs px-2 py-0.5 ${getTaskTypeColor(taskType)}`}>
+                                {getTemplateTypeLabel(taskType)}
+                              </Badge>
+                              <h3 className="text-sm font-medium truncate">{task.name}</h3>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Due {formatDate(task.submissionDate)}
+                            </p>
                           </div>
-                          <CardDescription className="text-xs">
-                            Due {formatDate(task.submissionDate)}
-                            {task.closingDate && (
-                              <>
-                                <span className="text-muted-foreground/60 mx-1.5">•</span>
-                                <span className="text-muted-foreground">
-                                  {task.active ? 'Closes' : 'Closed'} {formatDate(task.closingDate)}
-                                </span>
-                              </>
-                            )}
-                          </CardDescription>
+                          <div className="flex items-center gap-1">
+                            <div className="flex-shrink-0">
+                              {getStatusBadge(task)}
+                            </div>
+                            {/* Kebab Menu */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 hover:bg-muted/50"
+                                >
+                                  <MoreHorizontal className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={() => openEditDialog(task)}
+                                  className="cursor-pointer"
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Task
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => openDeleteDialog(task)}
+                                  className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete Task
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
-                        <div className="flex-shrink-0">
-                          {getStatusBadge(task)}
+                      </CardHeader>
+                      <CardContent className="pb-2 pt-1">
+                        <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{task.description}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">
+                            {task.maxAttempts || '∞'} attempts
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant={task.started ? "outline" : "default"}
+                              size="sm"
+                              onClick={() => handleStartTask(task.physicalId)}
+                              disabled={task.started || startTaskMutation.isPending || !task.active}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {task.started ? 'Started' : 'Start'}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeactivateTask(task.physicalId)}
+                              disabled={!task.active || deactivateTaskMutation.isPending}
+                              className="h-6 px-2 text-xs"
+                            >
+                              {task.active ? 'Deactivate' : 'Inactive'}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pb-2 pt-1">
-                      <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                    </CardContent>
-                  <CardFooter className="flex justify-between items-center border-t pt-2 pb-2">
-                    <div className="text-xs text-muted-foreground">
-                      <span className="font-medium">{task.maxAttempts || '∞'}</span> attempts
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * tasksPerPage) + 1} to {Math.min(currentPage * tasksPerPage, filteredAndSortedTasks.length)} of {filteredAndSortedTasks.length} tasks
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 px-3"
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                        if (pageNum > totalPages) return null;
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`h-8 w-8 p-0 ${
+                              currentPage === pageNum 
+                                ? 'gradient-primary text-white' 
+                                : 'bg-card/90 backdrop-blur-xl border-border/50 hover:bg-card/95'
+                            }`}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {/* Start Task button */}
-                      <Button
-                        variant={task.started ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => handleStartTask(task.physicalId)}
-                        disabled={task.started || startTaskMutation.isPending || !task.active}
-                        className="h-7 px-2 text-xs"
-                      >
-                        {startTaskMutation.isPending && startTaskMutation.variables === task.physicalId ? (
-                          <span className="flex items-center">
-                            <span className="mr-1 h-2.5 w-2.5 animate-spin rounded-full border-2 border-r-transparent"></span>
-                            Starting...
-                          </span>
-                        ) : task.started ? 'Started' : 'Start'}
-                      </Button>
-                      
-                      {/* Deactivate Task button */}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeactivateTask(task.physicalId)}
-                        disabled={!task.active || deactivateTaskMutation.isPending}
-                        className={`h-7 px-2 text-xs ${!task.active ? "" : "text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 border-orange-200 dark:border-orange-800"}`}
-                      >
-                        {deactivateTaskMutation.isPending && deactivateTaskMutation.variables === task.physicalId ? (
-                          <span className="flex items-center">
-                            <span className="mr-1 h-2.5 w-2.5 animate-spin rounded-full border-2 border-r-transparent"></span>
-                            Deactivating...
-                          </span>
-                        ) : !task.active ? 'Inactive' : 'Deactivate'}
-                      </Button>
-                      
-                      {/* Edit Task button */}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => openEditDialog(task)}
-                        className="h-7 px-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 border-blue-200 dark:border-blue-800"
-                      >
-                        Edit
-                      </Button>
-                      
-                      {/* Delete Task button */}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => openDeleteDialog(task)}
-                        className="h-7 px-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 border-red-200 dark:border-red-800"
-                      >
-                        {deleteTaskMutation.isPending && deleteTaskMutation.variables === task.physicalId ? (
-                          <span className="flex items-center">
-                            <span className="mr-1 h-2.5 w-2.5 animate-spin rounded-full border-2 border-r-transparent"></span>
-                            Deleting...
-                          </span>
-                        ) : 'Delete'}
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-                );
-              })}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8 px-3"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

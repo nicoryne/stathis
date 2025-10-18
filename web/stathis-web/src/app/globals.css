@@ -49,49 +49,56 @@
   
   /* LIGHT MODE COLOR SCHEME - Following Stathis Design Specifications */
   
-  /* Background Colors */
-  --background: oklch(0.98 0.01 270); /* Main page background - light purple-tinted */
+  /* Background Colors - Warmer and more inviting */
+  --background: oklch(0.99 0.005 280); /* Warmer white with subtle purple tint */
   --foreground: oklch(0.25 0.05 240); /* Primary text - dark blue-gray */
-  --card: oklch(1 0 0); /* Card backgrounds - pure white */
+  --card: oklch(0.98 0.01 280); /* Card backgrounds - subtle purple tint */
   --card-foreground: oklch(0.25 0.05 240); /* Card text - dark blue-gray */
-  --popover: oklch(1 0 0); /* Popover backgrounds - pure white */
+  --popover: oklch(0.98 0.01 280); /* Popover backgrounds - subtle purple tint */
   --popover-foreground: oklch(0.25 0.05 240); /* Popover text - dark blue-gray */
   
-  /* Brand Colors */
-  --primary: oklch(0.55 0.15 300); /* Primary Purple #7D3C98 */
+  /* Brand Colors - Enhanced Purple-Teal Palette */
+  --primary: oklch(0.58 0.18 300); /* Richer Purple - more vibrant */
   --primary-foreground: oklch(1 0 0); /* White text on primary */
-  --secondary: oklch(0.65 0.12 180); /* Secondary/Accent Teal #1ABC9C */
+  --secondary: oklch(0.68 0.15 180); /* Brighter Teal - more modern */
   --secondary-foreground: oklch(1 0 0); /* White text on secondary */
-  --accent: oklch(0.65 0.12 180); /* Accent Teal - same as secondary */
+  --accent: oklch(0.72 0.12 200); /* Cool Blue Accent - better contrast */
   --accent-foreground: oklch(1 0 0); /* White text on accent */
   
-  /* Muted and Interactive */
-  --muted: oklch(0.96 0.01 270); /* Muted sections - light purple-tinted */
+  /* Muted and Interactive - Softer and more refined */
+  --muted: oklch(0.97 0.008 280); /* Softer muted sections */
   --muted-foreground: oklch(0.45 0.05 240); /* Secondary text - medium gray */
-  --border: oklch(0.92 0.01 270); /* Borders and inputs - light purple-tinted */
-  --input: oklch(0.92 0.01 270); /* Input backgrounds */
-  --ring: oklch(0.55 0.15 300); /* Focus rings - primary purple */
+  --border: oklch(0.90 0.01 280); /* Softer borders */
+  --input: oklch(0.90 0.01 280); /* Input backgrounds */
+  --ring: oklch(0.58 0.18 300); /* Focus rings - primary purple */
   
-  /* Error States */
-  --destructive: oklch(0.577 0.245 27.325); /* Error states - red */
+  /* Error States - Softer and more modern */
+  --destructive: oklch(0.60 0.15 20); /* Softer red for better UX */
   --destructive-foreground: oklch(1 0 0); /* White text on destructive */
   
-  /* Chart Colors for Data Visualization */
-  --chart-1: oklch(0.55 0.15 300); /* Primary purple */
-  --chart-2: oklch(0.65 0.12 180); /* Teal */
-  --chart-3: oklch(0.7 0.1 200); /* Light blue */
-  --chart-4: oklch(0.6 0.13 280); /* Purple variant */
-  --chart-5: oklch(0.5 0.16 320); /* Magenta */
+  /* Success and Warning States - New semantic colors */
+  --success: oklch(0.65 0.12 140); /* Soft green */
+  --success-foreground: oklch(0.95 0.01 280); /* Light text on success */
+  --warning: oklch(0.70 0.15 60); /* Warm amber */
+  --warning-foreground: oklch(0.95 0.01 280); /* Light text on warning */
   
-  /* Sidebar Colors */
-  --sidebar: oklch(1 0 0); /* White sidebar */
+  /* Chart Colors for Data Visualization - Enhanced palette */
+  --chart-1: oklch(0.58 0.18 300); /* Primary purple */
+  --chart-2: oklch(0.68 0.15 180); /* Teal */
+  --chart-3: oklch(0.72 0.12 200); /* Blue */
+  --chart-4: oklch(0.65 0.16 280); /* Purple variant */
+  --chart-5: oklch(0.70 0.14 320); /* Magenta */
+  --chart-6: oklch(0.68 0.13 160); /* Green */
+  
+  /* Sidebar Colors - Updated to match new palette */
+  --sidebar: oklch(0.98 0.01 280); /* Subtle purple-tinted sidebar */
   --sidebar-foreground: oklch(0.25 0.05 240); /* Dark text in sidebar */
-  --sidebar-primary: oklch(0.55 0.15 300); /* Purple sidebar primary */
+  --sidebar-primary: oklch(0.58 0.18 300); /* Purple sidebar primary */
   --sidebar-primary-foreground: oklch(1 0 0); /* White text on sidebar primary */
-  --sidebar-accent: oklch(0.65 0.12 180); /* Teal sidebar accent */
+  --sidebar-accent: oklch(0.68 0.15 180); /* Teal sidebar accent */
   --sidebar-accent-foreground: oklch(1 0 0); /* White text on sidebar accent */
-  --sidebar-border: oklch(0.92 0.01 270); /* Light purple-tinted borders */
-  --sidebar-ring: oklch(0.55 0.15 300); /* Purple focus ring */
+  --sidebar-border: oklch(0.90 0.01 280); /* Softer borders */
+  --sidebar-ring: oklch(0.58 0.18 300); /* Purple focus ring */
 
   /* Typography */
   --font-heading: var(--font-outfit);
@@ -101,49 +108,56 @@
 .dark {
   /* DARK MODE COLOR SCHEME - Following Stathis Design Specifications */
   
-  /* Background Colors */
-  --background: oklch(0.12 0.02 270); /* Main page background - dark with purple tint */
+  /* Background Colors - Better depth and contrast */
+  --background: oklch(0.10 0.02 280); /* Deeper dark with purple tint */
   --foreground: oklch(0.95 0.01 270); /* Primary text - bright with subtle purple tint */
-  --card: oklch(0.16 0.02 270); /* Card backgrounds - dark elevated surface */
+  --card: oklch(0.14 0.02 280); /* Card backgrounds - better elevation */
   --card-foreground: oklch(0.95 0.01 270); /* Card text - bright */
-  --popover: oklch(0.16 0.02 270); /* Popover backgrounds - dark elevated surface */
+  --popover: oklch(0.14 0.02 280); /* Popover backgrounds - better elevation */
   --popover-foreground: oklch(0.95 0.01 270); /* Popover text - bright */
   
-  /* Brand Colors */
-  --primary: oklch(0.68 0.15 300); /* Primary Purple - bright for dark mode */
+  /* Brand Colors - Enhanced for dark mode */
+  --primary: oklch(0.72 0.18 300); /* Brighter purple for dark mode */
   --primary-foreground: oklch(0.95 0.01 270); /* Bright text on primary */
-  --secondary: oklch(0.72 0.12 180); /* Accent Teal - bright for dark mode */
+  --secondary: oklch(0.75 0.15 180); /* Vibrant teal for dark mode */
   --secondary-foreground: oklch(0.95 0.01 270); /* Bright text on secondary */
-  --accent: oklch(0.72 0.12 180); /* Accent Teal - same as secondary */
+  --accent: oklch(0.78 0.12 200); /* Bright blue accent for dark mode */
   --accent-foreground: oklch(0.95 0.01 270); /* Bright text on accent */
   
-  /* Muted and Interactive */
-  --muted: oklch(0.2 0.02 270); /* Muted sections - dark purple-tinted */
+  /* Muted and Interactive - Better contrast */
+  --muted: oklch(0.18 0.02 280); /* Better muted sections */
   --muted-foreground: oklch(0.7 0.05 240); /* Secondary text - muted bright */
-  --border: oklch(0.24 0.02 270); /* Borders and inputs - darker elevated surface */
-  --input: oklch(0.24 0.02 270); /* Input backgrounds */
-  --ring: oklch(0.68 0.15 300); /* Focus rings - primary purple */
+  --border: oklch(0.22 0.02 280); /* Better borders */
+  --input: oklch(0.22 0.02 280); /* Input backgrounds */
+  --ring: oklch(0.72 0.18 300); /* Focus rings - primary purple */
   
-  /* Error States */
-  --destructive: oklch(0.65 0.2 25); /* Error states - red for dark mode */
+  /* Error States - Enhanced for dark mode */
+  --destructive: oklch(0.65 0.2 25); /* Better red for dark mode */
   --destructive-foreground: oklch(0.95 0.01 270); /* Bright text on destructive */
   
-  /* Chart Colors for Data Visualization */
-  --chart-1: oklch(0.68 0.15 300); /* Primary purple */
-  --chart-2: oklch(0.72 0.12 180); /* Teal */
-  --chart-3: oklch(0.7 0.1 200); /* Light blue */
-  --chart-4: oklch(0.6 0.13 280); /* Purple variant */
-  --chart-5: oklch(0.5 0.16 320); /* Magenta */
+  /* Success and Warning States - Dark mode variants */
+  --success: oklch(0.70 0.12 140); /* Brighter green for dark mode */
+  --success-foreground: oklch(0.95 0.01 280); /* Light text on success */
+  --warning: oklch(0.75 0.15 60); /* Brighter amber for dark mode */
+  --warning-foreground: oklch(0.95 0.01 280); /* Light text on warning */
   
-  /* Sidebar Colors */
-  --sidebar: oklch(0.16 0.02 270); /* Dark elevated sidebar */
+  /* Chart Colors for Data Visualization - Enhanced dark mode */
+  --chart-1: oklch(0.72 0.18 300); /* Primary purple */
+  --chart-2: oklch(0.75 0.15 180); /* Teal */
+  --chart-3: oklch(0.78 0.12 200); /* Blue */
+  --chart-4: oklch(0.70 0.16 280); /* Purple variant */
+  --chart-5: oklch(0.75 0.14 320); /* Magenta */
+  --chart-6: oklch(0.73 0.13 160); /* Green */
+  
+  /* Sidebar Colors - Enhanced dark mode */
+  --sidebar: oklch(0.14 0.02 280); /* Better elevated sidebar */
   --sidebar-foreground: oklch(0.95 0.01 270); /* Bright text in sidebar */
-  --sidebar-primary: oklch(0.68 0.15 300); /* Purple sidebar primary */
+  --sidebar-primary: oklch(0.72 0.18 300); /* Purple sidebar primary */
   --sidebar-primary-foreground: oklch(0.95 0.01 270); /* Bright text on sidebar primary */
-  --sidebar-accent: oklch(0.72 0.12 180); /* Teal sidebar accent */
+  --sidebar-accent: oklch(0.75 0.15 180); /* Teal sidebar accent */
   --sidebar-accent-foreground: oklch(0.95 0.01 270); /* Bright text on sidebar accent */
-  --sidebar-border: oklch(0.24 0.02 270); /* Dark purple-tinted borders */
-  --sidebar-ring: oklch(0.68 0.15 300); /* Purple focus ring */
+  --sidebar-border: oklch(0.22 0.02 280); /* Better borders */
+  --sidebar-ring: oklch(0.72 0.18 300); /* Purple focus ring */
 }
 
 h1,
@@ -172,7 +186,49 @@ input {
   }
 }
 
-/* Stathis Animation System */
+/* Enhanced Glassmorphism Effects */
+.card-glass {
+  background: oklch(0.98 0.01 280 / 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid oklch(0.90 0.01 280 / 0.3);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.1);
+}
+
+.dark .card-glass {
+  background: oklch(0.16 0.02 280 / 0.8);
+  border: 1px solid oklch(0.25 0.02 280 / 0.3);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.3);
+}
+
+/* Enhanced Gradient Combinations */
+.gradient-primary {
+  background: linear-gradient(135deg, 
+    oklch(0.58 0.18 300), 
+    oklch(0.68 0.15 180),
+    oklch(0.72 0.12 200)
+  );
+}
+
+.gradient-subtle {
+  background: linear-gradient(135deg, 
+    oklch(0.58 0.18 300 / 0.1), 
+    oklch(0.68 0.15 180 / 0.1)
+  );
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, 
+    oklch(0.58 0.18 300), 
+    oklch(0.68 0.15 180)
+  );
+}
+
+.dark .gradient-hero {
+  background: linear-gradient(135deg, 
+    oklch(0.72 0.18 300), 
+    oklch(0.75 0.15 180)
+  );
+}
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-20px); }

@@ -393,7 +393,7 @@ export default function DashboardPage() {
               <div className="flex gap-3">
                 <Button 
                   onClick={() => router.push('/classroom')}
-                  className="rounded-xl bg-gradient-to-r from-primary to-secondary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  className="rounded-xl gradient-hero shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white"
                 >
                   <HeartPulse className="mr-2 h-4 w-4" />
                   Manage Classrooms
@@ -401,7 +401,7 @@ export default function DashboardPage() {
                 <Button 
                   variant="outline" 
                   onClick={() => router.push('/monitoring')}
-                  className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300"
+                  className="rounded-xl bg-card/90 backdrop-blur-xl border-border/50 hover:bg-card/95 transition-all duration-300"
                 >
                   <Activity className="mr-2 h-4 w-4" />
                   View Monitoring
