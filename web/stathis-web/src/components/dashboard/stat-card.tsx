@@ -30,19 +30,19 @@ export function StatCard({
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.2 }}
     >
-      <Card className={cn('overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[280px] flex flex-col', className)}>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
+      <Card className={cn('overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full min-h-[220px] flex flex-col', className)}>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
           <div className="relative">
             <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
             <Icon className="relative text-primary h-5 w-5" />
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 flex-1 flex flex-col justify-between">
+        <CardContent className="flex-1 flex flex-col gap-2">
           <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
-          {description && <div className="text-muted-foreground text-sm">{description}</div>}
+          {description && <div className="text-muted-foreground text-sm leading-relaxed">{description}</div>}
           {trend && (
-            <div className="flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-2">
               <div className={cn(
                 'flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium',
                 trend.positive 
