@@ -7,7 +7,6 @@ import { useQuery } from '@tanstack/react-query';
 import { 
   getStudentBadges, 
   getStudentLeaderboardPosition,
-  getStudentById,
   fetchStudentProgressItems,
   StudentDTO,
   StudentProgressItemDTO
@@ -56,19 +55,6 @@ export default function StudentProgressDetailPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
 
-  // Fetch student details (for name and profile info)
-  const {
-    data: studentDetails,
-    isLoading: isStudentLoading,
-    isError: isStudentError
-  } = useQuery({
-    queryKey: ['student-details', studentId],
-    queryFn: () => getStudentById(studentId),
-    enabled: !!studentId,
-    retry: 1, // Only retry once since we have fallback handling
-    retryDelay: 1000, // Wait 1 second between retries
-  });
-
   // Get the classroom ID from the URL query parameter
   const searchParams = useSearchParams();
   const classroomId = searchParams.get('classroomId') || undefined;
@@ -108,7 +94,7 @@ export default function StudentProgressDetailPage() {
     enabled: !!studentId,
   });
 
-  // Fetch classroom students to get the proper enrollment date (joinedAt)
+  // Fetch classroom students to get student details and enrollment date
   const { 
     data: classroomStudentsData,
     isLoading: isClassroomStudentsLoading 
@@ -126,22 +112,32 @@ export default function StudentProgressDetailPage() {
   const idParts = studentId.split('-');
   const studentNumber = idParts.length >= 3 ? idParts[2] : studentId;
   
-  // Find the student in the classroom students list to get their enrollment date
-  const enrollmentDate = classroomStudentsData?.students?.find(
+  // Find the student in the classroom students list
+  const studentFromClassroom = classroomStudentsData?.students?.find(
     s => s.physicalId === studentId
-  )?.joinedAt;
+  );
   
-  // Use the student details if available, otherwise create a fallback
-  const studentData: StudentDTO = studentDetails || {
+  // Get enrollment date from classroom data
+  const enrollmentDate = studentFromClassroom?.joinedAt;
+  
+  // Use student data from classroom if available, otherwise create a fallback
+  const studentData: StudentDTO = studentFromClassroom ? {
+    physicalId: studentFromClassroom.physicalId,
+    firstName: studentFromClassroom.firstName,
+    lastName: studentFromClassroom.lastName,
+    email: studentFromClassroom.email,
+    profilePictureUrl: studentFromClassroom.profilePictureUrl,
+    isVerified: (studentFromClassroom as any).verified || (studentFromClassroom as any).isVerified || true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } : {
     // Fallback student data if details aren't available
     physicalId: studentId,
     firstName: `Student ${studentNumber}`,
     lastName: '',
     email: '',
     profilePictureUrl: '',
-    verified: true, // Assume verified for UI purposes
     isVerified: true,
-    joinedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -255,13 +251,13 @@ export default function StudentProgressDetailPage() {
   const progressStats = computeStatistics();
   
   // Loading state - show skeleton if data is loading but not if there's an error
-  const isLoading = (isProgressItemsLoading && !isProgressError) || (isStudentLoading && !isStudentError);
+  const isLoading = (isProgressItemsLoading && !isProgressError) || isClassroomStudentsLoading;
   
   // Error state - show error message if progress data fails to load and isn't loading
   const isError = isProgressError && !isProgressItemsLoading;
   
   // Handle 403 errors gracefully by using fallback data
-  const hasValidData = !!progressItems || !!studentDetails;
+  const hasValidData = !!progressItems || !!studentFromClassroom;
   
   // Use progress statistics for KPIs when available
   const overallScore = progressStats.kpis.averageScore.toFixed(1);
