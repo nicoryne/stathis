@@ -9,10 +9,12 @@ import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
 import citu.edu.stathis.mobile.features.tasks.domain.usecase.*
 import citu.edu.stathis.mobile.features.common.domain.Result
 import citu.edu.stathis.mobile.features.common.domain.asResult
+import citu.edu.stathis.mobile.core.data.AuthTokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,7 +27,9 @@ class TaskViewModel @Inject constructor(
     private val getQuizTemplateResultUseCase: GetQuizTemplateResultUseCase,
     private val submitQuizScoreResultUseCase: SubmitQuizScoreResultUseCase,
     private val completeLessonResultUseCase: CompleteLessonResultUseCase,
-    private val completeExerciseResultUseCase: CompleteExerciseResultUseCase
+    private val completeExerciseResultUseCase: CompleteExerciseResultUseCase,
+    private val getQuizScoreResultUseCase: GetQuizScoreResultUseCase,
+    private val authTokenManager: AuthTokenManager
 ) : ViewModel() {
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
@@ -69,6 +73,18 @@ class TaskViewModel @Inject constructor(
             when (val result = getTaskProgressResultUseCase(taskId)) {
                 is Result.Success -> _taskProgress.value = result.data
                 is Result.Error -> _error.value = result.message
+            }
+        }
+    }
+
+    fun loadTaskProgressWithSuppressError(taskId: String) {
+        viewModelScope.launch {
+            when (val result = getTaskProgressResultUseCase(taskId)) {
+                is Result.Success -> _taskProgress.value = result.data
+                is Result.Error -> {
+                    // Suppress error to avoid showing 403 banners
+                    android.util.Log.w("TaskViewModel", "Failed to load task progress for $taskId: ${result.message}")
+                }
             }
         }
     }
@@ -132,6 +148,60 @@ class TaskViewModel @Inject constructor(
 
     fun clearError() {
         _error.value = null
+    }
+    
+    fun refreshTaskProgress(taskId: String) {
+        viewModelScope.launch {
+            when (val result = getTaskProgressResultUseCase(taskId)) {
+                is Result.Success -> _taskProgress.value = result.data
+                is Result.Error -> {
+                    // Suppress error to avoid showing banners during refresh
+                    android.util.Log.w("TaskViewModel", "Failed to refresh task progress for $taskId: ${result.message}")
+                }
+            }
+        }
+    }
+
+    fun refreshTaskProgressWithScores(taskId: String, quizTemplateId: String?) {
+        viewModelScope.launch {
+            // Get student ID from AuthTokenManager
+            val studentId = authTokenManager.physicalIdFlow.firstOrNull()
+            if (studentId.isNullOrBlank()) {
+                // Fallback to basic refresh if no student ID
+                refreshTaskProgress(taskId)
+                return@launch
+            }
+            
+            // First get the basic progress
+            when (val result = getTaskProgressResultUseCase(taskId)) {
+                is Result.Success -> {
+                    var progress = result.data
+                    
+                    // If we have a quiz template, try to get the specific quiz score
+                    if (!quizTemplateId.isNullOrBlank()) {
+                        try {
+                            val scoreResult = getQuizScoreResultUseCase(studentId, taskId, quizTemplateId)
+                            if (scoreResult is Result.Success) {
+                                val score = scoreResult.data
+                                // Update progress with the latest score data
+                                progress = progress.copy(
+                                    quizScore = score.score ?: 0,
+                                    quizCompleted = true,
+                                    quizAttempts = score.attempts ?: 1 // Use attempts from score or default to 1
+                                )
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.w("TaskViewModel", "Failed to fetch quiz score: ${e.message}")
+                        }
+                    }
+                    
+                    _taskProgress.value = progress
+                }
+                is Result.Error -> {
+                    android.util.Log.w("TaskViewModel", "Failed to refresh task progress for $taskId: ${result.message}")
+                }
+            }
+        }
     }
     
     suspend fun getTaskProgress(taskId: String, suppressError: Boolean = false): TaskProgressResponse? {

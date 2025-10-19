@@ -88,6 +88,11 @@ data class QuizSubmission(
     val answers: List<QuizAnswer>
 )
 
+// Simplified model for auto-check API (just answers)
+data class QuizAutoCheckRequest(
+    val answers: List<Int> // Just the selected answer indices
+)
+
 data class QuizResult(
     val score: Int,
     val maxScore: Int,

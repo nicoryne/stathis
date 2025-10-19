@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.tasks.navigation.navigateToTaskList
 import androidx.navigation.NavController
+import citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomViewModel
 
 /**
  * Calculates the progress percentage based on started tasks
@@ -49,10 +50,80 @@ fun ClassroomDetailScreen(
     navController: NavController,
     viewModel: ClassroomViewModel = hiltViewModel()
 ) {
+    val verifiedMapState = viewModel.verifiedMap.collectAsState()
     val classroom by viewModel.selectedClassroom.collectAsState()
-    val classroomTasks by viewModel.classroomTasks.collectAsState()
+    val tasksState by viewModel.tasksState.collectAsState()
 
-    LaunchedEffect(classroomId) { viewModel.loadClassroomDetails(classroomId) }
+    LaunchedEffect(classroomId) { 
+        viewModel.loadClassroomTasks(classroomId)
+    }
+    LaunchedEffect(verifiedMapState.value.isEmpty()) {
+        if (verifiedMapState.value.isEmpty()) viewModel.loadStudentClassrooms()
+    }
+
+    val verificationStatus = verifiedMapState.value[classroomId]
+    
+    // Extract tasks from tasksState
+    val currentTasksState = tasksState
+    val classroomTasks = when (currentTasksState) {
+        is citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.TasksState.Success -> currentTasksState.tasks
+        else -> emptyList()
+    }
+    
+    if (verificationStatus == null) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Loading…") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
+        }
+    } else if (verificationStatus == false) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Pending Verification") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(12.dp))
+                Text("Your enrollment is pending teacher verification.", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(6.dp))
+                Text("You will gain access once verified.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    } else {
 
     Scaffold(
         topBar = {
@@ -148,7 +219,7 @@ fun ClassroomDetailScreen(
                 }
             }
 
-            // Floating Action Button
+            // Floating Action Button (navigation guarded in LearnScreen and HomeNavHost)
             FloatingActionButton(
                 onClick = { navController.navigateToTaskList(classroomId) },
                 modifier = Modifier
@@ -160,6 +231,7 @@ fun ClassroomDetailScreen(
                 Icon(Icons.Default.PlayArrow, contentDescription = "Start Exercising")
             }
         }
+    }
     }
 }
 

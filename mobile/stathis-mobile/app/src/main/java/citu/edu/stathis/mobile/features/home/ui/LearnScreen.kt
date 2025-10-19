@@ -89,7 +89,7 @@ fun LearnScreen(
         ) {
     // Streak Header and Join Class
     StreakHeader(
-        streak = 7,
+        streak = (progressState as? ProgressState.Success)?.progress?.streakDays ?: 0,
         onJoinClassClick = { enrollDialog = true }
     )
 

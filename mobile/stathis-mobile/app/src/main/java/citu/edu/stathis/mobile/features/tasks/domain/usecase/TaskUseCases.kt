@@ -135,3 +135,31 @@ class CompleteExerciseResultUseCase @Inject constructor(
         }
 }
 
+class GetQuizScoreUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(studentId: String, taskId: String, quizTemplateId: String): Flow<ScoreResponse> =
+        repository.getQuizScore(studentId, taskId, quizTemplateId)
+}
+
+class GetQuizScoreResultUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(studentId: String, taskId: String, quizTemplateId: String): Result<ScoreResponse> =
+        safeCall { repository.getQuizScore(studentId, taskId, quizTemplateId).first() }
+}
+
+class GetScoresByStudentAndTaskUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(studentId: String, taskId: String): Flow<List<ScoreResponse>> =
+        repository.getScoresByStudentAndTask(studentId, taskId)
+}
+
+class GetScoresByStudentAndTaskResultUseCase @Inject constructor(
+    private val repository: TaskRepository
+) {
+    suspend operator fun invoke(studentId: String, taskId: String): Result<List<ScoreResponse>> =
+        safeCall { repository.getScoresByStudentAndTask(studentId, taskId).first() }
+}
+

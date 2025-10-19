@@ -57,7 +57,13 @@ class TaskTemplateViewModel @Inject constructor(
                             createMockQuizTemplate()
                         }
                     }
-                    "EXERCISE" -> createMockExerciseTemplate()
+                    "EXERCISE" -> {
+                        if (!templateId.isNullOrBlank()) {
+                            taskRepository.getExerciseTemplate(templateId).first()
+                        } else {
+                            createMockExerciseTemplate()
+                        }
+                    }
                     else -> throw IllegalArgumentException("Unknown template type: $templateType")
                 }
 
@@ -81,25 +87,48 @@ class TaskTemplateViewModel @Inject constructor(
         }
     }
 
+    fun submitLesson(taskId: String, lessonTemplateId: String) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("TaskTemplateViewModel", "Submitting lesson completion for task: $taskId, template: $lessonTemplateId")
+                
+                // Submit lesson completion to backend
+                taskRepository.completeLesson(taskId, lessonTemplateId)
+                
+                // Increment lesson attempts in cache
+                LessonAttemptsCache.increment(taskId)
+                
+                // Mark task as completed for immediate UI feedback
+                TaskCompletionCache.markCompleted(taskId)
+                
+                android.util.Log.d("TaskTemplateViewModel", "Lesson submitted successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("TaskTemplateViewModel", "Failed to submit lesson", e)
+                _error.value = e.message
+            }
+        }
+    }
+
     fun submitQuiz(taskId: String, submission: QuizSubmission) {
         viewModelScope.launch {
             try {
                 val template = (_templateState.value as? TemplateState.Success)?.template as? QuizTemplate
                 if (template != null) {
-                    // Prefer backend auto-check to compute and persist the score
-                    val effectiveSubmission = submission.copy(
-                        taskId = taskId,
-                        templateId = template.physicalId
-                    )
-                    val scoreResponse = taskRepository.autoCheckQuiz(taskId, template.physicalId, effectiveSubmission).first()
-                    // Persist score explicitly if required by backend
-                    runCatching {
-                        taskRepository.submitQuizScore(taskId, template.physicalId, scoreResponse.score).first()
-                    }
+                    // Convert QuizSubmission to QuizAutoCheckRequest (just the answer indices)
+                    val answerIndices = submission.answers.map { it.selectedAnswer }
+                    val autoCheckRequest = QuizAutoCheckRequest(answers = answerIndices)
+                    
+                    android.util.Log.d("TaskTemplateViewModel", "Submitting quiz with answers: $answerIndices")
+                    android.util.Log.d("TaskTemplateViewModel", "TaskId: $taskId, TemplateId: ${template.physicalId}")
+                    
+                    val scoreResponse = taskRepository.autoCheckQuiz(taskId, template.physicalId, autoCheckRequest).first()
+                    android.util.Log.d("TaskTemplateViewModel", "Quiz submitted successfully, score: ${scoreResponse.score ?: 0}")
+                    
                     // Optimistically mark completion for immediate UI feedback
                     TaskCompletionCache.markCompleted(taskId)
                 }
             } catch (e: Exception) {
+                android.util.Log.e("TaskTemplateViewModel", "Failed to submit quiz", e)
                 _error.value = e.message
             }
         }
@@ -108,11 +137,20 @@ class TaskTemplateViewModel @Inject constructor(
     fun submitExercise(taskId: String, performance: ExercisePerformance) {
         viewModelScope.launch {
             try {
+                android.util.Log.d("TaskTemplateViewModel", "Submitting exercise completion for task: $taskId, template: ${performance.templateId}")
+                
                 // Mark exercise as completed for the task
                 taskRepository.completeExercise(taskId, performance.templateId)
+                
+                // Increment exercise attempts in cache (using LessonAttemptsCache for now)
+                LessonAttemptsCache.increment(taskId)
+                
                 // Optimistic completion for UI
                 TaskCompletionCache.markCompleted(taskId)
+                
+                android.util.Log.d("TaskTemplateViewModel", "Exercise submitted successfully")
             } catch (e: Exception) {
+                android.util.Log.e("TaskTemplateViewModel", "Failed to submit exercise", e)
                 _error.value = e.message
             }
         }

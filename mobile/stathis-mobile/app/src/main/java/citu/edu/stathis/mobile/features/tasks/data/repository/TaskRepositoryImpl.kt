@@ -6,7 +6,9 @@ import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.ScoreResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
 import citu.edu.stathis.mobile.features.tasks.data.model.QuizTemplate
+import citu.edu.stathis.mobile.features.tasks.data.model.ExerciseTemplate
 import citu.edu.stathis.mobile.features.tasks.data.model.QuizSubmission
+import citu.edu.stathis.mobile.features.tasks.data.model.QuizAutoCheckRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject
@@ -60,6 +62,15 @@ class TaskRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getExerciseTemplate(exerciseTemplateId: String): Flow<ExerciseTemplate> = flow {
+        val response = taskService.getExerciseTemplate(exerciseTemplateId)
+        if (response.isSuccessful) {
+            response.body()?.let { emit(it) } ?: throw IllegalStateException("Empty body for exercise template")
+        } else {
+            throw IllegalStateException("Failed to load exercise template: ${response.code()} ${response.message()}")
+        }
+    }
+
     override suspend fun submitQuizScore(
         taskId: String,
         quizTemplateId: String,
@@ -76,9 +87,11 @@ class TaskRepositoryImpl @Inject constructor(
     override suspend fun autoCheckQuiz(
         taskId: String,
         quizTemplateId: String,
-        submission: QuizSubmission
+        request: QuizAutoCheckRequest
     ): Flow<ScoreResponse> = flow {
-        val response = taskService.autoCheckQuiz(taskId, quizTemplateId, submission)
+        android.util.Log.d("TaskRepositoryImpl", "Auto-checking quiz: taskId=$taskId, templateId=$quizTemplateId, answers=${request.answers}")
+        val response = taskService.autoCheckQuiz(taskId, quizTemplateId, request)
+        android.util.Log.d("TaskRepositoryImpl", "Auto-check response: code=${response.code()}, message=${response.message()}")
         if (response.isSuccessful) {
             response.body()?.let { emit(it) } ?: throw IllegalStateException("Empty body for auto-check score")
         } else {
@@ -97,6 +110,31 @@ class TaskRepositoryImpl @Inject constructor(
         val response = taskService.completeExercise(taskId, exerciseTemplateId)
         if (!response.isSuccessful) {
             throw IllegalStateException("Failed to complete exercise: ${response.code()} ${response.message()}")
+        }
+    }
+
+    override suspend fun getQuizScore(
+        studentId: String,
+        taskId: String,
+        quizTemplateId: String
+    ): Flow<ScoreResponse> = flow {
+        val response = taskService.getQuizScore(studentId, taskId, quizTemplateId)
+        if (response.isSuccessful) {
+            response.body()?.let { emit(it) } ?: throw IllegalStateException("Empty body for quiz score")
+        } else {
+            throw IllegalStateException("Failed to load quiz score: ${response.code()} ${response.message()}")
+        }
+    }
+
+    override suspend fun getScoresByStudentAndTask(
+        studentId: String,
+        taskId: String
+    ): Flow<List<ScoreResponse>> = flow {
+        val response = taskService.getScoresByStudentAndTask(studentId, taskId)
+        if (response.isSuccessful) {
+            response.body()?.let { emit(it) } ?: throw IllegalStateException("Empty body for scores by student and task")
+        } else {
+            throw IllegalStateException("Failed to load scores by student and task: ${response.code()} ${response.message()}")
         }
     }
 } 
