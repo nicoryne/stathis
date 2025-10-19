@@ -74,9 +74,6 @@ export function useHeartRateAlerts(classroomId: string) {
       setIsConnected(true);
       setError(null);
       console.log('WebSocket connected - ready to receive heart rate alerts');
-      
-      // Initial data fetch when connected
-      refreshData();
     }));
     
     subscriptions.push(wsManager.subscribe('$SYSTEM/disconnected', () => {
@@ -111,8 +108,6 @@ export function useHeartRateAlerts(classroomId: string) {
       wsManager.connect(token || undefined);
     } else {
       setIsConnected(true);
-      // Initial data fetch if already connected
-      refreshData();
     }
 
     // Cleanup all subscriptions
