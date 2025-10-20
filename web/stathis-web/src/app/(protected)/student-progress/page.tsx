@@ -124,21 +124,27 @@ export default function StudentProgressPage() {
   });
   
   // Get all student progress for the selected classroom
-  const { data: allProgressData, isLoading: isProgressLoading } = useQuery<StudentProgressItemDTO[]>({
+  const { data: allProgressData, isLoading: isProgressLoading } = useQuery<(StudentProgressItemDTO & { studentId: string })[]>({
     queryKey: ['classroom-progress', selectedClassroom, studentsData?.totalCount],
     queryFn: async () => {
       try {
         if (!selectedClassroom || !studentsData?.students.length) return [];
         
+        // Log classroom information
+        console.log(`Selected classroom for progress: ${selectedClassroom}`);
+        
         // Only fetch progress for verified students to prevent 403 errors
         const progressPromises = studentsData.students
           .filter((student: ClassroomStudentDTO) => student.verified || student.isVerified) // Skip unverified students
-          .map((student: ClassroomStudentDTO) => {
+          .map(async (student: ClassroomStudentDTO) => {
             console.log(`Fetching progress for student ${student.physicalId} in classroom ${selectedClassroom}`);
-            return fetchStudentProgressItems(student.physicalId, selectedClassroom);
+            // Pass the explicit classroom ID to ensure consistent access pattern
+            const progress = await fetchStudentProgressItems(student.physicalId, selectedClassroom);
+            // Add studentId to each progress item
+            return progress.map(item => ({ ...item, studentId: student.physicalId }));
           });
         
-        console.log(`Starting ${progressPromises.length} progress fetch operations`);
+        console.log(`Starting ${progressPromises.length} progress fetch operations for classroom ${selectedClassroom}`);
         const results = await Promise.allSettled(progressPromises);
         
         // Log any failures to help with debugging
@@ -150,14 +156,14 @@ export default function StudentProgressPage() {
         
         // Combine all successful results
         const successfulResults = results
-          .filter((result): result is PromiseFulfilledResult<StudentProgressItemDTO[]> => 
+          .filter((result): result is PromiseFulfilledResult<(StudentProgressItemDTO & { studentId: string })[]> => 
             result.status === 'fulfilled')
           .flatMap(result => result.value);
           
-        console.log(`Successfully fetched ${successfulResults.length} progress items`);
+        console.log(`Successfully fetched ${successfulResults.length} progress items from classroom ${selectedClassroom}`);
         return successfulResults;
       } catch (error) {
-        console.error('Error fetching classroom progress data:', error);
+        console.error(`Error fetching progress data for classroom ${selectedClassroom}:`, error);
         return [];
       }
     },
@@ -193,16 +199,24 @@ export default function StudentProgressPage() {
 
   // Filter students based on search term - with proper null checking
   const filteredStudents = studentsData && studentsData.students
-    ? studentsData.students.filter((student: ClassroomStudentDTO) => 
-        student.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.email?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? studentsData.students
+        .filter((student: ClassroomStudentDTO) => 
+          student.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          student.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          student.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a: ClassroomStudentDTO, b: ClassroomStudentDTO) => {
+          const firstNameA = a.firstName?.toLowerCase() || '';
+          const firstNameB = b.firstName?.toLowerCase() || '';
+          return firstNameA.localeCompare(firstNameB);
+        })
     : [];
 
   // Handle view student details
   const handleViewStudent = (studentId: string) => {
-    router.push(`/student-progress/${studentId}`);
+    // Pass the selected classroom ID as a query parameter
+    router.push(`/student-progress/${studentId}?classroomId=${selectedClassroom}`);
+    console.log(`Navigating to student ${studentId} with classroom ${selectedClassroom}`);
   };
   
   // Handle export report
@@ -214,9 +228,9 @@ export default function StudentProgressPage() {
     
     try {
       // Convert progress data to the format expected by the export function
-      const exportableData = allProgressData.map((progress: StudentProgressItemDTO) => ({
-        physicalId: `progress-${progress.taskId}`,
-        studentId: studentsData.students[0]?.physicalId || '',
+      const exportableData = allProgressData.map((progress: StudentProgressItemDTO & { studentId: string }) => ({
+        physicalId: `progress-${progress.taskId}-${progress.studentId}`,
+        studentId: progress.studentId,
         taskId: progress.taskId,
         taskName: progress.taskName,
         taskType: progress.taskType,
@@ -365,9 +379,9 @@ export default function StudentProgressPage() {
                       </TableHeader>
                       <TableBody>
                         {filteredStudents.map((student: ClassroomStudentDTO) => {
-                          // Calculate student statistics
+                          // Calculate student statistics - filter by student ID
                           const studentProgress = allProgressData?.filter(item => 
-                            item.taskId.includes(student.physicalId) || item.classroomPhysicalId === selectedClassroom
+                            item.studentId === student.physicalId
                           ) || [];
 
                           const completedTasks = studentProgress.filter(item => item.completed).length;
@@ -408,7 +422,7 @@ export default function StudentProgressPage() {
                                     {scoreValues.length > 0 ? (
                                       <div className="font-medium">{Math.round(avgScore)}%</div>
                                     ) : (
-                                      <div className="text-muted-foreground">NaN%</div>
+                                      <div className="text-muted-foreground">0%</div>
                                     )}
                                     <Progress 
                                       value={avgScore} 
@@ -491,7 +505,10 @@ export default function StudentProgressPage() {
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {allProgressData?.length ? 
-                            `Based on ${allProgressData.filter(p => p.score !== null).length} task${allProgressData.filter(p => p.score !== null).length === 1 ? '' : 's'}` : 
+                            (() => {
+                              const uniqueTasks = new Set(allProgressData.filter(p => p.score !== null).map(p => p.taskId));
+                              return `Based on ${uniqueTasks.size} unique task${uniqueTasks.size === 1 ? '' : 's'}`;
+                            })() : 
                             'No tasks available'}
                         </p>
                       </>

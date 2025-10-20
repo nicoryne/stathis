@@ -2,12 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { 
   getStudentBadges, 
   getStudentLeaderboardPosition,
-  getStudentById,
   fetchStudentProgressItems,
   StudentDTO,
   StudentProgressItemDTO
@@ -56,23 +55,10 @@ export default function StudentProgressDetailPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
 
-  // Fetch student details (for name and profile info)
-  const {
-    data: studentDetails,
-    isLoading: isStudentLoading,
-    isError: isStudentError
-  } = useQuery({
-    queryKey: ['student-details', studentId],
-    queryFn: () => getStudentById(studentId),
-    enabled: !!studentId,
-    retry: 1, // Only retry once since we have fallback handling
-    retryDelay: 1000, // Wait 1 second between retries
-  });
-
-  // Extract classroom ID from student ID for proper API access
-  const classroomId = studentId.includes('-') 
-    ? `${studentId.split('-')[0]}-${studentId.split('-')[1]}` 
-    : undefined;
+  // Get the classroom ID from the URL query parameter
+  const searchParams = useSearchParams();
+  const classroomId = searchParams.get('classroomId') || undefined;
+  console.log(`Got classroom ID from URL: ${classroomId || 'none'} for student ID: ${studentId}`);
     
   // Fetch student progress items using the new API endpoint with classroom context
   const {
@@ -107,22 +93,51 @@ export default function StudentProgressDetailPage() {
     queryFn: () => getStudentLeaderboardPosition(studentId),
     enabled: !!studentId,
   });
+
+  // Fetch classroom students to get student details and enrollment date
+  const { 
+    data: classroomStudentsData,
+    isLoading: isClassroomStudentsLoading 
+  } = useQuery({
+    queryKey: ['classroom-students-for-enrollment', classroomId],
+    queryFn: async () => {
+      if (!classroomId) return null;
+      const { getClassroomStudents } = await import('@/services/api-classroom');
+      return getClassroomStudents(classroomId);
+    },
+    enabled: !!classroomId,
+  });
   
   // Extract student ID parts for display in case we can't load full details
   const idParts = studentId.split('-');
   const studentNumber = idParts.length >= 3 ? idParts[2] : studentId;
   
-  // Use the student details if available, otherwise create a fallback
-  const studentData: StudentDTO = studentDetails || {
+  // Find the student in the classroom students list
+  const studentFromClassroom = classroomStudentsData?.students?.find(
+    s => s.physicalId === studentId
+  );
+  
+  // Get enrollment date from classroom data
+  const enrollmentDate = studentFromClassroom?.joinedAt;
+  
+  // Use student data from classroom if available, otherwise create a fallback
+  const studentData: StudentDTO = studentFromClassroom ? {
+    physicalId: studentFromClassroom.physicalId,
+    firstName: studentFromClassroom.firstName,
+    lastName: studentFromClassroom.lastName,
+    email: studentFromClassroom.email,
+    profilePictureUrl: studentFromClassroom.profilePictureUrl,
+    isVerified: (studentFromClassroom as any).verified || (studentFromClassroom as any).isVerified || true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  } : {
     // Fallback student data if details aren't available
     physicalId: studentId,
     firstName: `Student ${studentNumber}`,
     lastName: '',
     email: '',
     profilePictureUrl: '',
-    verified: true, // Assume verified for UI purposes
     isVerified: true,
-    joinedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -173,11 +188,16 @@ export default function StudentProgressDetailPage() {
     const quizAttempts = quizItems.length;
     
     // Calculate KPIs
-    // Average score across all tasks
-    const scoredItems = progressItems.filter(item => item.score !== null);
-    const averageScore = scoredItems.length > 0
-      ? Math.round(scoredItems.reduce((sum, item) => sum + (item.score || 0), 0) / 
-          scoredItems.reduce((sum, item) => sum + (item.maxScore || 100), 0) * 100)
+    // Average score across all tasks - only consider items with actual scores (exclude lessons)
+    const scoredItems = progressItems.filter(item => 
+      item.score !== null && item.taskType?.toUpperCase() !== 'LESSON'
+    );
+    const totalPoints = scoredItems.reduce((sum, item) => sum + (item.score || 0), 0);
+    const totalPossible = scoredItems.reduce((sum, item) => sum + (item.maxScore || 100), 0);
+    
+    // Calculate percentage only if we have valid scored items
+    const averageScore = scoredItems.length > 0 && totalPossible > 0
+      ? Math.round(totalPoints / totalPossible * 100)
       : 0;
     
     // Calculate recent activity
@@ -231,13 +251,13 @@ export default function StudentProgressDetailPage() {
   const progressStats = computeStatistics();
   
   // Loading state - show skeleton if data is loading but not if there's an error
-  const isLoading = (isProgressItemsLoading && !isProgressError) || (isStudentLoading && !isStudentError);
+  const isLoading = (isProgressItemsLoading && !isProgressError) || isClassroomStudentsLoading;
   
   // Error state - show error message if progress data fails to load and isn't loading
   const isError = isProgressError && !isProgressItemsLoading;
   
   // Handle 403 errors gracefully by using fallback data
-  const hasValidData = !!progressItems || !!studentDetails;
+  const hasValidData = !!progressItems || !!studentFromClassroom;
   
   // Use progress statistics for KPIs when available
   const overallScore = progressStats.kpis.averageScore.toFixed(1);
@@ -341,7 +361,7 @@ export default function StudentProgressDetailPage() {
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="outline" className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          Enrolled: {new Date(studentData.joinedAt || '').toLocaleDateString()}
+                          Enrolled: {enrollmentDate ? new Date(enrollmentDate).toLocaleDateString() : 'N/A'}
                         </Badge>
                         {leaderboardData && leaderboardData[0] && (
                           <Badge variant="outline" className="flex items-center gap-1">
@@ -456,99 +476,219 @@ export default function StudentProgressDetailPage() {
 
           {/* Task Scores Tab */}
           <TabsContent value="scores" className="space-y-4 mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-xl">Task Performance</CardTitle>
-                    <CardDescription>Scores for all completed tasks</CardDescription>
-                  </div>
-                  <BookOpen className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isProgressItemsLoading ? (
-                  <div className="space-y-4">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <Skeleton className="h-4 w-[250px]" />
-                        <Skeleton className="h-4 w-[100px]" />
-                      </div>
-                    ))}
-                  </div>
-                ) : !progressItems?.length ? (
-                  <div className="text-center py-6 text-muted-foreground">
+            {isProgressItemsLoading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Card key={index}>
+                    <CardHeader>
+                      <Skeleton className="h-6 w-[150px]" />
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-[200px] w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : !progressItems?.length ? (
+              <Card>
+                <CardContent className="py-6">
+                  <div className="text-center text-muted-foreground">
                     No task progress available for this student yet
                   </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Task Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Completed</TableHead>
-                        <TableHead className="text-right">Score</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {progressItems.map((item) => (
-                        <TableRow key={item.taskId}>
-                          <TableCell className="font-medium">
-                            <span className="font-medium">{item.taskName}</span>
-                          </TableCell>
-                          <TableCell>
-                            {item.taskType && (
-                              <Badge variant="outline" className={`flex items-center gap-1
-                                ${item.taskType.toLowerCase().includes('quiz') ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200' : ''}
-                                ${item.taskType.toLowerCase().includes('test') ? 'bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200' : ''}
-                                ${item.taskType.toLowerCase().includes('lesson') ? 'bg-green-100 text-green-800 hover:bg-green-200 border-green-200' : ''}
-                                ${item.taskType.toLowerCase().includes('exercise') ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200' : ''}
-                                ${item.taskType.toLowerCase().includes('assess') ? 'bg-indigo-100 text-indigo-800 hover:bg-indigo-200 border-indigo-200' : ''}
-                              `}>
-                                {/* Task type icons */}
-                                {item.taskType.toLowerCase().includes('quiz') && <BarChart className="h-3 w-3" />}
-                                {item.taskType.toLowerCase().includes('test') && <FileText className="h-3 w-3" />}
-                                {item.taskType.toLowerCase().includes('assess') && <GraduationCap className="h-3 w-3" />}
-                                {item.taskType.toLowerCase().includes('lesson') && <BookOpen className="h-3 w-3" />}
-                                {item.taskType.toLowerCase().includes('exercise') && <Dumbbell className="h-3 w-3" />}
-                                {!(item.taskType.toLowerCase().includes('quiz') || 
-                                   item.taskType.toLowerCase().includes('test') || 
-                                   item.taskType.toLowerCase().includes('lesson') || 
-                                   item.taskType.toLowerCase().includes('assess') || 
-                                   item.taskType.toLowerCase().includes('exercise')) && <User className="h-3 w-3" />}
-                                <span className="ml-1">{item.taskType}</span>
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {item.completed ? (
-                              <span className="flex items-center text-green-600">
-                                <CheckCircle2 className="h-4 w-4 mr-1" />
-                                Yes
-                              </span>
-                            ) : (
-                              <span className="flex items-center text-red-600">
-                                <XCircle className="h-4 w-4 mr-1" />
-                                No
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-medium">
-                              {item.score !== null ? 
-                                item.maxScore !== null ? 
-                                  `${item.score}/${item.maxScore}` : 
-                                  item.score 
-                                : 'N/A'}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* Quizzes Section */}
+                {(() => {
+                  const quizItems = progressItems
+                    .filter(item => item.taskType?.toUpperCase() === 'QUIZ')
+                    .sort((a, b) => {
+                      const dateA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+                      const dateB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+                      return dateB - dateA;
+                    });
+                  
+                  return quizItems.length > 0 ? (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <BarChart className="h-5 w-5 text-blue-600" />
+                          <CardTitle className="text-lg">Quizzes</CardTitle>
+                        </div>
+                        <CardDescription>{quizItems.length} total {quizItems.length === 1 ? 'quiz' : 'quizzes'}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40%]">Task Name</TableHead>
+                              <TableHead className="w-[30%]">Completed</TableHead>
+                              <TableHead className="w-[30%] text-right">Score</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {quizItems.map((item) => (
+                              <TableRow key={item.taskId}>
+                                <TableCell className="font-medium">{item.taskName}</TableCell>
+                                <TableCell>
+                                  {item.completed ? (
+                                    <span className="inline-flex items-center text-green-600">
+                                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                                      <span className="font-medium">Yes</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-red-600">
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      <span className="font-medium">No</span>
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className="font-medium">
+                                    {item.score !== null ? 
+                                      item.maxScore !== null ? 
+                                        `${item.score}/${item.maxScore}` : 
+                                        item.score 
+                                      : (
+                                        <span className="text-gray-500 italic">Not Answered</span>
+                                      )
+                                    }
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
+
+                {/* Exercises Section */}
+                {(() => {
+                  const exerciseItems = progressItems
+                    .filter(item => item.taskType?.toUpperCase() === 'EXERCISE')
+                    .sort((a, b) => {
+                      const dateA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+                      const dateB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+                      return dateB - dateA;
+                    });
+                  
+                  return exerciseItems.length > 0 ? (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <Dumbbell className="h-5 w-5 text-orange-600" />
+                          <CardTitle className="text-lg">Exercises</CardTitle>
+                        </div>
+                        <CardDescription>{exerciseItems.length} total {exerciseItems.length === 1 ? 'exercise' : 'exercises'}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40%]">Task Name</TableHead>
+                              <TableHead className="w-[30%]">Completed</TableHead>
+                              <TableHead className="w-[30%] text-right">Score</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {exerciseItems.map((item) => (
+                              <TableRow key={item.taskId}>
+                                <TableCell className="font-medium">{item.taskName}</TableCell>
+                                <TableCell>
+                                  {item.completed ? (
+                                    <span className="inline-flex items-center text-green-600">
+                                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                                      <span className="font-medium">Yes</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-red-600">
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      <span className="font-medium">No</span>
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className="font-medium">
+                                    {item.score !== null ? 
+                                      item.maxScore !== null ? 
+                                        `${item.score}/${item.maxScore}` : 
+                                        item.score 
+                                      : (
+                                        <span className="text-gray-500 italic">Not Answered</span>
+                                      )
+                                    }
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
+
+                {/* Lessons Section */}
+                {(() => {
+                  const lessonItems = progressItems
+                    .filter(item => item.taskType?.toUpperCase() === 'LESSON')
+                    .sort((a, b) => {
+                      const dateA = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+                      const dateB = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+                      return dateB - dateA;
+                    });
+                  
+                  return lessonItems.length > 0 ? (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-green-600" />
+                          <CardTitle className="text-lg">Lessons</CardTitle>
+                        </div>
+                        <CardDescription>{lessonItems.length} total {lessonItems.length === 1 ? 'lesson' : 'lessons'}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40%]">Task Name</TableHead>
+                              <TableHead className="w-[30%]">Completed</TableHead>
+                              <TableHead className="w-[30%] text-right">Score</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {lessonItems.map((item) => (
+                              <TableRow key={item.taskId}>
+                                <TableCell className="font-medium">{item.taskName}</TableCell>
+                                <TableCell>
+                                  {item.completed ? (
+                                    <span className="inline-flex items-center text-green-600">
+                                      <CheckCircle2 className="h-4 w-4 mr-1" />
+                                      <span className="font-medium">Yes</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-red-600">
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      <span className="font-medium">No</span>
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <span className="text-gray-400">—</span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
+              </>
+            )}
           </TabsContent>
 
           {/* Badges Tab */}

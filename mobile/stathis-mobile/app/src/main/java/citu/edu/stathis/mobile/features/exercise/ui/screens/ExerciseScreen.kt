@@ -55,27 +55,31 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavHostController
-import citu.edu.stathis.mobile.features.exercise.data.toPoseLandmarksData
-import citu.edu.stathis.mobile.features.exercise.domain.usecase.AnalyzePostureWithBackendUseCase
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.collectAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.exercise.data.posedetection.PoseAnalyzer
 import citu.edu.stathis.mobile.features.exercise.recording.ScreenRecordService
 import citu.edu.stathis.mobile.features.exercise.ui.components.PoseSkeletonOverlayView
-import citu.edu.stathis.mobile.features.exercise.presentation.PostureAnalyzeViewModel
 import citu.edu.stathis.mobile.features.vitals.ui.HealthCompactIndicator
 import com.google.mlkit.vision.pose.Pose
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 @Composable
-fun ExerciseTestScreen(
+fun ExerciseScreen(
     navController: NavHostController,
     enableVitalsIndicator: Boolean = false,
     enablePostureAnalysis: Boolean = true
 ) {
-    val analyzeViewModel: PostureAnalyzeViewModel = hiltViewModel()
+    val exerciseViewModel: citu.edu.stathis.mobile.features.exercise.ui.viewmodel.ExerciseViewModel = hiltViewModel()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    
+    val exerciseState by exerciseViewModel.uiState.collectAsState()
 
     var latestPose by remember { mutableStateOf<Pose?>(null) }
     var frameWidth by remember { mutableStateOf(0) }
@@ -173,8 +177,19 @@ fun ExerciseTestScreen(
                                     frameHeight = h
                                     rotation = rot
                                     if (enablePostureAnalysis) {
-                                        val landmarks = pose.toPoseLandmarksData()
-                                        analyzeViewModel.analyze(landmarks.toFloatArrayForBackend())
+                                        // Send to pose classification
+                                        val poseLandmarks = (0 until 33).mapNotNull { idx ->
+                                            val lm = pose.getPoseLandmark(idx) ?: return@mapNotNull null
+                                            citu.edu.stathis.mobile.features.exercise.ui.util.Landmark(
+                                                x = lm.position.x / w.toFloat(),
+                                                y = lm.position.y / h.toFloat(),
+                                                z = lm.position3D.z,
+                                                v = lm.inFrameLikelihood
+                                            )
+                                        }
+                                        if (poseLandmarks.size == 33) {
+                                            exerciseViewModel.onFrame(poseLandmarks)
+                                        }
                                     }
                                 },
                                 isImageFlipped = useFrontCamera
@@ -317,22 +332,6 @@ fun ExerciseTestScreen(
                     }
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Surface(
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.secondary
-                ) {
-                    IconButton(onClick = {
-                        val pose = latestPose ?: return@IconButton
-                        val landmarks = pose.toPoseLandmarksData().toFloatArrayForBackend()
-                        analyzeViewModel.analyze(landmarks)
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.ZoomOut,
-                            contentDescription = "Analyze Posture",
-                            tint = MaterialTheme.colorScheme.onSecondary
-                        )
-                    }
-                }
             }
         }
 
@@ -435,10 +434,85 @@ fun ExerciseTestScreen(
             }
         }
 
+        // Pose classification results overlay
+        if (exerciseState.predictedClass.isNotEmpty()) {
+            Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+                    .widthIn(max = 300.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    // Main classification result
+                    Text(
+                        text = "Pose: ${exerciseState.predictedClass}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    
+                    if (exerciseState.score > 0) {
+                        Text(
+                            text = "Confidence: ${(exerciseState.score * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    // Show all messages
+                    if (exerciseState.messages.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        exerciseState.messages.forEach { message ->
+                            Text(
+                                text = "• $message",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    // Show flags if any
+                    if (exerciseState.flags.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Flags: ${exerciseState.flags.joinToString(", ")}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    
+                    // Show top probabilities if available
+                    if (exerciseState.probabilities.isNotEmpty() && exerciseState.classNames.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Top probabilities:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        val topResults = exerciseState.probabilities
+                            .zip(exerciseState.classNames)
+                            .sortedByDescending { it.first }
+                            .take(3)
+                        topResults.forEach { (prob, className) ->
+                            Text(
+                                text = "  ${className}: ${(prob * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+
         if (enableVitalsIndicator) {
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
+                    .align(Alignment.BottomEnd)
                     .padding(12.dp)
             ) {
                 HealthCompactIndicator()

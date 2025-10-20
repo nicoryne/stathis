@@ -88,6 +88,11 @@ data class QuizSubmission(
     val answers: List<QuizAnswer>
 )
 
+// Backend auto-check payload expects just an array of integers
+data class QuizAutoCheckRequest(
+    val answers: List<Int>
+)
+
 data class QuizResult(
     val score: Int,
     val maxScore: Int,

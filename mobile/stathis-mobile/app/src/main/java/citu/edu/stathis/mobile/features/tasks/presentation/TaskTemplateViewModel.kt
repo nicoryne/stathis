@@ -14,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TaskTemplateViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val streakManager: citu.edu.stathis.mobile.core.streak.StreakManager
 ) : ViewModel() {
 
     private val _templateState = MutableStateFlow<TemplateState>(TemplateState.Loading)
@@ -44,10 +45,16 @@ class TaskTemplateViewModel @Inject constructor(
 
                 val template = when (templateType) {
                     "LESSON" -> {
-                        if (!templateId.isNullOrBlank()) {
-                            taskRepository.getLessonTemplate(templateId).first()
-                        } else {
-                            createMockLessonTemplate()
+                        val embedded = _taskDetail.value?.lessonTemplate
+                        when {
+                            !templateId.isNullOrBlank() && templateId != "embedded" -> {
+                                runCatching { taskRepository.getLessonTemplate(templateId).first() }
+                                    .getOrElse {
+                                        embedded ?: throw it
+                                    }
+                            }
+                            embedded != null -> embedded
+                            else -> createMockLessonTemplate()
                         }
                     }
                     "QUIZ" -> {
@@ -72,9 +79,17 @@ class TaskTemplateViewModel @Inject constructor(
     fun completeTask(taskId: String) {
         viewModelScope.launch {
             try {
-                // Mark task as completed
-                // In real implementation, this would call the API
-                // taskRepository.completeTask(taskId)
+                // If current template is a lesson, call completeLesson with its templateId
+                val lessonTemplate = (_templateState.value as? TemplateState.Success)?.template as? LessonTemplate
+                if (lessonTemplate != null) {
+                    taskRepository.completeLesson(taskId, lessonTemplate.physicalId)
+                    // Count lesson attempt for UI availability until max attempts is reached
+                    LessonAttemptsCache.increment(taskId)
+                    // Refresh progress so UI and lists reflect completion immediately
+                    runCatching { taskRepository.getTaskProgress(taskId).first() }
+                    // Record streak for daily activity
+                    streakManager.recordActivity()
+                }
             } catch (e: Exception) {
                 _error.value = e.message
             }
@@ -87,17 +102,31 @@ class TaskTemplateViewModel @Inject constructor(
                 val template = (_templateState.value as? TemplateState.Success)?.template as? QuizTemplate
                 if (template != null) {
                     // Prefer backend auto-check to compute and persist the score
-                    val effectiveSubmission = submission.copy(
+                    // Build minimal payload for backend: answers as zero-based list
+                    val autoCheckSubmission = submission.copy(
                         taskId = taskId,
                         templateId = template.physicalId
                     )
-                    val scoreResponse = taskRepository.autoCheckQuiz(taskId, template.physicalId, effectiveSubmission).first()
-                    // Persist score explicitly if required by backend
-                    runCatching {
-                        taskRepository.submitQuizScore(taskId, template.physicalId, scoreResponse.score).first()
+                    // Only call auto-check per API policy; backend stores attempts/score and enforces maxAttempts
+                    val scoreResponse = taskRepository.autoCheckQuiz(taskId, template.physicalId, autoCheckSubmission).first()
+                    // Do not update best score cache; UI shows latest attempt only
+                    // Proactively refresh so UI reflects attempts/score/completion
+                    runCatching { taskRepository.getStudentTask(taskId).first() }
+                    // Small retry with backoff to ensure score row is visible via progress immediately
+                    kotlin.runCatching {
+                        var retries = 3
+                        var delayMs = 200L
+                        while (retries-- > 0) {
+                            val progress = taskRepository.getTaskProgress(taskId).first()
+                            if ((progress.quizScore ?: -1) >= 0) break
+                            kotlinx.coroutines.delay(delayMs)
+                            delayMs *= 2
+                        }
                     }
                     // Optimistically mark completion for immediate UI feedback
                     TaskCompletionCache.markCompleted(taskId)
+                    // Record streak
+                    streakManager.recordActivity()
                 }
             } catch (e: Exception) {
                 _error.value = e.message
@@ -112,6 +141,10 @@ class TaskTemplateViewModel @Inject constructor(
                 taskRepository.completeExercise(taskId, performance.templateId)
                 // Optimistic completion for UI
                 TaskCompletionCache.markCompleted(taskId)
+                // Refresh progress so list reflects completion immediately
+                runCatching { taskRepository.getTaskProgress(taskId).first() }
+                // Record streak
+                streakManager.recordActivity()
             } catch (e: Exception) {
                 _error.value = e.message
             }
