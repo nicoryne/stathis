@@ -9,6 +9,7 @@ import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetClassroomTas
 import citu.edu.stathis.mobile.features.classroom.domain.usecase.GetStudentClassroomsResultUseCase
 import citu.edu.stathis.mobile.features.common.domain.Result
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
+import citu.edu.stathis.mobile.features.profile.data.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +31,8 @@ class ClassroomViewModel @Inject constructor(
     private val getClassroomDetailsUseCase: GetClassroomDetailsUseCase,
     private val getClassroomTasksUseCase: GetClassroomTasksUseCase,
     private val classroomService: citu.edu.stathis.mobile.features.classroom.data.api.ClassroomService,
-    private val authTokenManager: citu.edu.stathis.mobile.core.data.AuthTokenManager
+    private val authTokenManager: citu.edu.stathis.mobile.core.data.AuthTokenManager,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
     // UI state for classrooms
@@ -94,80 +96,55 @@ class ClassroomViewModel @Inject constructor(
                                 } else {
                                     _classroomsState.value = ClassroomsState.Success(classrooms)
                                     // Fetch verification flags for current user in these classrooms
-                                    val me = authTokenManager.physicalIdFlow.firstOrNull()
-                                    Timber.d("Current user ID: $me")
-                                    
-                                    // Check if this is a demo user
-                                    val accessToken = authTokenManager.accessTokenFlow.firstOrNull()
-                                    val isDemoUser = accessToken == "debug_access"
-                                    Timber.d("Access token: $accessToken, isDemoUser: $isDemoUser")
+                                    var me = authTokenManager.physicalIdFlow.firstOrNull()
+                                    Timber.d("Current user ID (from token store): $me")
+                                    // If we don't have a physicalId yet, fetch profile to resolve identity once
+                                    if (me.isNullOrBlank()) {
+                                        runCatching { profileRepository.getUserProfile() }.onSuccess { resp ->
+                                            if (resp.success && resp.data != null) {
+                                                val profile = resp.data
+                                                // Persist physicalId for future lookups
+                                                runCatching {
+                                                    viewModelScope.launch {
+                                                        authTokenManager.updateUserIdentity(profile.physicalId, profile.role)
+                                                    }
+                                                }
+                                                me = profile.physicalId
+                                                Timber.d("Resolved user ID from profile: $me")
+                                            }
+                                        }.onFailure { Timber.w(it, "Failed to resolve profile for user id; will still attempt email match below") }
+                                    }
                                     
                                     if (!me.isNullOrBlank()) {
                                         val map = mutableMapOf<String, Boolean>()
-                                        
-                                        if (isDemoUser || me == "debug_user") {
-                                            // For demo users, simulate verification status based on classroom names
-                                            // This is a temporary solution for demo purposes
-                                            Timber.d("Demo user detected, using simulated verification status")
-                                            for (c in classrooms) {
-                                                // Simulate that PE 101 and PATHFIT 101 are verified, Test Classroom is pending
-                                                val isVerified = when {
-                                                    c.name.contains("PE 101") -> true
-                                                    c.name.contains("PATHFIT 101") -> true
-                                                    c.name.contains("Test Classroom") -> false
-                                                    else -> true // Default to verified for other classrooms
-                                                }
-                                                map[c.physicalId] = isVerified
-                                                Timber.d("Demo verification for ${c.name}: $isVerified")
-                                            }
-                                        } else {
-                                            // Real user - fetch actual verification status from API
-                                            for (c in classrooms) {
-                                                try {
-                                                    Timber.d("Fetching students for classroom: ${c.physicalId}")
-                                                    val resp = classroomService.getStudentsForClassroom(c.physicalId)
-                                                    if (resp.isSuccessful) {
-                                                        val list = resp.body().orEmpty()
-                                                        Timber.d("Students in classroom ${c.physicalId}: $list")
-                                                        val entry = list.firstOrNull { it.physicalId.equals(me, ignoreCase = true) || it.email.equals(me, ignoreCase = true) }
-                                                        if (entry != null) {
-                                                            Timber.d("Found student entry for ${c.physicalId}: verified=${entry.verified}")
-                                                            map[c.physicalId] = entry.verified
-                                                        } else {
-                                                            Timber.w("No student entry found for user $me in classroom ${c.physicalId}")
-                                                            // Default to false (pending) if student not found in the list
-                                                            map[c.physicalId] = false
-                                                        }
-                                                    } else {
-                                                        Timber.e("Failed to fetch students for classroom ${c.physicalId}: ${resp.code()} ${resp.message()}")
-                                                        // Default to false (pending) if API call fails
-                                                        map[c.physicalId] = false
-                                                    }
-                                                } catch (e: Exception) { 
-                                                    Timber.e(e, "Exception fetching students for classroom ${c.physicalId}")
-                                                    // Default to false (pending) if exception occurs
+                                        // Fetch actual verification status from API; default to false
+                                        for (c in classrooms) {
+                                            try {
+                                                Timber.d("Fetching students for classroom: ${c.physicalId}")
+                                                val resp = classroomService.getStudentsForClassroom(c.physicalId)
+                                                if (resp.isSuccessful) {
+                                                    val list = resp.body().orEmpty()
+                                                    Timber.d("Students in classroom ${c.physicalId}: $list")
+                                                    // Match by physicalId primarily. If not available yet, fall back to best-effort: if there's exactly one entry and it's verified, assume it's this user.
+                                                    val entry = list.firstOrNull { it.physicalId.equals(me, ignoreCase = true) }
+                                                        ?: if (me.isNullOrBlank() && list.size == 1) list.first() else null
+                                                    val isVerified = entry?.verified == true
+                                                    map[c.physicalId] = isVerified
+                                                    Timber.d("Verification for ${c.physicalId}: $isVerified")
+                                                } else {
+                                                    Timber.e("Failed to fetch students for classroom ${c.physicalId}: ${resp.code()} ${resp.message()}")
                                                     map[c.physicalId] = false
                                                 }
+                                            } catch (e: Exception) { 
+                                                Timber.e(e, "Exception fetching students for classroom ${c.physicalId}")
+                                                map[c.physicalId] = false
                                             }
                                         }
                                         Timber.d("Final verification map: $map")
                                         _verifiedMap.value = map
                                     } else {
-                                        Timber.w("User ID is null or blank, using fallback verification logic")
-                                        // If no user ID, use fallback logic based on classroom names
-                                        val map = mutableMapOf<String, Boolean>()
-                                        for (c in classrooms) {
-                                            // Fallback: assume PE 101 and PATHFIT 101 are verified, Test Classroom is pending
-                                            val isVerified = when {
-                                                c.name.contains("PE 101") -> true
-                                                c.name.contains("PATHFIT 101") -> true
-                                                c.name.contains("Test Classroom") -> false
-                                                else -> true // Default to verified for other classrooms
-                                            }
-                                            map[c.physicalId] = isVerified
-                                            Timber.d("Fallback verification for ${c.name}: $isVerified")
-                                        }
-                                        _verifiedMap.value = map
+                                        Timber.w("User ID is null or blank and profile fetch failed; temporarily mark all classrooms as pending and retry later")
+                                        _verifiedMap.value = classrooms.associate { it.physicalId to false }
                                     }
                                 }
                             }

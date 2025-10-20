@@ -91,7 +91,7 @@ fun LearnScreen(
     val streakManager = androidx.hilt.navigation.compose.hiltViewModel<citu.edu.stathis.mobile.features.home.viewmodel.LearnViewModel>().streakManager
     val streak by streakManager.streak.collectAsState()
     StreakHeader(
-        streak = streak,
+        streak = (progressState as? ProgressState.Success)?.progress?.streakDays ?: 0,
         onJoinClassClick = { enrollDialog = true }
     )
 

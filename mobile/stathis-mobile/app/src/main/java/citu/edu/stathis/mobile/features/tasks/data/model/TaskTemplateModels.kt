@@ -88,9 +88,9 @@ data class QuizSubmission(
     val answers: List<QuizAnswer>
 )
 
-// Backend auto-check payload expects just an array of integers
+// Simplified model for auto-check API (just answers)
 data class QuizAutoCheckRequest(
-    val answers: List<Int>
+    val answers: List<Int> // Just the selected answer indices
 )
 
 data class QuizResult(

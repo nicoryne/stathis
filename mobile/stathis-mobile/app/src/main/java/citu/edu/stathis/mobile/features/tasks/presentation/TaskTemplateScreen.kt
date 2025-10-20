@@ -78,7 +78,7 @@ fun TaskTemplateScreen(
                                 LessonTemplateRenderer(
                                     template = lessonTemplate,
                                     onComplete = {
-                                        viewModel.completeTask(taskId)
+                                        viewModel.submitLesson(taskId, lessonTemplate.physicalId)
                                         onTaskCompleted()
                                     },
                                     modifier = Modifier.fillMaxSize()

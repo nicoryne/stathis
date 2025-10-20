@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomViewModel
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import java.time.OffsetDateTime
@@ -35,6 +36,8 @@ fun TaskListScreen(
     onNavigateBack: () -> Unit = {},
     viewModel: TaskViewModel = hiltViewModel()
 ) {
+    val classroomViewModel: ClassroomViewModel = hiltViewModel()
+    val verifiedMap by classroomViewModel.verifiedMap.collectAsState()
     val tasks by viewModel.tasks.collectAsState()
     val error by viewModel.error.collectAsState()
     var typeFilter by remember { mutableStateOf("ALL") }
@@ -47,6 +50,9 @@ fun TaskListScreen(
 
     LaunchedEffect(classroomId) {
         viewModel.loadTasksForClassroom(classroomId)
+    }
+    LaunchedEffect(verifiedMap.isEmpty()) {
+        if (verifiedMap.isEmpty()) classroomViewModel.loadStudentClassrooms()
     }
     
     // Fetch progress data for all tasks when tasks change
@@ -131,6 +137,27 @@ fun TaskListScreen(
             )
         }
     ) { paddingValues ->
+        // Gate access based on verification
+        if (verifiedMap[classroomId] == false) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(12.dp))
+                    Text("Classroom is locked pending teacher verification.", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Please wait to be verified to view tasks.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(16.dp))
+                    OutlinedButton(onClick = onNavigateBack) { Text("Go Back") }
+                }
+            }
+            return@Scaffold
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -234,12 +261,23 @@ fun TaskListScreen(
                     android.util.Log.d("TaskListScreen", "  - Progress data: ${progress?.isCompleted}")
                     android.util.Log.d("TaskListScreen", "  - Cache completion: ${TaskCompletionCache.isCompleted(task.physicalId)}")
                     
-                    // Completion rule: completed if student has at least one completed attempt (any component)
-                    val lessonAttempts = LessonAttemptsCache.getAttempts(task.physicalId)
-                    val hasAnyAttempt = (progress?.quizAttempts ?: 0) > 0 ||
-                        (progress?.lessonCompleted == true) || (progress?.exerciseCompleted == true) || (lessonAttempts > 0)
-                    val isCompleted = !isUnavailable && hasAnyAttempt
-                    val isOngoing = !isUnavailable && !isCompleted && active && started
+                    // If task is unavailable (deactivated or past deadline), it's unavailable regardless of completion
+                    val hasAnyTemplate = hasLesson || hasQuiz || hasExercise
+                    
+                    // Check individual component completions - task is completed if student has made at least one attempt
+                    val hasQuizAttempts = (progress?.quizAttempts ?: 0) > 0
+                    val hasLessonAttempts = (progress?.lessonCompleted == true) || LessonAttemptsCache.getAttempts(task.physicalId) > 0
+                    val hasExerciseAttempts = (progress?.completedExercises?.isNotEmpty() == true)
+                    
+                    val isCompleted = if (isUnavailable) {
+                        false // Deactivated tasks are never considered completed
+                    } else {
+                        // Task is completed if student has made at least one attempt on any component
+                        hasQuizAttempts || hasLessonAttempts || hasExerciseAttempts || 
+                        TaskCompletionCache.isCompleted(task.physicalId) ||
+                        progress?.isCompleted == true
+                    }
+                    val isOngoing = !isUnavailable && !isCompleted && active
                     
                     android.util.Log.d("TaskListScreen", "  - Final status - Completed: $isCompleted, Ongoing: $isOngoing, Unavailable: $isUnavailable")
 
@@ -351,11 +389,18 @@ private fun TaskCard(
     // Status logic: prioritize deactivation over completion
     val active = task.isActive ?: true
     val isUnavailable = pastDeadline || !active
+    // Check individual component completions - task is completed if student has made at least one attempt
+    val hasQuizAttempts = (progress?.quizAttempts ?: 0) > 0
+    val hasLessonAttempts = (progress?.lessonCompleted == true) || LessonAttemptsCache.getAttempts(task.physicalId) > 0
+    val hasExerciseAttempts = (progress?.completedExercises?.isNotEmpty() == true)
+    
     val isCompleted = if (isUnavailable) {
         false // Deactivated tasks are never considered completed
     } else {
-        // Consider task completed if student has at least one attempt/completion on any component
-        (progress?.quizAttempts ?: 0) > 0 || (progress?.lessonCompleted == true) || (progress?.exerciseCompleted == true)
+        // Task is completed if student has made at least one attempt on any component
+        hasQuizAttempts || hasLessonAttempts || hasExerciseAttempts || 
+        TaskCompletionCache.isCompleted(task.physicalId) ||
+        progress?.isCompleted == true
     }
     
     // Debug logging for TaskCard
