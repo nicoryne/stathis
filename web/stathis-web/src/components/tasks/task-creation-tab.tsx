@@ -12,8 +12,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ClipboardList, Search, Filter, Grid3X3, List, X, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ClipboardList, Search, Filter, Grid3X3, List, X, MoreHorizontal, Edit, Trash2, ArrowLeft, Plus, CalendarIcon, Eye, Trash, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
 import { getClassroomTasks, startTask, deactivateTask, deleteTask, updateTask } from '@/services/tasks/api-task-client';
 import { getTeacherLessonTemplates, getTeacherQuizTemplates, getTeacherExerciseTemplates } from '@/services/templates/api-template-client';
 import { TaskResponseDTO } from '@/services/tasks/api-task-client';
@@ -46,9 +49,14 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
-import { Loader2, Plus } from 'lucide-react';
 import { TemplateCreationModal } from '../templates/template-creation-modal';
+import { CreateLessonForm } from '../templates/create-lesson-form';
+import { CreateQuizForm } from '../templates/create-quiz-form';
+import { CreateExerciseForm } from '../templates/create-exercise-form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +68,116 @@ import {
 interface TaskCreationTabProps {
   classroomId: string;
 }
+
+// Inline Template Creation Component
+interface InlineTemplateCreationProps {
+  templateType: 'LESSON' | 'QUIZ' | 'EXERCISE';
+  onTemplateCreated: () => void;
+  onCancel: () => void;
+}
+
+const InlineTemplateCreation = ({ templateType, onTemplateCreated, onCancel }: InlineTemplateCreationProps) => {
+  const [activeTab, setActiveTab] = useState<'lesson' | 'quiz' | 'exercise'>(
+    templateType === 'LESSON' ? 'lesson' : 
+    templateType === 'QUIZ' ? 'quiz' : 
+    templateType === 'EXERCISE' ? 'exercise' : 
+    'lesson'
+  );
+
+  const handleSuccess = () => {
+    onTemplateCreated();
+  };
+
+  return (
+    <div className="space-y-8">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="bg-card/60 backdrop-blur-sm rounded-3xl border border-border/30 p-8 shadow-lg"
+      >
+        <div className="flex items-center gap-4 mb-8">
+          <div className="relative">
+            <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-secondary/20 to-accent/20 blur-md" />
+            <div className="relative w-10 h-10 rounded-full bg-gradient-to-r from-secondary to-accent flex items-center justify-center">
+              <Plus className="h-5 w-5 text-white" />
+            </div>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">
+              Template Creation
+            </h3>
+            <p className="text-muted-foreground mt-1">
+              Choose the type of template you want to create
+            </p>
+          </div>
+        </div>
+        
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'lesson' | 'quiz' | 'exercise')} className="w-full">
+          <TabsList className="grid grid-cols-3 w-full bg-muted/40 backdrop-blur-sm border border-border/30 rounded-2xl p-2 h-14">
+            <TabsTrigger 
+              value="lesson" 
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-secondary data-[state=active]:text-white rounded-xl transition-all duration-300 text-sm font-medium h-10"
+            >
+              Lesson
+            </TabsTrigger>
+            <TabsTrigger 
+              value="quiz"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-secondary data-[state=active]:to-accent data-[state=active]:text-white rounded-xl transition-all duration-300 text-sm font-medium h-10"
+            >
+              Quiz
+            </TabsTrigger>
+            <TabsTrigger 
+              value="exercise"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-accent data-[state=active]:to-primary data-[state=active]:text-white rounded-xl transition-all duration-300 text-sm font-medium h-10"
+            >
+              Exercise
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="lesson" className="mt-8">
+            <motion.div
+              initial={{ opacity: 0, x: -25 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <CreateLessonForm 
+                onSuccess={handleSuccess}
+                onCancel={onCancel}
+              />
+            </motion.div>
+          </TabsContent>
+          
+          <TabsContent value="quiz" className="mt-8">
+            <motion.div
+              initial={{ opacity: 0, x: -25 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <CreateQuizForm 
+                onSuccess={handleSuccess}
+                onCancel={onCancel}
+              />
+            </motion.div>
+          </TabsContent>
+          
+          <TabsContent value="exercise" className="mt-8">
+            <motion.div
+              initial={{ opacity: 0, x: -25 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <CreateExerciseForm 
+                onSuccess={handleSuccess}
+                onCancel={onCancel}
+              />
+            </motion.div>
+          </TabsContent>
+        </Tabs>
+      </motion.div>
+    </div>
+  );
+};
 
 export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   const [creatingTask, setCreatingTask] = useState(false);
@@ -73,6 +191,10 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [tasksPerPage] = useState(10);
   
+  // Sequential modal flow state
+  const [modalMode, setModalMode] = useState<'task' | 'template'>('task');
+  const [taskFormData, setTaskFormData] = useState<any>(null);
+  
   // Template type selection state
   const [selectedTemplateType, setSelectedTemplateType] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -85,6 +207,9 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   const [editTaskMaxAttempts, setEditTaskMaxAttempts] = useState<number | undefined>(undefined);
   
   const queryClient = useQueryClient();
+  
+  // Memoize the minimum date to prevent Calendar re-renders
+  const minDate = useMemo(() => new Date(), []);
   
   // Fetch templates based on the selected type
   const { 
@@ -128,14 +253,36 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
 
   const handleCreateTask = () => {
     setCreatingTask(true);
+    setModalMode('task');
+    setTaskFormData(null);
   };
 
   const handleCancelCreation = () => {
     setCreatingTask(false);
+    setModalMode('task');
+    setTaskFormData(null);
   };
 
   const handleTaskCreated = () => {
     setCreatingTask(false);
+    setModalMode('task');
+    setTaskFormData(null);
+    refetchTasks();
+  };
+
+  // Sequential modal flow handlers
+  const handleSwitchToTemplate = (formData: any) => {
+    setTaskFormData(formData);
+    setModalMode('template');
+  };
+
+  const handleBackToTask = () => {
+    setModalMode('task');
+  };
+
+  const handleTemplateCreated = () => {
+    // Return to task creation after template is created
+    setModalMode('task');
     refetchTasks();
   };
   
@@ -261,18 +408,6 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     return [];
   };
   
-  // Helper function for template creation
-  const handleTemplateCreated = () => {
-    // Invalidate relevant template queries when a new template is created
-    if (selectedTemplateType === 'LESSON') {
-      queryClient.invalidateQueries({ queryKey: ['lesson-templates'] });
-    } else if (selectedTemplateType === 'QUIZ') {
-      queryClient.invalidateQueries({ queryKey: ['quiz-templates'] });
-    } else if (selectedTemplateType === 'EXERCISE') {
-      queryClient.invalidateQueries({ queryKey: ['exercise-templates'] });
-    }
-    toast.success('Template created successfully');
-  };
   
   // Mutation for updating a task
   const updateTaskMutation = useMutation({
@@ -506,26 +641,51 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     <div className="space-y-6">
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the task
-              "{selectedTask?.name}" and remove it from the classroom.
-            </AlertDialogDescription>
+        <AlertDialogContent className="sm:max-w-[500px] bg-card/98 backdrop-blur-xl border-border/30 shadow-2xl rounded-3xl overflow-hidden">
+          <AlertDialogHeader className="p-8 pb-6">
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="flex items-center gap-5"
+            >
+              <div className="relative">
+                <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-destructive/25 to-destructive/15 blur-xl" />
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-destructive to-destructive/80 flex items-center justify-center shadow-xl">
+                  <Trash className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <AlertDialogTitle className="text-2xl font-bold text-destructive leading-tight">
+                  Delete Task
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground mt-2 text-base">
+                  This action cannot be undone. This will permanently delete the task
+                  "{selectedTask?.name}" and remove it from the classroom.
+                </AlertDialogDescription>
+              </div>
+            </motion.div>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex justify-end gap-4 px-8 pb-8">
+            <AlertDialogCancel className="px-8 h-12 bg-card/80 backdrop-blur-xl border-border/30 hover:bg-card/90 rounded-2xl text-base font-medium transition-all duration-200">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeleteTask}
-              className="bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
+              disabled={deleteTaskMutation.isPending}
+              className="px-8 h-12 bg-gradient-to-r from-destructive to-destructive/80 hover:from-destructive/90 hover:to-destructive/70 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base font-medium"
             >
               {deleteTaskMutation.isPending ? (
-                <span className="flex items-center">
-                  <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Deleting...
-                </span>
-              ) : 'Delete'}
+                </>
+              ) : (
+                <>
+                  <Trash className="mr-2 h-5 w-5" />
+                  Delete Task
+                </>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -533,109 +693,139 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
       
       {/* Edit Task Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Task</DialogTitle>
-            <DialogDescription>
-              Update task details below.
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col p-0 gap-0 bg-card/98 backdrop-blur-xl border-border/30 shadow-2xl rounded-3xl overflow-hidden">
+          <DialogHeader className="p-8 pb-6 sticky top-0 z-10 bg-gradient-to-r from-background/98 to-card/98 backdrop-blur-xl border-b border-border/20">
+            <motion.div
+              initial={{ opacity: 0, y: -15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="flex items-center gap-5"
+            >
+              <div className="relative">
+                <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-primary/25 to-secondary/25 blur-xl" />
+                <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-xl">
+                  <Edit className="h-6 w-6 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-tight">
+                  Edit Task
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground mt-2 text-base">
+                  Update task details and settings
+                </DialogDescription>
+              </div>
+            </motion.div>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="taskName" className="text-sm font-medium">Task Name</label>
-              <Input
-                id="taskName"
-                value={editTaskName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTaskName(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <label htmlFor="taskDescription" className="text-sm font-medium">Description</label>
-              <Textarea
-                id="taskDescription"
-                value={editTaskDescription}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditTaskDescription(e.target.value)}
-                className="min-h-[100px] w-full"
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label htmlFor="taskSubmissionDate" className="text-sm font-medium">Submission Date</label>
+          <div className="flex-1 overflow-y-auto p-8 pt-6 bg-gradient-to-b from-background/40 to-card/20 custom-scrollbar">
+            <motion.div
+              initial={{ opacity: 0, y: 25 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            >
+              <div className="md:col-span-2">
+                <label htmlFor="taskName" className="text-lg font-semibold block mb-3">Task Name</label>
                 <Input
-                  id="taskSubmissionDate"
-                  type="datetime-local"
-                  value={editTaskSubmissionDate ? editTaskSubmissionDate.substring(0, 16) : ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const date = new Date(e.target.value);
-                    setEditTaskSubmissionDate(date.toISOString());
-                  }}
-                  className="w-full"
+                  id="taskName"
+                  value={editTaskName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTaskName(e.target.value)}
+                  placeholder="e.g., Week 1 Assignment"
+                  className="h-14 rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base"
                 />
               </div>
               
-              <div className="grid gap-2">
-                <label htmlFor="taskClosingDate" className="text-sm font-medium">Closing Date</label>
-                <Input
-                  id="taskClosingDate"
-                  type="datetime-local"
-                  value={editTaskClosingDate ? editTaskClosingDate.substring(0, 16) : ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const date = new Date(e.target.value);
-                    setEditTaskClosingDate(date.toISOString());
-                  }}
-                  className="w-full"
+              <div className="md:col-span-2">
+                <label htmlFor="taskDescription" className="text-lg font-semibold block mb-3">Description</label>
+                <Textarea
+                  id="taskDescription"
+                  value={editTaskDescription}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditTaskDescription(e.target.value)}
+                  placeholder="Provide clear instructions and details for students..."
+                  className="min-h-[140px] rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base resize-none"
                 />
               </div>
-            </div>
             
-            <div className="grid gap-2">
-              <label htmlFor="taskMaxAttempts" className="text-sm font-medium">Max Attempts</label>
-              <Input
-                id="taskMaxAttempts"
-                type="number"
-                min={0}
-                value={editTaskMaxAttempts?.toString() || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTaskMaxAttempts(e.target.value ? parseInt(e.target.value) : undefined)}
-                className="w-full"
-              />
-            </div>
-            
-            {/* Template Type Selection */}
-            <div className="grid gap-2">
-              <label htmlFor="templateType" className="text-sm font-medium">Template Type</label>
-              <Select 
-                onValueChange={handleTemplateTypeChange}
-                value={selectedTemplateType || undefined}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select template type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LESSON">Lesson</SelectItem>
-                  <SelectItem value="QUIZ">Quiz</SelectItem>
-                  <SelectItem value="EXERCISE">Exercise</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="text-xs text-muted-foreground">
-                Type of content to assign to students
+              <div className="md:col-span-2">
+                <label className="text-lg font-semibold block mb-3">Due Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-14 pl-4 text-left font-normal rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base justify-start"
+                    >
+                      {editTaskSubmissionDate ? (
+                        format(new Date(editTaskSubmissionDate), "PPP")
+                      ) : (
+                        <span className="text-muted-foreground">Select due date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl" align="start">
+                    <Calendar
+                      date={editTaskSubmissionDate ? new Date(editTaskSubmissionDate) : undefined}
+                      onDateChange={(date) => {
+                        if (date) {
+                          setEditTaskSubmissionDate(date.toISOString());
+                          setEditTaskClosingDate(date.toISOString());
+                        }
+                      }}
+                      min={minDate}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
-            </div>
+            
+              <div>
+                <label htmlFor="taskMaxAttempts" className="text-lg font-semibold block mb-3">Max Attempts</label>
+                <Input
+                  id="taskMaxAttempts"
+                  type="number"
+                  min={0}
+                  max={100}
+                  placeholder="3"
+                  value={editTaskMaxAttempts?.toString() || ''}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTaskMaxAttempts(e.target.value ? parseInt(e.target.value) : undefined)}
+                  className="h-14 rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base"
+                />
+                <p className="text-sm text-muted-foreground mt-2">Maximum number of attempts allowed</p>
+              </div>
+            
+              <div>
+                <label htmlFor="templateType" className="text-lg font-semibold block mb-3">Content Type</label>
+                <Select 
+                  onValueChange={handleTemplateTypeChange}
+                  value={selectedTemplateType || undefined}
+                >
+                  <SelectTrigger className="w-full bg-background/60 backdrop-blur-sm border-border/30 rounded-2xl h-14 text-base">
+                    <SelectValue placeholder="Choose content type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl">
+                    <SelectItem value="LESSON">📚 Lesson</SelectItem>
+                    <SelectItem value="QUIZ">📝 Quiz</SelectItem>
+                    <SelectItem value="EXERCISE">💪 Exercise</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground mt-2">Select the type of content to assign to students</p>
+              </div>
             
             {/* Template Selection */}
             {selectedTemplateType && (
-              <div className="grid gap-2">
-                <div className="flex justify-between items-center">
-                  <label htmlFor="templateId" className="text-sm font-medium">Template</label>
+              <div className="md:col-span-2">
+                <div className="flex justify-between items-center mb-3">
+                  <label htmlFor="templateId" className="text-lg font-semibold">Template</label>
                   <TemplateCreationModal 
                     templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
                     onTemplateCreated={handleTemplateCreated}
-                    continueToTask={true} /* Keep dialog open to continue with task creation */
+                    continueToTask={true}
                     trigger={
-                      <Button variant="ghost" size="sm" className="h-8 px-2">
-                        <Plus className="h-4 w-4 mr-1" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-9 px-3 rounded-xl hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
                         New Template
                       </Button>
                     }
@@ -646,7 +836,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                   value={selectedTemplateId}
                   disabled={isLoadingTemplates()}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full bg-background/60 backdrop-blur-sm border-border/30 rounded-2xl h-14 text-base">
                     {isLoadingTemplates() ? (
                       <div className="flex items-center">
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -656,35 +846,60 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                       <SelectValue placeholder="Select a template" />
                     )}
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl">
                     {getAvailableTemplates().length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        No templates available. Please create a template first.
+                      <div className="p-4 text-center text-muted-foreground">
+                        <div className="text-4xl mb-2">📝</div>
+                        <p className="text-sm">No templates available</p>
+                        <p className="text-xs">Create a template first</p>
                       </div>
                     ) : (
-                      getAvailableTemplates().map((template: any) => (
-                        <SelectItem key={template.physicalId} value={template.physicalId}>
-                          {template.title}
-                        </SelectItem>
-                      ))
+                      <>
+                        <SelectGroup>
+                          <SelectLabel className="text-sm font-medium text-muted-foreground">Available Templates</SelectLabel>
+                          {getAvailableTemplates().map((template: any) => (
+                            <SelectItem key={template.physicalId} value={template.physicalId} className="text-base">
+                              {template.title}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </>
                     )}
                   </SelectContent>
                 </Select>
+                <p className="text-sm text-muted-foreground mt-2">
+                  {selectedTemplateType === 'LESSON' && '📚 Select a lesson to assign to students'}
+                  {selectedTemplateType === 'QUIZ' && '📝 Select a quiz to assign to students'}
+                  {selectedTemplateType === 'EXERCISE' && '💪 Select an exercise to assign to students'}
+                </p>
               </div>
             )}
+            </motion.div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <DialogFooter className="flex justify-end gap-4 pt-8 border-t border-border/20 px-8 pb-8">
+            <Button 
+              variant="outline" 
+              onClick={() => setEditDialogOpen(false)}
+              className="px-8 h-12 bg-card/80 backdrop-blur-xl border-border/30 hover:bg-card/90 rounded-2xl text-base font-medium transition-all duration-200"
+            >
+              Cancel
+            </Button>
             <Button 
               onClick={handleUpdateTask}
               disabled={updateTaskMutation.isPending}
+              className="px-8 h-12 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base font-medium"
             >
               {updateTaskMutation.isPending ? (
-                <span className="flex items-center">
-                  <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
-                  Saving...
-                </span>
-              ) : 'Save Changes'}
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Saving Changes...
+                </>
+              ) : (
+                <>
+                  <Edit className="mr-2 h-5 w-5" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -701,85 +916,194 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
             </p>
           </div>
           {!creatingTask && (
-            <Button
-              onClick={handleCreateTask}
-              className="h-9 gradient-hero text-white hover:opacity-90"
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.2 }}
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Task
-            </Button>
+              <Button
+                onClick={handleCreateTask}
+                className="h-9 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
+              >
+                <div className="relative">
+                  <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 blur-sm" />
+                  <Plus className="relative mr-2 h-4 w-4" />
+                </div>
+                Create Task
+              </Button>
+            </motion.div>
           )}
         </div>
 
-        {/* Search and Filter Controls */}
+        {/* Enhanced Search and Filter Controls */}
         {!creatingTask && tasks && tasks.length > 0 && (
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Search Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-col sm:flex-row gap-3"
+          >
+            {/* Enhanced Search Bar */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <div className="relative">
+                  <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 blur-sm" />
+                  <Search className="relative h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
               <Input
                 placeholder="Search tasks by name or description..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-9 bg-card/90 backdrop-blur-xl border-border/50"
+                className="pl-10 h-9 bg-card/90 backdrop-blur-xl border-border/50 rounded-xl focus:ring-2 focus:ring-primary/20 transition-all duration-200"
               />
               {searchTerm && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <X className="h-3 w-3" />
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-destructive/10 hover:text-destructive rounded-full"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </motion.div>
               )}
             </div>
 
-            {/* Filter Chips */}
+            {/* Enhanced Filter Chips */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground whitespace-nowrap">Filter:</span>
+              <span className="text-sm text-muted-foreground whitespace-nowrap font-medium">Filter:</span>
               <div className="flex gap-1 flex-wrap">
                 {(['ALL', 'LESSON', 'QUIZ', 'EXERCISE'] as const).map((filter) => (
-                  <Button
+                  <motion.div
                     key={filter}
-                    variant={taskTypeFilter === filter ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setTaskTypeFilter(filter)}
-                    className={`h-8 px-3 text-xs ${
-                      taskTypeFilter === filter 
-                        ? 'gradient-primary text-white' 
-                        : 'bg-card/90 backdrop-blur-xl border-border/50 hover:bg-card/95'
-                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {filter === 'ALL' ? 'All' : 
-                     filter === 'LESSON' ? 'Lessons' :
-                     filter === 'QUIZ' ? 'Quizzes' : 'Exercises'}
-                  </Button>
+                    <Button
+                      variant={taskTypeFilter === filter ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTaskTypeFilter(filter)}
+                      className={`h-8 px-3 text-xs rounded-lg transition-all duration-200 ${
+                        taskTypeFilter === filter 
+                          ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg' 
+                          : 'bg-card/90 backdrop-blur-xl border-border/50 hover:bg-card/95 hover:border-primary/30'
+                      }`}
+                    >
+                      {filter === 'ALL' ? 'All' : 
+                       filter === 'LESSON' ? 'Lessons' :
+                       filter === 'QUIZ' ? 'Quizzes' : 'Exercises'}
+                    </Button>
+                  </motion.div>
                 ))}
               </div>
             </div>
 
-          </div>
+          </motion.div>
         )}
       </div>
 
-      {creatingTask ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create New Task</CardTitle>
-            <CardDescription>
-              Create a new task for students in this classroom
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateTaskForm 
-              classroomPhysicalId={classroomId} 
-              onSuccess={handleTaskCreated} 
-              onCancel={handleCancelCreation}
-            />
-          </CardContent>
-        </Card>
-      ) : (
+      {/* Enhanced Sequential Modal Flow */}
+      <Dialog open={creatingTask} onOpenChange={setCreatingTask}>
+        <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col p-0 gap-0 bg-card/98 backdrop-blur-xl border-border/30 shadow-2xl rounded-3xl overflow-hidden">
+          {modalMode === 'task' ? (
+            <>
+              <DialogHeader className="p-8 pb-6 sticky top-0 z-10 bg-gradient-to-r from-background/98 to-card/98 backdrop-blur-xl border-b border-border/20">
+                <motion.div
+                  initial={{ opacity: 0, y: -15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="flex items-center gap-5"
+                >
+                  <div className="relative">
+                    <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-primary/25 to-secondary/25 blur-xl" />
+                    <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-xl">
+                      <Plus className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-tight">
+                      Create New Task
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground mt-2 text-base">
+                      Set up a new assignment for your students
+                    </DialogDescription>
+                  </div>
+                </motion.div>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-8 pt-6 bg-gradient-to-b from-background/40 to-card/20 custom-scrollbar">
+                <motion.div
+                  initial={{ opacity: 0, y: 25 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+                >
+                  <CreateTaskForm 
+                    classroomPhysicalId={classroomId} 
+                    onSuccess={handleTaskCreated} 
+                    onCancel={handleCancelCreation}
+                    onSwitchToTemplate={handleSwitchToTemplate}
+                  />
+                </motion.div>
+              </div>
+            </>
+          ) : (
+            <>
+              <DialogHeader className="p-8 pb-6 sticky top-0 z-10 bg-gradient-to-r from-background/98 to-card/98 backdrop-blur-xl border-b border-border/20">
+                <motion.div
+                  initial={{ opacity: 0, y: -15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className="flex items-center gap-5"
+                >
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackToTask}
+                    className="h-10 w-10 p-0 hover:bg-muted/60 rounded-full transition-all duration-200 hover:scale-105 hover:shadow-md"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                  <div className="relative">
+                    <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-secondary/25 to-accent/25 blur-xl" />
+                    <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-secondary to-accent flex items-center justify-center shadow-xl">
+                      <Plus className="h-6 w-6 text-white" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent leading-tight">
+                      Create New Template
+                    </DialogTitle>
+                    <DialogDescription className="text-muted-foreground mt-2 text-base">
+                      Build a reusable template for your tasks
+                    </DialogDescription>
+                  </div>
+                </motion.div>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto p-8 pt-6 bg-gradient-to-b from-background/40 to-card/20 custom-scrollbar">
+                <motion.div
+                  initial={{ opacity: 0, y: 25 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+                >
+                  <InlineTemplateCreation 
+                    templateType={taskFormData?.templateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
+                    onTemplateCreated={handleTemplateCreated}
+                    onCancel={handleBackToTask}
+                  />
+                </motion.div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {!creatingTask && (
         <div className="space-y-4">
           {isLoadingTasks ? (
             <div className="flex justify-center py-8">
@@ -849,26 +1173,29 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-6 w-6 p-0 hover:bg-muted/50"
+                                  className="h-6 w-6 p-0 hover:bg-muted/60 hover:text-muted-foreground rounded-md transition-all duration-150"
                                 >
                                   <MoreHorizontal className="h-3 w-3" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem
+                              <DropdownMenuContent 
+                                align="end" 
+                                className="w-44 bg-card/90 backdrop-blur-sm border-border/20 shadow-lg rounded-lg p-1"
+                              >
+                                <DropdownMenuItem 
                                   onClick={() => openEditDialog(task)}
-                                  className="cursor-pointer"
+                                  className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted/50 hover:text-foreground transition-colors duration-150 cursor-pointer text-sm"
                                 >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Task
+                                  <Edit className="h-3 w-3 text-muted-foreground" />
+                                  <span>Edit Task</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
+                                <DropdownMenuSeparator className="my-1 bg-border/10" />
+                                <DropdownMenuItem 
                                   onClick={() => openDeleteDialog(task)}
-                                  className="cursor-pointer text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                                  className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-destructive/5 hover:text-destructive transition-colors duration-150 cursor-pointer text-sm"
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Task
+                                  <Trash2 className="h-3 w-3 text-destructive/70" />
+                                  <span className="text-destructive/80">Delete Task</span>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
