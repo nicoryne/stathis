@@ -186,23 +186,22 @@ export async function getStudentById(studentId: string): Promise<StudentDTO | nu
   try {
     console.log(`Attempting to fetch student with ID: ${studentId}`);
     
-    // First try to get the current student's profile
-    // This will only work if the requested student ID matches the current user's ID
+    // Try to fetch the specific student from the users endpoint
     try {
-      const { data, error, status } = await serverApiClient.get('/users/profile/student');
+      const { data, error, status } = await serverApiClient.get(`/users/${studentId}`);
       
       if (!error && status < 400 && data) {
-        console.log('[DEBUG] Student profile response:', data);
+        console.log('[DEBUG] Student user data response:', data);
         
         // Convert UserResponseDTO to StudentDTO format
-        const profileData = data as UserResponseDTO;
+        const userData = data as UserResponseDTO;
         const student: StudentDTO = {
-          physicalId: profileData.physicalId,
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          email: profileData.email,
-          profilePictureUrl: profileData.profilePictureUrl,
-          isVerified: true, // Assume verified for a logged-in user
+          physicalId: userData.physicalId,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          profilePictureUrl: userData.profilePictureUrl,
+          isVerified: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
@@ -210,37 +209,42 @@ export async function getStudentById(studentId: string): Promise<StudentDTO | nu
         return student;
       }
     } catch (e) {
-      console.warn('Could not fetch student profile, might be accessing another student:', e);
+      console.warn(`Could not fetch user data for ${studentId}, trying alternative methods:`, e);
     }
     
-    // If that fails, try the student progress endpoint - this doesn't return full student details
-    // but might give us at least the student ID to confirm it exists
+    // Try to get student from classroom students endpoint
     try {
       // Extract classroom code from student ID (format: XX-YYYY-ZZZ)
       const parts = studentId.split('-');
       if (parts.length >= 2) {
-        const classroomId = `${parts[0]}-${parts[1]}`;
-        const progressUrl = `/v1/student-progress/${studentId}?classroomId=${encodeURIComponent(classroomId)}`;
+        const classroomId = `ROOM-${parts[0]}-${parts[1]}`;
+        console.log(`Trying to fetch student from classroom: ${classroomId}`);
         
-        const { data, error, status } = await serverApiClient.get(progressUrl);
+        const { data, error, status } = await serverApiClient.get(`/classrooms/${classroomId}/students`);
         
-        if (!error && status < 400 && Array.isArray(data) && data.length > 0) {
-          console.log('[DEBUG] Found student progress data, student exists');
+        if (!error && status < 400 && data) {
+          console.log('[DEBUG] Got classroom students data');
+          const classroomData = data as { students?: any[] };
+          const studentInClassroom = classroomData.students?.find((s: any) => s.physicalId === studentId);
           
-          // Return limited info we have
-          return {
-            physicalId: studentId,
-            firstName: `Student ${parts[2] || studentId}`,
-            lastName: '',
-            email: '',
-            isVerified: true, 
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
+          if (studentInClassroom) {
+            console.log('[DEBUG] Found student in classroom:', studentInClassroom);
+            return {
+              physicalId: studentInClassroom.physicalId,
+              firstName: studentInClassroom.firstName,
+              lastName: studentInClassroom.lastName,
+              email: studentInClassroom.email,
+              profilePictureUrl: studentInClassroom.profilePictureUrl,
+              isVerified: studentInClassroom.verified || studentInClassroom.isVerified || true,
+              createdAt: studentInClassroom.createdAt || new Date().toISOString(),
+              updatedAt: studentInClassroom.updatedAt || new Date().toISOString(),
+              joinedAt: studentInClassroom.joinedAt
+            };
+          }
         }
       }
     } catch (e) {
-      console.warn('Could not fetch student progress data:', e);
+      console.warn('Could not fetch student from classroom:', e);
     }
     
     // If all else fails, return a mock student with the ID
