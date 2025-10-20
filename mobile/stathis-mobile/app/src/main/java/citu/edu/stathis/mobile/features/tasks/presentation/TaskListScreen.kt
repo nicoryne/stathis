@@ -24,6 +24,9 @@ import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import java.time.OffsetDateTime
 import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +80,33 @@ fun TaskListScreen(
             taskProgressMap = progressMap
             android.util.Log.d("TaskListScreen", "Final progress map: $progressMap")
         }
+    }
+
+    // Ensure tasks and progress refresh when returning to this screen
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, classroomId) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Reload tasks and progress so completion reflects immediately after actions
+                viewModel.loadTasksForClassroom(classroomId)
+                // Recompute progress after tasks update completes asynchronously
+                coroutineScope.launch {
+                    // small delay to allow tasks state to settle
+                    kotlinx.coroutines.delay(150)
+                    val progressMap = mutableMapOf<String, TaskProgressResponse?>()
+                    tasks.forEach { task ->
+                        try {
+                            val progress = viewModel.getTaskProgress(task.physicalId, suppressError = true)
+                            progressMap[task.physicalId] = progress
+                        } catch (_: Exception) {}
+                    }
+                    taskProgressMap = progressMap
+                }
+            }
+        }
+        val lifecycle = lifecycleOwner.lifecycle
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -200,7 +230,9 @@ fun TaskListScreen(
                     )
                 }
 
-                val filtered = tasks.filter { task ->
+                // Visibility rule: only show tasks that teacher has started
+                val visibleTasks = tasks.filter { it.isStarted == true }
+                val filtered = visibleTasks.filter { task ->
                     val pastDeadline = runCatching { OffsetDateTime.parse(task.closingDate) }
                         .getOrNull()?.isBefore(OffsetDateTime.now()) == true
                     val hasLesson = task.lessonTemplateId?.isNotEmpty() == true || task.lessonTemplate != null
@@ -378,8 +410,14 @@ private fun TaskCard(
     android.util.Log.d("TaskCard", "  - Is unavailable: $isUnavailable")
     android.util.Log.d("TaskCard", "  - Progress completed: ${progress?.isCompleted}")
     android.util.Log.d("TaskCard", "  - Final completed: $isCompleted")
-    // Keep items clickable to allow viewing Task Detail even if unavailable; component starts are blocked there
-    val clickableModifier = Modifier.clickable(onClick = { if (isUnavailable) onUnavailableAttempt() else onClick() })
+    // Make deactivated or past-deadline tasks show banner when tapped
+    val clickableModifier = Modifier.clickable(onClick = { 
+        if (isUnavailable) {
+            onUnavailableAttempt()
+        } else {
+            onClick()
+        }
+    })
     Card(
         modifier = Modifier
             .fillMaxWidth()

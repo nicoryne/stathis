@@ -40,6 +40,11 @@ class ProfileRepositoryImpl @Inject constructor(
                     weightInKg = null,  // Added missing field
                     emailVerified = true  // Added missing field
                 )
+                // Ensure identity is stored for downstream features (e.g., task progress fallback)
+                authTokenManager.updateUserIdentity(
+                    physicalId = mockProfile.physicalId,
+                    role = mockProfile.role
+                )
                 return ClientResponse(
                     success = true,
                     data = mockProfile,
@@ -48,6 +53,11 @@ class ProfileRepositoryImpl @Inject constructor(
             }
             
             val response = profileApiService.getStudentProfile()
+            // Store identity so other repositories (tasks, vitals, etc.) can use it immediately
+            authTokenManager.updateUserIdentity(
+                physicalId = response.physicalId,
+                role = response.role
+            )
             ClientResponse(
                 success = true, data = response,
                 message = "Profile successfully fetched."           )

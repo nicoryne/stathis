@@ -22,6 +22,12 @@ interface TaskService {
         @Path("taskId") taskId: String
     ): Response<Task>
 
+    // Fallback to fetch full task details with teacher-defined fields like maxAttempts
+    @GET("api/tasks/{physicalId}")
+    suspend fun getTaskByPhysicalId(
+        @Path("physicalId") physicalId: String
+    ): Response<Task>
+
     @GET("api/student/tasks/{taskId}/progress")
     suspend fun getTaskProgress(
         @Path("taskId") taskId: String
@@ -80,4 +86,10 @@ interface TaskService {
         @Path("studentId") studentId: String,
         @Path("taskId") taskId: String
     ): Response<List<ScoreResponse>>
+    // Create a TaskCompletion record so progress queries don't 403/404 when missing
+    @POST("api/v1/task-completions/{taskId}")
+    suspend fun createTaskCompletion(
+        @Path("taskId") taskId: String,
+        @Query("studentId") studentId: String
+    ): Response<Unit>
 } 

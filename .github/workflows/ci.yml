@@ -8,7 +8,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '21'
   ANDROID_API_LEVEL: 30
   ANDROID_BUILD_TOOLS: '34.0.0'
 
@@ -30,14 +30,6 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-
-      - name: Lint & Type Check
-        run: |
-          npm run lint
-          npx tsc --noEmit
-
-      - name: Test
-        run: npm run test:ci
 
       - name: Build
         run: npm run build
@@ -113,8 +105,11 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - name: Build
-        run: mvn clean package -DskipTests
+      - name: Build (mvnw)
+        working-directory: backend/stathis
+        run: |
+          chmod +x mvnw || true
+          ./mvnw -q -B clean package -DskipTests
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4

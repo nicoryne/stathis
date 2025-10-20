@@ -64,6 +64,8 @@ fun PracticeScreen(
     ) {
         // Header with greeting and mascot
         item {
+            val streakManager = androidx.hilt.navigation.compose.hiltViewModel<citu.edu.stathis.mobile.features.home.viewmodel.LearnViewModel>().streakManager
+            val streak by streakManager.streak.collectAsState()
             DashboardHeader(
                 userName = profileState.profile?.firstName ?: "Student",
                 streakCount = (progressState as? ProgressState.Success)?.progress?.streakDays ?: 0,
@@ -851,7 +853,8 @@ private fun ErrorCard(message: String) {
 // Helper function to determine mascot state based on user progress
 private fun determineMascotStateFromProgress(
     progressState: ProgressState,
-    achievementsState: List<Achievement>
+    achievementsState: List<Achievement>,
+    streakCount: Int
 ): citu.edu.stathis.mobile.features.dashboard.ui.components.MascotState {
     val progressPercentage = when (progressState) {
         is ProgressState.Success -> progressState.progress.completedTasks.toFloat() / progressState.progress.totalTasks

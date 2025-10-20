@@ -14,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TaskTemplateViewModel @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val streakManager: citu.edu.stathis.mobile.core.streak.StreakManager
 ) : ViewModel() {
 
     private val _templateState = MutableStateFlow<TemplateState>(TemplateState.Loading)
@@ -44,10 +45,16 @@ class TaskTemplateViewModel @Inject constructor(
 
                 val template = when (templateType) {
                     "LESSON" -> {
-                        if (!templateId.isNullOrBlank()) {
-                            taskRepository.getLessonTemplate(templateId).first()
-                        } else {
-                            createMockLessonTemplate()
+                        val embedded = _taskDetail.value?.lessonTemplate
+                        when {
+                            !templateId.isNullOrBlank() && templateId != "embedded" -> {
+                                runCatching { taskRepository.getLessonTemplate(templateId).first() }
+                                    .getOrElse {
+                                        embedded ?: throw it
+                                    }
+                            }
+                            embedded != null -> embedded
+                            else -> createMockLessonTemplate()
                         }
                     }
                     "QUIZ" -> {
@@ -78,9 +85,17 @@ class TaskTemplateViewModel @Inject constructor(
     fun completeTask(taskId: String) {
         viewModelScope.launch {
             try {
-                // Mark task as completed
-                // In real implementation, this would call the API
-                // taskRepository.completeTask(taskId)
+                // If current template is a lesson, call completeLesson with its templateId
+                val lessonTemplate = (_templateState.value as? TemplateState.Success)?.template as? LessonTemplate
+                if (lessonTemplate != null) {
+                    taskRepository.completeLesson(taskId, lessonTemplate.physicalId)
+                    // Count lesson attempt for UI availability until max attempts is reached
+                    LessonAttemptsCache.increment(taskId)
+                    // Refresh progress so UI and lists reflect completion immediately
+                    runCatching { taskRepository.getTaskProgress(taskId).first() }
+                    // Record streak for daily activity
+                    streakManager.recordActivity()
+                }
             } catch (e: Exception) {
                 _error.value = e.message
             }
@@ -126,6 +141,8 @@ class TaskTemplateViewModel @Inject constructor(
                     
                     // Optimistically mark completion for immediate UI feedback
                     TaskCompletionCache.markCompleted(taskId)
+                    // Record streak
+                    streakManager.recordActivity()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("TaskTemplateViewModel", "Failed to submit quiz", e)
@@ -149,6 +166,10 @@ class TaskTemplateViewModel @Inject constructor(
                 TaskCompletionCache.markCompleted(taskId)
                 
                 android.util.Log.d("TaskTemplateViewModel", "Exercise submitted successfully")
+                // Refresh progress so list reflects completion immediately
+                runCatching { taskRepository.getTaskProgress(taskId).first() }
+                // Record streak
+                streakManager.recordActivity()
             } catch (e: Exception) {
                 android.util.Log.e("TaskTemplateViewModel", "Failed to submit exercise", e)
                 _error.value = e.message

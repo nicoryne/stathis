@@ -4,6 +4,7 @@ import citu.edu.stathis.mobile.features.exercise.domain.repository.ExerciseRepos
 import citu.edu.stathis.mobile.features.exercise.data.repository.ExerciseRepositoryImpl
 import citu.edu.stathis.mobile.features.exercise.domain.ExerciseApiService
 import citu.edu.stathis.mobile.features.exercise.data.datasource.ExerciseApi
+import citu.edu.stathis.mobile.features.exercise.data.remote.api.PostureApi
 import citu.edu.stathis.mobile.features.exercise.domain.usecase.GetCurrentUserIdUseCase
 import dagger.Binds
 import dagger.Module
@@ -32,6 +33,12 @@ abstract class ExerciseModule {
         @Singleton
         fun provideExerciseApi(retrofit: Retrofit): ExerciseApi {
             return retrofit.create(ExerciseApi::class.java)
+        }
+
+        @Provides
+        @Singleton
+        fun providePostureApi(retrofit: Retrofit): PostureApi {
+            return retrofit.create(PostureApi::class.java)
         }
     }
 }

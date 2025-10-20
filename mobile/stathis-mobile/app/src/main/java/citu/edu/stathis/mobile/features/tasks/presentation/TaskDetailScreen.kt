@@ -27,12 +27,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
@@ -154,6 +158,14 @@ fun TaskDetailScreen(
             } else {
                 viewModel.refreshTaskProgress(taskId)
             }
+        }
+    }
+
+    // If the task doesn't embed the quiz template but has an ID, fetch it to obtain maxScore from backend
+    LaunchedEffect(task?.quizTemplateId, task?.quizTemplate) {
+        val templateId = task?.quizTemplateId
+        if (templateId != null && task?.quizTemplate == null) {
+            viewModel.loadQuizTemplate(templateId)
         }
     }
 
@@ -538,6 +550,7 @@ private fun TaskHeroSection(
 private fun TaskQuickStatsSection(
     task: Task,
     progress: TaskProgressResponse?,
+    templateMaxScore: Int?,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.padding(horizontal = 8.dp)) {
@@ -552,6 +565,8 @@ private fun TaskQuickStatsSection(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Show latest attempt score (backend returns latest in progress.quizScore)
+                val latestScore = score
                 StatCard(
                     title = "Score",
                     value = if (latestScore != null && maxScore != null && maxScore > 0) "$latestScore/$maxScore" else "-",

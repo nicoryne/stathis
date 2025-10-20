@@ -29,9 +29,10 @@ import androidx.health.connect.client.records.OxygenSaturationRecord
 import androidx.health.connect.client.records.RespiratoryRateRecord
 import citu.edu.stathis.mobile.features.tasks.data.model.ExerciseTemplate
 import citu.edu.stathis.mobile.features.tasks.data.model.ExercisePerformance
-import citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseTestScreen
+import citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseScreen
 import citu.edu.stathis.mobile.features.vitals.ui.HealthConnectViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.rememberNavController
 
 @Composable
 fun ExerciseTemplateRenderer(
@@ -67,12 +68,8 @@ fun ExerciseTemplateRenderer(
                     modifier = Modifier.fillMaxSize()
                 )
             } else if (!isExerciseCompleted) {
-                // Use the real exercise screen with camera and vitals integration
-                ExerciseTestScreen(
-                    navController = androidx.navigation.compose.rememberNavController(),
-                    enableVitalsIndicator = true,
-                    enablePostureAnalysis = true
-                )
+                // Use the real exercise screen with camera and pose classification
+                ExerciseScreen(navController = rememberNavController())
                 
                 // Overlay with exercise controls
                 ExerciseControlsOverlay(
