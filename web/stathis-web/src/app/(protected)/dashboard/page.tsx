@@ -4,12 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { ActivityCard } from '@/components/dashboard/activity-card';
-import { AlertCard } from '@/components/dashboard/alert-card';
-import { LineChart } from '@/components/dashboard/line-chart';
-import { BarChart } from '@/components/dashboard/bar-chart';
+// Removed charts per request
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Activity, Heart, Users, Video, Bell, Trophy, AlertTriangle } from 'lucide-react';
+import { Activity, Heart, Users, Video, Bell, HeartPulse } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -29,27 +27,21 @@ import {
 } from '@/components/ui/select';
 import { OverviewCard } from '@/components/dashboard/overview-card';
 import ThemeSwitcher from '@/components/theme-switcher';
-import { getUserDetails, signOut } from '@/services/api-auth-client';
+import { signOut } from '@/services/api-auth-client';
 import { getCurrentUserEmail } from '@/lib/utils/jwt';
 import { useQuery } from '@tanstack/react-query';
 import { getTeacherClassrooms, ClassroomResponseDTO } from '@/services/api-classroom-client';
 import { Task, getTasksByClassroom } from '@/services/api-task-client';
 import { 
   getTaskScores, 
-  getTaskLeaderboard, 
   analyzeTaskScores,
   Score,
-  TaskScoreAnalytics,
-  LeaderboardResponseDTO,
-  getCompletedTasksCount,
-  getAverageQuizScore,
-  getAverageExerciseScore
+  TaskScoreAnalytics
 } from '@/services/analytics/api-analytics-client';
-// Removed websocket and vital signs imports since we're not using them
-import { useTaskScores, useTaskLeaderboard, useActiveTasks } from '@/hooks/analytics';
-import { getAnalyticsClient } from '@/services/analytics/analytics-service';
+// Removed unused analytics hooks and client imports
+import { motion, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 
-// Define user interface to match API response
 interface UserDetails {
   first_name: string;
   last_name: string;
@@ -58,7 +50,6 @@ interface UserDetails {
   [key: string]: any; // For any additional properties
 }
 
-// Define classroom interface
 interface Classroom {
   physicalId: string;
   name: string;
@@ -68,7 +59,6 @@ interface Classroom {
   description?: string;
 }
 
-// Define alert interface to match the AlertCard component expectations
 interface Alert {
   id: string;
   student: string;
@@ -90,8 +80,8 @@ interface SafetyAlert {
 export default function DashboardPage() {
   const router = useRouter();
   const userEmail = getCurrentUserEmail();
+  const prefersReducedMotion = useReducedMotion();
   
-  // Add state for selected classroom
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState('');
   
@@ -120,7 +110,6 @@ export default function DashboardPage() {
     profilePictureUrl: teacherProfile?.profilePictureUrl
   };
 
-  // Fetch all classrooms for the current teacher
   const { data: classrooms, isLoading: isLoadingClassrooms } = useQuery<ClassroomResponseDTO[]>({
     queryKey: ['teacher-classrooms'],
     queryFn: () => getTeacherClassrooms(),
@@ -140,14 +129,12 @@ export default function DashboardPage() {
     staleTime: 1000 * 60 * 5 // 5 minutes
   });
   
-  // Set the first classroom as default when classrooms data changes
   useEffect(() => {
     if (classrooms && classrooms.length > 0 && !selectedClassroomId) {
       setSelectedClassroomId(classrooms[0].physicalId);
     }
   }, [classrooms, selectedClassroomId]);
 
-  // Fetch tasks for selected classroom
   const { data: tasksData, isLoading: isLoadingTasks } = useQuery<Task[]>({
     queryKey: ['tasks', selectedClassroomId],
     queryFn: async () => {
@@ -155,10 +142,9 @@ export default function DashboardPage() {
       return await getTasksByClassroom(selectedClassroomId);
     },
     enabled: !!userEmail && !!selectedClassroomId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Set selected task when data is available
   React.useEffect(() => {
     if (tasksData && tasksData.length > 0 && !selectedTask) {
       setSelectedTask(tasksData[0].physicalId);
@@ -194,32 +180,12 @@ export default function DashboardPage() {
     staleTime: 1000 * 60 * 2 // 2 minutes
   });
 
-  // Fetch task scores for selected task (for detailed view if needed)
-  const { data: rawTaskScoresData } = useQuery<Score[]>({
-    queryKey: ['task-scores', selectedTask],
-    queryFn: () => getTaskScores(selectedTask),
-    enabled: !!selectedTask,
-  });
-
-  // Get the selected task name
-  const selectedTaskName = tasksData?.find((task: Task) => task.physicalId === selectedTask)?.name || 'Unknown Task';
-
-  // Process raw task scores into analytics
-  const taskScoresData: TaskScoreAnalytics | undefined = rawTaskScoresData ? 
-    analyzeTaskScores(rawTaskScoresData, selectedTaskName) : undefined;
-
-  // Fetch leaderboard data
-  const { data: leaderboardData, isLoading: isLeaderboardLoading } = useQuery<LeaderboardResponseDTO[]>({
-    queryKey: ['task-leaderboard', selectedTask],
-    queryFn: () => getTaskLeaderboard(selectedTask),
-    enabled: !!selectedTask,
-  });
+  // Removed per request: detailed task scores and leaderboard data fetching
 
   const handlesignOut = async () => {
     await signOut();
   };
 
-  // Define the Activity type to match what ActivityCard expects
   type Activity = {
     id: string;
     name: string;
@@ -228,7 +194,6 @@ export default function DashboardPage() {
     score?: number;
   };
 
-  // Activity data from tasks API - formatted to match the ActivityCard component's expected structure
   const recentActivities: Activity[] = tasksData ? tasksData
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()) // Sort by most recent
     .slice(0, 5) // Get top 5 most recent tasks
@@ -248,33 +213,7 @@ export default function DashboardPage() {
       };
     }) : [];
 
-  // Check if we have any score data across all tasks
-  const hasStudentScores = allTasksScores && Object.values(allTasksScores).some(
-    taskData => taskData.analytics && taskData.analytics.averageScore > 0
-  );
-  
-  // Exercise/Task score data for charts - shows class-wide average for each task
-  // Each score is the average of ALL students' scores for that specific task
-  const exerciseScoreData = (tasksData && allTasksScores) 
-    ? tasksData.slice(0, 5).map((task: Task) => {
-        const taskScore = allTasksScores[task.physicalId];
-        // analytics.averageScore is the mean of all student scores for this task
-        return {
-          exercise: task.name || 'Unknown',
-          score: taskScore?.analytics?.averageScore || 0,
-          hasData: !!(taskScore?.analytics && taskScore.analytics.averageScore > 0)
-        };
-      })
-    : [];
-      
-  // Generate task score metrics from real task data
-  const taskScoreMetrics = (tasksData && taskScoresData) ? tasksData.map((task: Task) => ({
-    name: task.name,
-    status: !task.started ? 'not-started' as const : 
-           (task.started && task.active) ? 'ongoing' as const : 
-           'completed' as const,
-    score: taskScoresData.averageScore
-  })) : [];
+  // Removed per request: chart data and helpers for task performance sections
 
   // Calculate aggregated statistics from all tasks
   const totalActiveStudents = allTasksScores ? (() => {
@@ -365,19 +304,29 @@ export default function DashboardPage() {
   })() : { studentId: '', studentName: 'No data', averageScore: 0 };
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar className="w-64 flex-shrink-0" />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" animate={prefersReducedMotion ? undefined : { scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={prefersReducedMotion ? undefined : { y: [0, -10, 0] }} transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={prefersReducedMotion ? undefined : { scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }} transition={{ duration: 6, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute top-1/2 left-1/4 h-16 w-16 rounded-full bg-primary/3" animate={prefersReducedMotion ? undefined : { scale: [1, 1.2, 1] }} transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY }} />
+        <motion.div className="absolute top-1/3 right-1/3 h-20 w-20 rounded-full bg-secondary/3" animate={prefersReducedMotion ? undefined : { y: [0, -15, 0] }} transition={{ duration: 9, repeat: Number.POSITIVE_INFINITY }} />
+      </div>
 
-      <div className="flex-1">
-        <header className="bg-background border-b">
+      <div className="flex min-h-screen relative z-10">
+        <Sidebar className="w-64 flex-shrink-0" />
+
+      <div className="flex-1 md:ml-64">
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30">
           <div className="flex h-16 items-center justify-end gap-4 px-4">
             
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" aria-label="Notifications" className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90">
               <Bell className="h-5 w-5" />
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button variant="ghost" aria-label="Open user menu" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={userDetails.profilePictureUrl || undefined} alt={`${userDetails.first_name} ${userDetails.last_name}`} />
                     <AvatarFallback>
@@ -387,7 +336,7 @@ export default function DashboardPage() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent className="w-56 bg-card/80 backdrop-blur-xl border-border/50" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm leading-none font-medium">
@@ -408,50 +357,101 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <main className="p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold">Dashboard</h1>
-              {/* Classroom Selector */}
-              {isLoadingClassrooms ? (
-                <div className="h-10 w-64 animate-pulse rounded bg-muted"></div>
-              ) : classrooms && classrooms.length > 0 ? (
-                <Select
-                  value={selectedClassroomId || undefined}
-                  onValueChange={(value) => setSelectedClassroomId(value)}
+          <main className="p-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-8 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                  <motion.div
+                    animate={prefersReducedMotion ? undefined : { y: [0, -8, 0] }}
+                    transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                    className="relative"
+                  >
+                  <Image
+                    src="/images/mascots/mascot_cheer.png"
+                    alt="Stathis Cheer Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                  </motion.div>
+                </div>
+                
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Welcome back, {userDetails.first_name || 'Teacher'}!
+                  </h1>
+                  <p className="text-muted-foreground mt-2">Monitor your students' progress and manage your classrooms</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button 
+                  onClick={() => router.push('/classroom')}
+                  className="rounded-xl gradient-hero shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white"
                 >
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Select a classroom" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classrooms.map((classroom) => (
-                      <SelectItem key={classroom.physicalId} value={classroom.physicalId}>
-                        {classroom.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <HeartPulse className="mr-2 h-4 w-4" />
+                  Manage Classrooms
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => router.push('/monitoring')}
+                  className="rounded-xl bg-card/90 backdrop-blur-xl border-border/50 hover:bg-card/95 transition-all duration-300"
+                >
+                  <Activity className="mr-2 h-4 w-4" />
+                  View Monitoring
+                </Button>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="mb-8"
+            >
+              {isLoadingClassrooms ? (
+                <div className="h-12 w-80 animate-pulse rounded-xl bg-muted/50"></div>
+              ) : classrooms && classrooms.length > 0 ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-muted-foreground">Current Classroom:</span>
+                  <Select
+                    value={selectedClassroomId || undefined}
+                    onValueChange={(value) => setSelectedClassroomId(value)}
+                  >
+                    <SelectTrigger className="w-80 rounded-xl bg-card/80 border-border/50">
+                      <SelectValue placeholder="Select a classroom" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/50 bg-card/80 backdrop-blur-xl">
+                      {classrooms.map((classroom) => (
+                        <SelectItem key={classroom.physicalId} value={classroom.physicalId} className="rounded-lg">
+                          {classroom.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   <p className="text-sm text-muted-foreground">No classrooms available</p>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => router.push('/classroom')}
+                    className="rounded-xl bg-background/50 border-border/50 hover:bg-background/80 transition-all duration-300"
                   >
+                    <HeartPulse className="mr-2 h-4 w-4" />
                     Create Classroom
                   </Button>
                 </div>
               )}
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={() => router.push('/classroom')}>Manage Classrooms</Button>
-              <Button variant="outline" onClick={() => router.push('/monitoring')}>
-                <Activity className="mr-2 h-4 w-4" />
-                View Monitoring
-              </Button>
-            </div>
-          </div>
+            </motion.div>
+          
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
@@ -498,7 +498,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <div className="mt-6 grid gap-8 md:grid-cols-2">
             <OverviewCard
               title="Class Performance Overview"
               description="Current metrics for all classroom tasks"
@@ -556,57 +556,22 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
-            <ActivityCard activities={recentActivities} className="md:col-span-1" />
-            {hasStudentScores ? (
-              <LineChart
-                title="Task Performance"
-                description="Scores by task"
-                data={exerciseScoreData.map((item: {exercise: string; score: number}) => ({
-                  exercise: item.exercise,  // Use full exercise name
-                  score: item.score
-                }))}
-                categories={['score']}
-                index="exercise"
-                className="md:col-span-1"
-              />
-            ) : (
-              <Card className="md:col-span-1">
-                <CardHeader>
-                  <CardTitle>Task Performance</CardTitle>
-                  <CardDescription>Scores by task</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center min-h-[220px] text-muted-foreground">
-                  No score data available yet
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <div className="mt-6 grid gap-6 md:grid-cols-2">
-            {hasStudentScores ? (
-              <BarChart
-                title="Exercise Performance Analysis"
-                description="Average score by exercise type"
-                data={exerciseScoreData}
-                categories={['score']}
-                index="exercise"
-                className="md:col-span-2"
-              />
-            ) : (
-              <Card className="md:col-span-2">
-                <CardHeader>
-                  <CardTitle>Exercise Performance Analysis</CardTitle>
-                  <CardDescription>Average score by exercise type</CardDescription>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center min-h-[220px] text-muted-foreground">
-                  No score data available yet
-                </CardContent>
-              </Card>
-            )}
-            {/* No safety alerts displayed since we're not using vital signs data */}
-          </div>
-        </main>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.0 }}
+              className="mt-8 grid gap-8 md:grid-cols-1 mb-8"
+            >
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 1.1 }}
+              >
+                <ActivityCard activities={recentActivities} className="md:col-span-1" />
+              </motion.div>
+            </motion.div>
+          </main>
+        </div>
       </div>
     </div>
   );

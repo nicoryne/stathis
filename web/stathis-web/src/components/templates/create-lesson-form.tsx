@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -105,66 +106,99 @@ export function CreateLessonForm({ onSuccess, onCancel }: CreateLessonFormProps)
         }} 
         className="flex flex-col h-full max-h-[60vh] overflow-hidden"
       >
-        <div className="flex-1 overflow-y-auto pr-4 space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Introduction to Physical Education" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="A brief description of this lesson" 
-                  className="min-h-[100px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="content"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Lesson Content</FormLabel>
-              <FormControl>
-                <div className="border rounded-md p-4 bg-background">
-                  <LessonContentBuilder 
-                    initialValue={field.value}
-                    onChange={updateContent}
+        <div className="flex-1 overflow-y-auto pr-4 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Title</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Introduction to Physical Education" 
+                    className="h-12 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                    {...field} 
                   />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Description</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="A brief description of this lesson" 
+                    className="min-h-[120px] rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <FormField
+            control={form.control}
+            name="content"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Lesson Content</FormLabel>
+                <FormControl>
+                  <div className="border border-border/50 rounded-xl p-4 bg-background/50 backdrop-blur-sm">
+                    <LessonContentBuilder 
+                      initialValue={field.value}
+                      onChange={updateContent}
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
 
         </div>
-        <div className="flex justify-end gap-2 pt-4 sticky bottom-0 bg-background border-t mt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="flex justify-end gap-3 pt-4 sticky bottom-0 bg-card/80 backdrop-blur-xl border-t border-border/50 mt-4 p-4"
+        >
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onCancel}
+            className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90"
+          >
             Cancel
           </Button>
           <Button 
             type="submit" 
             disabled={createLessonMutation.isPending}
+            className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             {createLessonMutation.isPending ? (
               <>
@@ -172,10 +206,13 @@ export function CreateLessonForm({ onSuccess, onCancel }: CreateLessonFormProps)
                 Creating...
               </>
             ) : (
-              'Create Lesson Template'
+              <>
+                <Loader2 className="mr-2 h-4 w-4" />
+                Create Lesson Template
+              </>
             )}
           </Button>
-        </div>
+        </motion.div>
       </form>
     </Form>
   );

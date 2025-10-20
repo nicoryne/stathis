@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -100,9 +101,10 @@ interface CreateTaskFormProps {
   classroomPhysicalId: string;
   onSuccess: () => void;
   onCancel: () => void;
+  onSwitchToTemplate?: (formData: any) => void;
 }
 
-export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: CreateTaskFormProps): React.ReactElement {
+export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel, onSwitchToTemplate }: CreateTaskFormProps): React.ReactElement {
   const [selectedTemplateType, setSelectedTemplateType] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>();
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -118,6 +120,9 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
   // State for quiz question navigation
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const queryClient = useQueryClient();
+
+  // Memoize the minimum date to prevent Calendar re-renders
+  const minDate = useMemo(() => new Date(), []);
 
   // Fetch templates based on the selected type
   const { 
@@ -152,7 +157,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     defaultValues: {
       title: '',
       description: '',
-      points: 10,
+      points: 3,
     }
   });
 
@@ -206,7 +211,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
         return result;
       } catch (error: any) {
         // Check if this is a permission error (403 Forbidden)
-        if (error.status === 403) {
+        if (error?.status === 403) {
           throw new Error('You do not have permission to delete this template. Only the template creator can delete it.');
         }
         // Re-throw the original error
@@ -231,9 +236,9 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     },
     onError: (error: any) => {
       // Provide a more user-friendly error message
-      if (error.message?.includes('permission')) {
+      if (error?.message?.includes('permission')) {
         toast.error(error.message);
-      } else if (error.status === 403) {
+      } else if (error?.status === 403) {
         toast.error('You do not have permission to delete this template. Only the template creator can delete it.');
       } else {
         toast.error(`Error deleting template: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -341,13 +346,13 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     return false;
   };
 
-  // Reset navigation state when template data or type changes
+  // Reset navigation state when template data changes
   useEffect(() => {
     if (reviewTemplateData) {
       setActivePageIndex(0);
       setActiveQuestionIndex(0);
     }
-  }, [reviewTemplateData, selectedTemplateType]);
+  }, [reviewTemplateData]);
   
   // Helper function to render template data in a user-friendly format based on template type
   const formatTemplateData = (data: any, templateType: string) => {
@@ -395,66 +400,104 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     const hasPages = parsedContent.pages && Array.isArray(parsedContent.pages);
     
     return (
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold">Title</h3>
-            <p className="p-2 border rounded-md bg-background">{data.title || 'Untitled Lesson'}</p>
-          </div>
-          
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold">Description</h3>
-            <p className="p-2 border rounded-md bg-background min-h-[60px]">{data.description || 'No description provided'}</p>
+      <div className="space-y-8">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-primary/5 to-secondary/5 backdrop-blur-sm rounded-2xl p-6 border border-border/20">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center">
+                <span className="text-lg">📚</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Lesson Information</h3>
+                <p className="text-sm text-muted-foreground">Template details and content</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Title</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30">
+                  <p className="font-medium">{data.title || 'Untitled Lesson'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Description</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30 min-h-[60px]">
+                  <p className="text-sm">{data.description || 'No description provided'}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
         {/* Lesson Content Section */}
-        <div className="space-y-2">
-          <h3 className="text-base font-semibold">Lesson Content</h3>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-secondary/20 to-accent/20 flex items-center justify-center">
+              <span className="text-sm">📖</span>
+            </div>
+            <h3 className="text-lg font-semibold">Lesson Content</h3>
+          </div>
           
           {/* Display pages if they exist */}
           {hasPages && parsedContent.pages.length > 0 ? (
-            <div className="border rounded-md overflow-hidden">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 overflow-hidden shadow-lg">
               {/* Page Navigation Tabs */}
-              <div className="flex overflow-x-auto bg-muted p-1 gap-1">
-                {parsedContent.pages.map((page: any, index: number) => (
-                  <button
-                    key={index}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap ${activePageIndex === index ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
-                    onClick={() => setActivePageIndex(index)}
-                  >
-                    Page {page.pageNumber || index + 1}
-                  </button>
-                ))}
+              <div className="bg-muted/40 backdrop-blur-sm p-2 border-b border-border/20">
+                <div className="flex overflow-x-auto gap-2">
+                  {parsedContent.pages.map((page: any, index: number) => (
+                    <motion.button
+                      key={index}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`px-4 py-2 text-sm font-medium rounded-xl whitespace-nowrap transition-all duration-200 ${
+                        activePageIndex === index 
+                          ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg' 
+                          : 'bg-background/60 hover:bg-background/80 text-muted-foreground'
+                      }`}
+                      onClick={() => setActivePageIndex(index)}
+                    >
+                      Page {page.pageNumber || index + 1}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
               
               {/* Active Page Content */}
-              <div className="p-4 bg-background">
+              <div className="p-6 bg-gradient-to-b from-background/40 to-card/20">
                 {activePageIndex >= 0 && activePageIndex < parsedContent.pages.length && (
-                  <div className="space-y-4">
-                    {/* Page Number */}
-                    <div className="flex items-center justify-between border-b pb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium text-sm">
+                  <motion.div
+                    key={activePageIndex}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                  >
+                    {/* Page Header */}
+                    <div className="flex items-center justify-between pb-4 border-b border-border/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary to-secondary text-white flex items-center justify-center font-medium text-sm shadow-lg">
                           {parsedContent.pages[activePageIndex].pageNumber || (activePageIndex + 1)}
                         </div>
                         {parsedContent.pages[activePageIndex].subtitle && (
-                          <h3 className="text-lg font-medium">
+                          <h3 className="text-lg font-semibold">
                             {parsedContent.pages[activePageIndex].subtitle}
                           </h3>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
                         Page {activePageIndex + 1} of {parsedContent.pages.length}
                       </div>
                     </div>
                     
                     {/* Page Content */}
-                    <div className="prose prose-sm max-w-none p-3 bg-muted/10 rounded-md my-3">
+                    <div className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
                       {parsedContent.pages[activePageIndex].paragraph ? (
-                        <p>{parsedContent.pages[activePageIndex].paragraph}</p>
+                        <p className="text-base leading-relaxed">{parsedContent.pages[activePageIndex].paragraph}</p>
                       ) : parsedContent.pages[activePageIndex].content ? (
-                        <p>{parsedContent.pages[activePageIndex].content}</p>
+                        <p className="text-base leading-relaxed">{parsedContent.pages[activePageIndex].content}</p>
                       ) : (
                         <p className="text-muted-foreground italic">No content for this page</p>
                       )}
@@ -462,9 +505,9 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                     
                     {/* Page Media */}
                     {parsedContent.pages[activePageIndex].media && (
-                      <div className="mt-4 p-3 bg-muted/50 rounded-md">
-                        <div className="flex items-center gap-2">
-                          <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center">
+                      <div className="bg-gradient-to-r from-accent/10 to-primary/10 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
                               <circle cx="9" cy="9" r="2" />
@@ -472,20 +515,21 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                             </svg>
                           </div>
                           <div>
-                            <p className="text-sm font-medium">Media Attachment</p>
-                            <p className="text-xs text-muted-foreground">{parsedContent.pages[activePageIndex].media}</p>
+                            <p className="font-medium">Media Attachment</p>
+                            <p className="text-sm text-muted-foreground">{parsedContent.pages[activePageIndex].media}</p>
                           </div>
                         </div>
                       </div>
                     )}
                     
                     {/* Page Navigation Controls */}
-                    <div className="flex justify-between pt-4 border-t mt-4">
+                    <div className="flex justify-between items-center pt-4 border-t border-border/20">
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => setActivePageIndex(prev => Math.max(0, prev - 1))}
                         disabled={activePageIndex === 0}
+                        className="rounded-xl"
                       >
                         Previous Page
                       </Button>
@@ -497,24 +541,30 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                         size="sm"
                         onClick={() => setActivePageIndex(prev => Math.min(parsedContent.pages.length - 1, prev + 1))}
                         disabled={activePageIndex === parsedContent.pages.length - 1}
+                        className="rounded-xl"
                       >
                         Next Page
                       </Button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </div>
           ) : parsedContent.sections ? (
             // If we have sections array
-            <div className="border rounded-md p-4 bg-background">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
               <div className="space-y-4">
                 {parsedContent.sections.map((section: any, index: number) => (
-                  <div key={index} className="p-3 border rounded-md">
-                    <h4 className="font-medium mb-2">Section {index + 1}</h4>
-                    <p className="text-sm">{section.text || 'No content'}</p>
+                  <div key={index} className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center text-xs font-medium">
+                        {index + 1}
+                      </span>
+                      Section {index + 1}
+                    </h4>
+                    <p className="text-sm leading-relaxed">{section.text || 'No content'}</p>
                     {section.media && (
-                      <div className="mt-2 p-2 bg-muted rounded-md">
+                      <div className="mt-3 p-3 bg-muted/50 rounded-lg">
                         <p className="text-xs text-muted-foreground">Media: {section.media}</p>
                       </div>
                     )}
@@ -524,12 +574,17 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
             </div>
           ) : parsedContent.text ? (
             // If we have a single text field
-            <div className="border rounded-md p-4 bg-background">
-              <div className="p-3 border rounded-md">
-                <h4 className="font-medium mb-2">Content</h4>
-                <p className="text-sm">{parsedContent.text}</p>
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
+              <div className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center text-xs font-medium">
+                    📄
+                  </span>
+                  Content
+                </h4>
+                <p className="text-sm leading-relaxed">{parsedContent.text}</p>
                 {parsedContent.media && (
-                  <div className="mt-2 p-2 bg-muted rounded-md">
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Media: {parsedContent.media}</p>
                   </div>
                 )}
@@ -537,19 +592,24 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
             </div>
           ) : Object.keys(parsedContent).length > 0 ? (
             // If we have any content but not in expected format
-            <div className="border rounded-md p-4 bg-background">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
               <div className="space-y-4">
                 {Object.entries(parsedContent).map(([key, value], index) => {
                   // Handle special case for 'pages' key that's not in the expected format
                   if (key === 'pages' && Array.isArray(value)) {
                     return (
-                      <div key={index} className="p-3 border rounded-md">
-                        <h4 className="font-medium mb-2">Pages</h4>
+                      <div key={index} className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center text-xs font-medium">
+                            📚
+                          </span>
+                          Pages
+                        </h4>
                         <div className="space-y-3">
                           {value.map((page: any, pageIndex: number) => (
-                            <div key={pageIndex} className="p-3 bg-muted/30 rounded-md">
+                            <div key={pageIndex} className="bg-muted/30 rounded-lg p-3">
                               <div className="flex items-center gap-2 mb-2">
-                                <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center text-xs font-medium">
                                   {page.pageNumber || pageIndex + 1}
                                 </div>
                                 <h5 className="font-medium">{page.subtitle || `Page ${page.pageNumber || pageIndex + 1}`}</h5>
@@ -564,8 +624,8 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                   
                   // Regular key-value display
                   return (
-                    <div key={index} className="p-3 border rounded-md">
-                      <h4 className="font-medium mb-2">{key}</h4>
+                    <div key={index} className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                      <h4 className="font-semibold mb-2">{key}</h4>
                       <p className="text-sm">
                         {typeof value === 'string' ? value : JSON.stringify(value)}
                       </p>
@@ -576,7 +636,8 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
             </div>
           ) : (
             // No content
-            <div className="border rounded-md p-4 bg-background">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-8 text-center shadow-lg">
+              <div className="text-4xl mb-3">📝</div>
               <p className="text-muted-foreground">No content available</p>
             </div>
           )}
@@ -611,68 +672,117 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     const hasQuestions = questions.length > 0;
     
     return (
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold">Title</h3>
-            <p className="p-2 border rounded-md bg-background">{data.title || 'Untitled Quiz'}</p>
-          </div>
-          
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold">Instructions</h3>
-            <p className="p-2 border rounded-md bg-background min-h-[60px]">{data.instruction || 'No instructions provided'}</p>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <h3 className="text-base font-semibold">Max Score</h3>
-              <p className="p-2 border rounded-md bg-background">{data.maxScore || '0'} points</p>
+      <div className="space-y-8">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-secondary/5 to-accent/5 backdrop-blur-sm rounded-2xl p-6 border border-border/20">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-secondary/20 to-accent/20 flex items-center justify-center">
+                <span className="text-lg">📝</span>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Quiz Information</h3>
+                <p className="text-sm text-muted-foreground">Template details and questions</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Title</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30">
+                  <p className="font-medium">{data.title || 'Untitled Quiz'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Instructions</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30 min-h-[60px]">
+                  <p className="text-sm">{data.instruction || 'No instructions provided'}</p>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Max Score</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30">
+                  <p className="font-medium text-lg">{data.maxScore || '0'} points</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
         
-        <div className="space-y-2">
-          <h3 className="text-base font-semibold">Quiz Questions</h3>
+        {/* Quiz Questions Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center">
+              <span className="text-sm">❓</span>
+            </div>
+            <h3 className="text-lg font-semibold">Quiz Questions</h3>
+          </div>
           
           {hasQuestions ? (
-            <div className="border rounded-md overflow-hidden">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 overflow-hidden shadow-lg">
               {/* Question Navigation */}
-              <div className="bg-muted p-2 flex gap-1 overflow-x-auto">
-                {questions.map((question: any, index: number) => (
-                  <button
-                    key={index}
-                    onClick={() => setActiveQuestionIndex(index)}
-                    className={`px-2 py-1 min-w-[32px] text-sm font-medium rounded ${activeQuestionIndex === index ? 'bg-background shadow-sm' : 'hover:bg-background/50'}`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
+              <div className="bg-muted/40 backdrop-blur-sm p-3 border-b border-border/20">
+                <div className="flex overflow-x-auto gap-2">
+                  {questions.map((question: any, index: number) => (
+                    <motion.button
+                      key={index}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setActiveQuestionIndex(index)}
+                      className={`px-3 py-2 min-w-[40px] text-sm font-medium rounded-xl transition-all duration-200 ${
+                        activeQuestionIndex === index 
+                          ? 'bg-gradient-to-r from-secondary to-accent text-white shadow-lg' 
+                          : 'bg-background/60 hover:bg-background/80 text-muted-foreground'
+                      }`}
+                    >
+                      {index + 1}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
               
               {/* Active Question Display */}
-              <div className="p-4 bg-background">
+              <div className="p-6 bg-gradient-to-b from-background/40 to-card/20">
                 {activeQuestionIndex >= 0 && activeQuestionIndex < questions.length && (
-                  <div className="space-y-4">
+                  <motion.div
+                    key={activeQuestionIndex}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6"
+                  >
                     {/* Question Header */}
-                    <div className="pb-2 border-b">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-medium text-sm">
+                    <div className="flex items-center justify-between pb-4 border-b border-border/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-secondary to-accent text-white flex items-center justify-center font-medium text-sm shadow-lg">
                           {activeQuestionIndex + 1}
                         </div>
-                        <h3 className="text-lg font-medium">Question {activeQuestionIndex + 1}</h3>
+                        <h3 className="text-lg font-semibold">Question {activeQuestionIndex + 1}</h3>
+                      </div>
+                      <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                        Question {activeQuestionIndex + 1} of {questions.length}
                       </div>
                     </div>
                     
                     {/* Question Text */}
-                    <div className="p-3 bg-muted/20 rounded-md">
-                      <p className="font-medium">{questions[activeQuestionIndex].question || questions[activeQuestionIndex].text || 'No question text'}</p>
+                    <div className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                      <p className="font-medium text-base leading-relaxed">
+                        {questions[activeQuestionIndex].question || questions[activeQuestionIndex].text || 'No question text'}
+                      </p>
                     </div>
                     
                     {/* Question Options */}
                     {questions[activeQuestionIndex].options && (
-                      <div className="space-y-3">
-                        <h4 className="text-base font-medium">Answer Options</h4>
-                        <div className="space-y-2 pl-1">
+                      <div className="space-y-4">
+                        <h4 className="text-base font-semibold flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center text-xs font-medium">
+                            ✓
+                          </span>
+                          Answer Options
+                        </h4>
+                        <div className="space-y-3">
                           {/* Handle both array of strings and array of objects */}
                           {Array.isArray(questions[activeQuestionIndex].options) && (
                             questions[activeQuestionIndex].options.map((option: any, optIndex: number) => {
@@ -691,21 +801,30 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                               }
                               
                               return (
-                                <div 
-                                  key={optIndex} 
-                                  className={`flex items-center p-2 rounded-md border ${isCorrect ? 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-900' : 'border-transparent'}`}
+                                <motion.div 
+                                  key={optIndex}
+                                  whileHover={{ scale: 1.02 }}
+                                  className={`flex items-center p-4 rounded-xl border transition-all duration-200 ${
+                                    isCorrect 
+                                      ? 'border-success/50 bg-success/10 shadow-lg' 
+                                      : 'border-border/30 bg-background/60 hover:bg-background/80'
+                                  }`}
                                 >
-                                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-3 ${isCorrect ? 'bg-green-500 border-green-600 text-white' : 'border-gray-300'}`}>
+                                  <div className={`w-6 h-6 rounded-full border flex items-center justify-center mr-4 transition-all duration-200 ${
+                                    isCorrect 
+                                      ? 'bg-success border-success text-white shadow-lg' 
+                                      : 'border-border/50 bg-background'
+                                  }`}>
                                     {isCorrect && (
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="20 6 9 17 4 12" />
                                       </svg>
                                     )}
                                   </div>
-                                  <span className={isCorrect ? 'font-medium' : ''}>
+                                  <span className={`text-sm ${isCorrect ? 'font-semibold text-success-foreground' : 'text-foreground'}`}>
                                     {optionText}
                                   </span>
-                                </div>
+                                </motion.div>
                               );
                             })
                           )}
@@ -714,16 +833,17 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                     )}
                     
                     {/* Navigation Controls */}
-                    <div className="flex justify-between pt-4 border-t mt-4">
+                    <div className="flex justify-between items-center pt-4 border-t border-border/20">
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => setActiveQuestionIndex(prev => Math.max(0, prev - 1))}
                         disabled={activeQuestionIndex === 0}
+                        className="rounded-xl"
                       >
                         Previous Question
                       </Button>
-                      <div className="text-sm text-muted-foreground self-center">
+                      <div className="text-sm text-muted-foreground">
                         Question {activeQuestionIndex + 1} of {questions.length}
                       </div>
                       <Button 
@@ -731,21 +851,22 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                         size="sm"
                         onClick={() => setActiveQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
                         disabled={activeQuestionIndex === questions.length - 1}
+                        className="rounded-xl"
                       >
                         Next Question
                       </Button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </div>
             </div>
           ) : Object.keys(parsedContent).length > 0 ? (
             // If we have any content but not in expected format
-            <div className="border rounded-md p-4 bg-background">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
               <div className="space-y-4">
                 {Object.entries(parsedContent).map(([key, value], index) => (
-                  <div key={index} className="p-3 border rounded-md">
-                    <h4 className="font-medium mb-2">{key}</h4>
+                  <div key={index} className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                    <h4 className="font-semibold mb-2">{key}</h4>
                     <p className="text-sm">
                       {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
                     </p>
@@ -754,7 +875,8 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
               </div>
             </div>
           ) : (
-            <div className="border rounded-md p-4 bg-background">
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-8 text-center shadow-lg">
+              <div className="text-4xl mb-3">📝</div>
               <p className="text-muted-foreground">No questions available</p>
             </div>
           )}
@@ -818,103 +940,153 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
     const exerciseName = parsedContent.name || parsedContent.title || parsedContent.exerciseName || data.name || '';
     
     return (
-      <div className="space-y-6">
-        <div className="rounded-lg border overflow-hidden">
-          <div className="bg-muted p-4">
-            <h3 className="text-lg font-medium">
-              {exerciseName ? exerciseName : 'Exercise Information'}
-            </h3>
-          </div>
-          <div className="p-4 space-y-4">
-            {/* Exercise Type */}
+      <div className="space-y-8">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-accent/5 to-primary/5 backdrop-blur-sm rounded-2xl p-6 border border-border/20">
+          <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center">
+                <span className="text-lg">💪</span>
               </div>
               <div>
-                <h4 className="text-sm font-medium">Exercise Type</h4>
-                <p className="text-base">{exerciseType}</p>
+                <h3 className="text-xl font-bold text-foreground">Exercise Information</h3>
+                <p className="text-sm text-muted-foreground">Template details and goals</p>
               </div>
             </div>
             
-            {/* Exercise Goals */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-              {/* Repetitions */}
-              <div className="p-3 rounded-md bg-background border">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center dark:bg-blue-900/20 dark:text-blue-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-repeat">
-                      <path d="m17 2 4 4-4 4" />
-                      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-                      <path d="m7 22-4-4 4-4" />
-                      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-                    </svg>
-                  </div>
-                  <h4 className="text-sm font-medium">Goal Reps</h4>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Exercise Name</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30">
+                  <p className="font-medium text-lg">{exerciseName || 'Untitled Exercise'}</p>
                 </div>
-                <p className="text-2xl font-semibold mt-2">{goalReps}</p>
               </div>
               
-              {/* Accuracy */}
-              <div className="p-3 rounded-md bg-background border">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-green-50 text-green-500 flex items-center justify-center dark:bg-green-900/20 dark:text-green-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle">
-                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                      <polyline points="22 4 12 14.01 9 11.01" />
-                    </svg>
-                  </div>
-                  <h4 className="text-sm font-medium">Goal Accuracy</h4>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Exercise Type</label>
+                <div className="p-3 bg-background/60 backdrop-blur-sm rounded-xl border border-border/30">
+                  <p className="font-medium">{exerciseType}</p>
                 </div>
-                <p className="text-2xl font-semibold mt-2">{accuracyDisplay}</p>
-              </div>
-              
-              {/* Time */}
-              <div className="p-3 rounded-md bg-background border">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-yellow-50 text-yellow-500 flex items-center justify-center dark:bg-yellow-900/20 dark:text-yellow-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-timer">
-                      <path d="M10 2h4" />
-                      <path d="M12 14v-4" />
-                      <path d="M12 14v-4" />
-                      <circle cx="12" cy="14" r="8" />
-                    </svg>
-                  </div>
-                  <h4 className="text-sm font-medium">Goal Time</h4>
-                </div>
-                <p className="text-2xl font-semibold mt-2">{timeDisplay}</p>
               </div>
             </div>
-            
-            {/* Exercise Difficulty */}
-            {difficulty && (
-              <div className="mt-4 p-3 rounded-md bg-muted/50">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-gauge">
-                      <path d="m12 15 3.5-3.5" />
-                      <path d="M20.3 18c.4-1 .7-2.2.7-3.4C21 9.8 17 6 12 6s-9 3.8-9 8.6c0 1.2.3 2.4.7 3.4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium">Difficulty Level</h4>
-                    <p className="text-base capitalize">{difficulty}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Any exercise description if available */}
-            {(parsedContent.description || parsedContent.instructions) && (
-              <div className="mt-4 p-3 rounded-md bg-muted/30 border">
-                <h4 className="text-sm font-medium mb-2">Instructions</h4>
-                <p className="text-sm">{parsedContent.description || parsedContent.instructions}</p>
-              </div>
-            )}
           </div>
         </div>
+        
+        {/* Exercise Goals Section */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center">
+              <span className="text-sm">🎯</span>
+            </div>
+            <h3 className="text-lg font-semibold">Exercise Goals</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Repetitions */}
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500/20 to-blue-600/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+                    <path d="m17 2 4 4-4 4" />
+                    <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                    <path d="m7 22-4-4 4-4" />
+                    <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm">Goal Reps</h4>
+                  <p className="text-xs text-muted-foreground">Target repetitions</p>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-blue-600">{goalReps}</p>
+            </div>
+            
+            {/* Accuracy */}
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-green-500/20 to-green-600/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm">Goal Accuracy</h4>
+                  <p className="text-xs text-muted-foreground">Target precision</p>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-green-600">{accuracyDisplay}</p>
+            </div>
+            
+            {/* Time */}
+            <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-600">
+                    <path d="M10 2h4" />
+                    <path d="M12 14v-4" />
+                    <path d="M12 14v-4" />
+                    <circle cx="12" cy="14" r="8" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm">Goal Time</h4>
+                  <p className="text-xs text-muted-foreground">Target duration</p>
+                </div>
+              </div>
+              <p className="text-3xl font-bold text-yellow-600">{timeDisplay}</p>
+            </div>
+          </div>
+        </div>
+        
+        {/* Additional Information */}
+        {(difficulty || parsedContent.description || parsedContent.instructions) && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-secondary/20 to-accent/20 flex items-center justify-center">
+                <span className="text-sm">ℹ️</span>
+              </div>
+              <h3 className="text-lg font-semibold">Additional Information</h3>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Exercise Difficulty */}
+              {difficulty && (
+                <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                        <path d="m12 15 3.5-3.5" />
+                        <path d="M20.3 18c.4-1 .7-2.2.7-3.4C21 9.8 17 6 12 6s-9 3.8-9 8.6c0 1.2.3 2.4.7 3.4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">Difficulty Level</h4>
+                      <p className="text-lg font-medium capitalize text-primary">{difficulty}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Exercise Description/Instructions */}
+              {(parsedContent.description || parsedContent.instructions) && (
+                <div className="bg-card/60 backdrop-blur-sm rounded-2xl border border-border/20 p-6 shadow-lg">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-r from-accent/20 to-primary/20 flex items-center justify-center text-xs font-medium">
+                        📋
+                      </span>
+                      Instructions
+                    </h4>
+                    <div className="bg-background/60 backdrop-blur-sm rounded-xl p-4 border border-border/20">
+                      <p className="text-sm leading-relaxed">{parsedContent.description || parsedContent.instructions}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -955,12 +1127,12 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
   return (
     <>
       <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto bg-card/98 backdrop-blur-xl border-border/30 rounded-3xl custom-scrollbar">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Template Review: {reviewTemplateData?.title || 'Template'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Reviewing {selectedTemplateType?.toLowerCase()} template details
             </DialogDescription>
           </DialogHeader>
@@ -972,320 +1144,348 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
       </Dialog>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full max-h-[70vh] min-h-[500px] overflow-hidden bg-background rounded-lg shadow-sm border border-border">
-        <div className="flex-1 overflow-y-auto px-5 pt-5 space-y-5">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Week 1 Assignment" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Task instructions and details..." 
-                  className="min-h-[100px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="dueDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Due Date</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      date={field.value}
-                      onDateChange={field.onChange}
-                      min={new Date()} // Prevent selecting dates in the past
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel className="text-lg font-semibold">Task Title</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g., Week 1 Assignment" 
+                      className="h-14 rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base"
+                      {...field} 
                     />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name="points"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Max Attempts</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    min={0} 
-                    max={100} 
-                    placeholder="10" 
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Maximum number of attempts allowed for this task
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel className="text-lg font-semibold">Description</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Provide clear instructions and details for students..." 
+                      className="min-h-[140px] rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base resize-none"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="templateType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Template Type</FormLabel>
-              <Select 
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  handleTemplateTypeChange(value);
-                }}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full bg-background">
-                    <SelectValue placeholder="Select template type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="LESSON">Lesson</SelectItem>
-                  <SelectItem value="QUIZ">Quiz</SelectItem>
-                  <SelectItem value="EXERCISE">Exercise</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Type of content to assign to students
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+            <FormField
+              control={form.control}
+              name="dueDate"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel className="text-lg font-semibold">Due Date</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-4 text-left font-normal h-14 rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Select due date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl" align="start">
+                      <Calendar
+                        date={field.value}
+                        onDateChange={field.onChange}
+                        min={minDate}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {selectedTemplateType && (
-          <FormField
-            control={form.control}
-            name="templatePhysicalId"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex justify-between items-center">
-                  <FormLabel>Template</FormLabel>
-                  <div className="flex space-x-2">
-                    <TemplateCreationModal 
-                      templateType={selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
-                      onTemplateCreated={handleTemplateCreated}
-                      continueToTask={true} /* Set to true to keep the dialog open for task creation */
-                      trigger={
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          <Plus className="h-4 w-4 mr-1" />
+            <FormField
+              control={form.control}
+              name="points"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg font-semibold">Max Attempts</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min={0} 
+                      max={100} 
+                      placeholder="3" 
+                      className="h-14 rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-sm text-muted-foreground">
+                    Maximum number of attempts allowed
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="space-y-6"
+          >
+            <FormField
+              control={form.control}
+              name="templateType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-lg font-semibold">Content Type</FormLabel>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      handleTemplateTypeChange(value);
+                    }}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full bg-background/60 backdrop-blur-sm border-border/30 rounded-2xl h-14 text-base">
+                        <SelectValue placeholder="Choose content type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl">
+                      <SelectItem value="LESSON">📚 Lesson</SelectItem>
+                      <SelectItem value="QUIZ">📝 Quiz</SelectItem>
+                      <SelectItem value="EXERCISE">💪 Exercise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription className="text-sm text-muted-foreground">
+                    Select the type of content to assign to students
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {selectedTemplateType && (
+              <FormField
+                control={form.control}
+                name="templatePhysicalId"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex justify-between items-center mb-3">
+                      <FormLabel className="text-lg font-semibold">Template</FormLabel>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-9 px-3 rounded-xl hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                          onClick={() => {
+                            if (onSwitchToTemplate) {
+                              const formData = form.getValues();
+                              onSwitchToTemplate({
+                                ...formData,
+                                templateType: selectedTemplateType
+                              });
+                            }
+                          }}
+                          disabled={!selectedTemplateType}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
                           New Template
                         </Button>
-                      }
-                    />
-                    <Button 
-                      type="button" /* Explicitly set button type to prevent form submission */
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2"
-                      onClick={async () => {
-                        if (selectedTemplateId && selectedTemplateType) {
-                          const templateType = selectedTemplateType.toLowerCase() as 'lesson' | 'quiz' | 'exercise';
-                          try {
-                            let data;
-                            
-                            // Call appropriate API based on template type
-                            switch (templateType) {
-                              case 'lesson':
-                                data = await getLessonTemplate(selectedTemplateId);
-                                break;
-                              case 'quiz':
-                                data = await getQuizTemplate(selectedTemplateId);
-                                break;
-                              case 'exercise':
-                                data = await getExerciseTemplate(selectedTemplateId);
-                                break;
-                              default:
-                                toast.error('Invalid template type');
-                                return;
+                        <Button 
+                          type="button"
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-9 px-3 rounded-xl hover:bg-secondary/10 hover:text-secondary transition-all duration-200"
+                          onClick={async () => {
+                            if (selectedTemplateId && selectedTemplateType) {
+                              const templateType = selectedTemplateType.toLowerCase() as 'lesson' | 'quiz' | 'exercise';
+                              try {
+                                let data;
+                                
+                                switch (templateType) {
+                                  case 'lesson':
+                                    data = await getLessonTemplate(selectedTemplateId);
+                                    break;
+                                  case 'quiz':
+                                    data = await getQuizTemplate(selectedTemplateId);
+                                    break;
+                                  case 'exercise':
+                                    data = await getExerciseTemplate(selectedTemplateId);
+                                    break;
+                                  default:
+                                    toast.error('Invalid template type');
+                                    return;
+                                }
+                                
+                                setReviewTemplateData(data);
+                                setReviewDialogOpen(true);
+                              } catch (error) {
+                                toast.error('Failed to load template');
+                                console.error('Error fetching template:', error);
+                              }
+                            } else {
+                              toast.error('Please select a template first');
                             }
-                            
-                            // Store template data and open dialog
-                            setReviewTemplateData(data);
-                            setReviewDialogOpen(true);
-                          } catch (error) {
-                            toast.error('Failed to load template');
-                            console.error('Error fetching template:', error);
-                          }
-                        } else {
-                          toast.error('Please select a template first');
-                        }
-                      }}
-                      disabled={!selectedTemplateId || !selectedTemplateType}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Review Template
-                    </Button>
-                    <Button 
-                      type="button"
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2 text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        if (selectedTemplateId && selectedTemplateType) {
-                          setTemplateToDelete({
-                            id: selectedTemplateId,
-                            type: selectedTemplateType
-                          });
-                          setDeleteDialogOpen(true);
-                        } else {
-                          toast.error('Please select a template first');
-                        }
-                      }}
-                      disabled={!selectedTemplateId || !selectedTemplateType}
-                    >
-                      <Trash className="h-4 w-4 mr-1" />
-                      Delete Template
-                    </Button>
-                  </div>
-                </div>
-                <Select 
-                  onValueChange={(value) => {
-                    if (value === 'create-new') {
-                      // This is handled in the SelectItem click now with the modal
-                      return;
-                    }
-                    field.onChange(value);
-                    // Store selected template ID for review
-                    setSelectedTemplateId(value);
-                  }}
-                  value={field.value}
-                  disabled={isLoadingTemplates()}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full bg-background">
-                      {isLoadingTemplates() ? (
-                        <div className="flex items-center">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading templates...
-                        </div>
-                      ) : (
-                        <SelectValue placeholder="Select a template" />
-                      )}
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {getAvailableTemplates().length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        No templates available. Please create a template first.
+                          }}
+                          disabled={!selectedTemplateId || !selectedTemplateType}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Preview
+                        </Button>
+                        <Button 
+                          type="button"
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-9 px-3 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+                          onClick={() => {
+                            if (selectedTemplateId && selectedTemplateType) {
+                              setTemplateToDelete({
+                                id: selectedTemplateId,
+                                type: selectedTemplateType
+                              });
+                              setDeleteDialogOpen(true);
+                            } else {
+                              toast.error('Please select a template first');
+                            }
+                          }}
+                          disabled={!selectedTemplateId || !selectedTemplateType}
+                        >
+                          <Trash className="h-4 w-4 mr-2" />
+                          Delete
+                        </Button>
                       </div>
-                    ) : (
-                      <>
-                        <SelectGroup>
-                          <SelectLabel>Available Templates</SelectLabel>
-                          {getAvailableTemplates().map((template: any) => (
-                            <SelectItem key={template.physicalId} value={template.physicalId}>
-                              {template.title}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </>
-                    )}
-                    <SelectSeparator />
-                  </SelectContent>
-                </Select>
-                <FormDescription className="mt-1 text-muted-foreground">
-                  {selectedTemplateType === 'LESSON' && 'Select a lesson to assign to students'}
-                  {selectedTemplateType === 'QUIZ' && 'Select a quiz to assign to students'}
-                  {selectedTemplateType === 'EXERCISE' && 'Select an exercise to assign to students'}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+                    </div>
+                    <Select 
+                      onValueChange={(value) => {
+                        if (value === 'create-new') {
+                          return;
+                        }
+                        field.onChange(value);
+                        setSelectedTemplateId(value);
+                      }}
+                      value={field.value}
+                      disabled={isLoadingTemplates()}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full bg-background/60 backdrop-blur-sm border-border/30 rounded-2xl h-14 text-base">
+                          {isLoadingTemplates() ? (
+                            <div className="flex items-center">
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading templates...
+                            </div>
+                          ) : (
+                            <SelectValue placeholder="Select a template" />
+                          )}
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl">
+                        {getAvailableTemplates().length === 0 ? (
+                          <div className="p-4 text-center text-muted-foreground">
+                            <div className="text-4xl mb-2">📝</div>
+                            <p className="text-sm">No templates available</p>
+                            <p className="text-xs">Create a template first</p>
+                          </div>
+                        ) : (
+                          <>
+                            <SelectGroup>
+                              <SelectLabel className="text-sm font-medium text-muted-foreground">Available Templates</SelectLabel>
+                              {getAvailableTemplates().map((template: any) => (
+                                <SelectItem key={template.physicalId} value={template.physicalId} className="text-base">
+                                  {template.title}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </>
+                        )}
+                        <SelectSeparator />
+                      </SelectContent>
+                    </Select>
+                    <FormDescription className="text-sm text-muted-foreground mt-2">
+                      {selectedTemplateType === 'LESSON' && '📚 Select a lesson to assign to students'}
+                      {selectedTemplateType === 'QUIZ' && '📝 Select a quiz to assign to students'}
+                      {selectedTemplateType === 'EXERCISE' && '💪 Select an exercise to assign to students'}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
-          />
-        )}
-        </div>
+          </motion.div>
 
-        <div className="flex justify-end gap-3 p-5 pt-4 mt-5 border-t border-border">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onCancel}
-            className="px-5"
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex justify-end gap-4 pt-8 border-t border-border/20"
           >
-            Cancel
-          </Button>
-          <Button 
-            type="submit" 
-            disabled={createTaskMutation.isPending}
-            className="px-5"
-          >
-            {createTaskMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              'Create Task'
-            )}
-          </Button>
-        </div>
-      </form>
-    </Form>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              className="px-8 h-12 bg-card/80 backdrop-blur-xl border-border/30 hover:bg-card/90 rounded-2xl text-base font-medium transition-all duration-200"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={createTaskMutation.isPending}
+              className="px-8 h-12 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base font-medium"
+            >
+              {createTaskMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Creating Task...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-5 w-5" />
+                  Create Task
+                </>
+              )}
+            </Button>
+          </motion.div>
+        </form>
+      </Form>
 
     {/* Delete Template Confirmation Dialog */}
     <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-      <AlertDialogContent>
+      <AlertDialogContent className="bg-card/98 backdrop-blur-xl border-border/30 rounded-3xl">
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-          <AlertDialogDescription>
+          <AlertDialogTitle className="text-xl font-bold">Confirm Deletion</AlertDialogTitle>
+          <AlertDialogDescription className="text-base">
             This action cannot be undone. This will permanently delete the {templateToDelete?.type?.toLowerCase()} template.
             <br />
             <br />
             <strong>Note:</strong> You can only delete templates that you created yourself.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+        <AlertDialogFooter className="gap-3">
+          <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
           <AlertDialogAction 
             onClick={() => {
               if (templateToDelete) {
@@ -1293,18 +1493,17 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel }: Cre
                   templateId: templateToDelete.id, 
                   templateType: templateToDelete.type 
                 });
-                // Close the dialog after successful deletion
                 setDeleteDialogOpen(false);
               }
             }}
-            className="bg-red-500 hover:bg-red-600"
+            className="bg-red-500 hover:bg-red-600 rounded-xl"
           >
             {deleteTemplateMutation.isPending ? (
               <span className="flex items-center">
-                <span className="mr-1 h-3 w-3 animate-spin rounded-full border-2 border-r-transparent"></span>
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-r-transparent"></span>
                 Deleting...
               </span>
-            ) : 'Delete'}
+            ) : 'Delete Template'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

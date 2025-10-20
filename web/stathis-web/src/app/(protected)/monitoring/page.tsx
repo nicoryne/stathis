@@ -581,7 +581,7 @@ export default function MonitoringPage() {
     <div className="flex min-h-screen bg-background">
       <Sidebar className="hidden lg:block" />
       
-      <div className="flex-1">
+      <div className="flex-1 lg:ml-64">
         <AuthNavbar />
         
         <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
