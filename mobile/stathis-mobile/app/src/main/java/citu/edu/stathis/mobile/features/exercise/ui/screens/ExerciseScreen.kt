@@ -240,6 +240,7 @@ fun ExerciseScreen(
                 }
         )
 
+        // Top controls - only camera controls, no back button for fullscreen experience
         Surface(
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
             tonalElevation = 0.dp,
@@ -253,21 +254,8 @@ fun ExerciseScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.End
             ) {
-                Surface(
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-                ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
                 Surface(
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
@@ -331,7 +319,6 @@ fun ExerciseScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(8.dp))
             }
         }
 

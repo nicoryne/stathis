@@ -1,5 +1,6 @@
 package citu.edu.stathis.mobile.features.tasks.presentation
 
+import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -24,21 +25,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import citu.edu.stathis.mobile.features.tasks.data.model.Task
 import citu.edu.stathis.mobile.features.tasks.data.model.TaskProgressResponse
 import citu.edu.stathis.mobile.features.tasks.data.model.LessonTemplate
@@ -47,6 +44,7 @@ import citu.edu.stathis.mobile.features.tasks.presentation.components.LessonTemp
 import citu.edu.stathis.mobile.features.tasks.presentation.components.QuizTemplateRenderer
 import citu.edu.stathis.mobile.features.tasks.presentation.components.ExerciseTemplateRenderer
 import coil3.compose.AsyncImage
+import kotlin.math.abs
 
 @Composable
 private fun FallbackComponentsSection(
@@ -248,7 +246,8 @@ fun TaskDetailScreen(
                         TaskQuickStatsSection(
                             task = currentTask,
                             progress = progress,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                            templateMaxScore = progress?.maxQuizScore ?: currentTask.quizTemplate?.maxScore
                         )
                     }
 
@@ -560,13 +559,13 @@ private fun TaskQuickStatsSection(
             val maxScore = progress?.maxQuizScore ?: task.quizTemplate?.maxScore
             val attempts = progress?.quizAttempts ?: 0
             val effectiveMaxAttempts = if (task.maxAttempts > 0) task.maxAttempts else 10 // Fallback to 10 if maxAttempts is 0
-            android.util.Log.d("TaskDetailScreen", "Task maxAttempts: ${task.maxAttempts}, effectiveMaxAttempts: $effectiveMaxAttempts")
+            Log.d("TaskDetailScreen", "Task maxAttempts: ${task.maxAttempts}, effectiveMaxAttempts: $effectiveMaxAttempts")
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Show latest attempt score (backend returns latest in progress.quizScore)
-                val latestScore = score
+                val latestScore = progress?.quizScore
                 StatCard(
                     title = "Score",
                     value = if (latestScore != null && maxScore != null && maxScore > 0) "$latestScore/$maxScore" else "-",
@@ -755,7 +754,7 @@ private fun DueDateSection(
 private fun DateItem(
     label: String,
     date: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: ImageVector
 ) {
     val parsed = remember(date) {
         runCatching { OffsetDateTime.parse(date) }.getOrNull()
@@ -893,7 +892,7 @@ private fun DueDateWideCard(
                 val daysText = parsed?.let {
                     val days = ChronoUnit.DAYS.between(now.toLocalDate(), it.toLocalDate())
                     when {
-                        days < 0 -> "Overdue by ${kotlin.math.abs(days)} day${if (kotlin.math.abs(days) == 1L) "" else "s"}"
+                        days < 0 -> "Overdue by ${abs(days)} day${if (abs(days) == 1L) "" else "s"}"
                         days == 0L -> "Due today"
                         days == 1L -> "Due in 1 day"
                         else -> "Due in $days days"

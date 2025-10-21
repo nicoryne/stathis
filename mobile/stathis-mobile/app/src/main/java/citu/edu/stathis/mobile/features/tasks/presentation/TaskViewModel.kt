@@ -29,7 +29,7 @@ class TaskViewModel @Inject constructor(
     private val completeLessonResultUseCase: CompleteLessonResultUseCase,
     private val completeExerciseResultUseCase: CompleteExerciseResultUseCase,
     private val getQuizScoreResultUseCase: GetQuizScoreResultUseCase,
-    private val authTokenManager: AuthTokenManager
+    val authTokenManager: AuthTokenManager
 ) : ViewModel() {
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
