@@ -28,12 +28,18 @@ function Calendar({
   disabled = false,
   min,
   max,
-  ...props
+  ...restProps
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(() => date.getMonth());
   const [currentYear, setCurrentYear] = React.useState(() => date.getFullYear());
   const [selectedDate, setSelectedDate] = React.useState(() => date);
 
+  // Exclude conflicting event handlers that framer-motion uses
+  const { 
+    onDrag, onDragStart, onDragEnd, onDragEnter, onDragLeave, onDragOver, onDrop,
+    onAnimationStart, onAnimationEnd, onAnimationIteration,
+    ...props 
+  } = restProps as any;
   // Memoize the date to prevent unnecessary re-renders
   const memoizedDate = React.useMemo(() => {
     return date ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : null;

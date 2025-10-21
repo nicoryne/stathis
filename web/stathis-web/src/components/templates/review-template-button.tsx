@@ -36,6 +36,7 @@ export function ReviewTemplateButton({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [templateData, setTemplateData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   const fetchTemplate = async () => {
     if (!templateId) {
@@ -44,6 +45,7 @@ export function ReviewTemplateButton({
     }
     
     setIsLoading(true);
+    setError(null);
     
     try {
       let data;
@@ -62,11 +64,13 @@ export function ReviewTemplateButton({
       
       setTemplateData(data);
       setIsOpen(true);
-    } catch (error) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load template';
+      setError(errorMessage);
       toast.error('Failed to load template', {
         description: 'Please try again later'
       });
-      console.error('Error fetching template:', error);
+      console.error('Error fetching template:', err);
     } finally {
       setIsLoading(false);
     }
