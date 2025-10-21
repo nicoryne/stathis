@@ -40,6 +40,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { motion, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 
 // Define the interface for student data
 interface Student {
@@ -53,6 +55,7 @@ interface Student {
   lastUpdateTimestamp?: Date; // Track actual timestamp for offline detection
   status: "excellent" | "good" | "warning" | "inactive";
   profilePictureUrl?: string;
+  verified: boolean;
 }
 
 // WebSocket message types - matching mobile app's VitalsWebSocketDTO
@@ -83,7 +86,8 @@ function mapApiDataToStudent(apiStudent: any): Student {
     lastUpdate: "No data yet",
     lastUpdateTimestamp: undefined,
     status: "inactive", // Start as inactive
-    profilePictureUrl: apiStudent.profilePictureUrl
+    profilePictureUrl: apiStudent.profilePictureUrl,
+    verified: apiStudent.verified || false
   };
 }
 
@@ -401,31 +405,33 @@ const StudentCard = memo(function StudentCardBase({ student }: { student: Studen
   
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-all hover:shadow-lg",
-      "border-l-4 border-t-4 border-r-2 border-b-2",
-      getStatusColor(student.status),
-      isInactive && "grayscale"
+      "relative overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group",
+      isInactive && "grayscale opacity-75"
     )}>
-      {/* Status Indicator */}
+      {/* Status Indicator - Gradient Bar */}
       <div className={cn(
-        "absolute top-0 left-0 right-0 h-1",
-        student.status === "excellent" && "bg-green-500",
-        student.status === "good" && "bg-blue-500",
-        student.status === "warning" && "bg-orange-500",
-        student.status === "inactive" && "bg-gray-500"
+        "absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r",
+        student.status === "excellent" && "from-green-500 to-green-400",
+        student.status === "good" && "from-blue-500 to-blue-400",
+        student.status === "warning" && "from-orange-500 to-orange-400 animate-pulse",
+        student.status === "inactive" && "from-gray-400 to-gray-300"
       )} />
       
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-bold tracking-tight">
-              {student.lastName}, {student.firstName}
-            </CardTitle>
-            <CardDescription className="font-mono text-xs">
-              {student.studentNumber}
-            </CardDescription>
-          </div>
-          <Badge variant="outline" className={cn("text-xs", getStatusBadgeClass(student.status))}>
+      <CardHeader className="pb-1">
+        <div className="space-y-2">
+          <CardTitle className="text-lg font-bold tracking-tight leading-tight">
+            {student.lastName}, {student.firstName}
+          </CardTitle>
+          <CardDescription className="font-mono text-xs">
+            {student.studentNumber}
+          </CardDescription>
+          <Badge variant="outline" className={cn(
+            "text-xs font-medium rounded-full px-2.5 py-0.5 border-0 shadow-sm w-fit",
+            student.status === "excellent" && "bg-green-500/10 text-green-700 dark:text-green-400",
+            student.status === "good" && "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+            student.status === "warning" && "bg-orange-500/10 text-orange-700 dark:text-orange-400",
+            student.status === "inactive" && "bg-gray-500/10 text-gray-700 dark:text-gray-400"
+          )}>
             {student.status === "excellent" && "Excellent"}
             {student.status === "good" && "Normal"}
             {student.status === "warning" && "Warning"}
@@ -434,43 +440,54 @@ const StudentCard = memo(function StudentCardBase({ student }: { student: Studen
         </div>
       </CardHeader>
       
-      <CardContent className="pb-2">
+      <CardContent className="pb-3 pt-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <div className={cn(
-              "p-2 rounded-full",
-              heartRateStatus === "excellent" && "bg-green-100",
-              heartRateStatus === "good" && "bg-blue-100",
-              heartRateStatus === "warning" && "bg-orange-100",
-              heartRateStatus === "inactive" && "bg-gray-100"
+              "p-2.5 rounded-xl shadow-sm transition-all duration-200",
+              heartRateStatus === "excellent" && "bg-gradient-to-br from-green-500/20 to-green-600/10",
+              heartRateStatus === "good" && "bg-gradient-to-br from-blue-500/20 to-blue-600/10",
+              heartRateStatus === "warning" && "bg-gradient-to-br from-orange-500/20 to-orange-600/10",
+              heartRateStatus === "inactive" && "bg-gradient-to-br from-gray-500/20 to-gray-600/10"
             )}>
               <Heart className={cn(
-                "h-5 w-5",
-                heartRateStatus === "excellent" && "text-green-600",
-                heartRateStatus === "good" && "text-blue-600",
-                heartRateStatus === "warning" && "animate-pulse text-orange-600",
-                heartRateStatus === "inactive" && "text-gray-600"
+                "h-5 w-5 transition-all duration-200",
+                heartRateStatus === "excellent" && "text-green-600 dark:text-green-500",
+                heartRateStatus === "good" && "text-blue-600 dark:text-blue-500",
+                heartRateStatus === "warning" && "animate-pulse text-orange-600 dark:text-orange-500",
+                heartRateStatus === "inactive" && "text-gray-600 dark:text-gray-500"
               )} />
             </div>
-            <div>
-              <p className="font-bold text-lg">
-                {student.heartRate ? `${student.heartRate} BPM` : "No Data"}
+            <div className="min-w-[100px]">
+              <p className="text-xs text-muted-foreground font-medium mb-0.5">Heart Rate</p>
+              <p className={cn(
+                "font-bold text-xl leading-none h-6 flex items-center",
+                heartRateStatus === "excellent" && "text-green-600 dark:text-green-500",
+                heartRateStatus === "good" && "text-blue-600 dark:text-blue-500",
+                heartRateStatus === "warning" && "text-orange-600 dark:text-orange-500",
+                heartRateStatus === "inactive" && "text-gray-600 dark:text-gray-500"
+              )}>
+                <span className="inline-block w-12 text-right">{student.heartRate ? `${student.heartRate}` : "—"}</span>
+                <span className="text-xs ml-1 text-muted-foreground font-normal w-8">{student.heartRate ? "BPM" : ""}</span>
               </p>
             </div>
           </div>
         </div>
       </CardContent>
       
-      <CardFooter className="pt-0 pb-3 text-xs text-muted-foreground border-t">
+      <CardFooter className="pt-2 pb-3 text-xs text-muted-foreground border-t border-border/30">
         <div className="flex w-full justify-between items-center">
-          <div className="flex items-center">
-            <Clock className="mr-1 h-3 w-3" />
-            <span>Updated: {student.lastUpdate}</span>
+          <div className="flex items-center gap-1.5 bg-muted/30 px-2 py-1 rounded-md">
+            <Clock className="h-3 w-3" />
+            <span className="font-medium">{student.lastUpdate}</span>
           </div>
-          <div className="flex items-center">
+          <div className={cn(
+            "flex items-center gap-1.5 px-2 py-1 rounded-md font-medium",
+            student.isActive ? "bg-green-500/10 text-green-700 dark:text-green-400" : "bg-gray-500/10 text-gray-700 dark:text-gray-400"
+          )}>
             <div className={cn(
-              "h-2 w-2 rounded-full mr-1",
-              student.isActive ? "bg-green-500" : "bg-gray-400"
+              "h-1.5 w-1.5 rounded-full",
+              student.isActive ? "bg-green-500 animate-pulse" : "bg-gray-400"
             )} />
             <span>{student.isActive ? "Online" : "Offline"}</span>
           </div>
@@ -493,6 +510,7 @@ const StudentCard = memo(function StudentCardBase({ student }: { student: Studen
 });
 
 export default function MonitoringPage() {
+  const prefersReducedMotion = useReducedMotion();
   const [selectedClassroom, setSelectedClassroom] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -529,6 +547,9 @@ export default function MonitoringPage() {
   const filteredStudents = useMemo(() => {
     return students
       .filter(student => {
+        // Only show verified students
+        if (!student.verified) return false;
+        
         // Filter by search query
         const matchesSearch = !searchQuery || 
           `${student.firstName} ${student.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -539,7 +560,23 @@ export default function MonitoringPage() {
         
         return matchesSearch && matchesStatus;
       })
-      .sort((a, b) => a.lastName.localeCompare(b.lastName));
+      .sort((a, b) => {
+        // Priority sorting by heart rate urgency
+        const aHasBPM = a.heartRate !== undefined && a.heartRate !== null;
+        const bHasBPM = b.heartRate !== undefined && b.heartRate !== null;
+        
+        // Rule A: Students with no BPM data go to the bottom
+        if (!aHasBPM && bHasBPM) return 1;  // a goes after b
+        if (aHasBPM && !bHasBPM) return -1; // a goes before b
+        
+        // If both have no BPM, sort alphabetically by last name
+        if (!aHasBPM && !bHasBPM) {
+          return a.lastName.localeCompare(b.lastName);
+        }
+        
+        // Rule B: Both have valid BPM - sort by highest BPM first (descending)
+        return (b.heartRate || 0) - (a.heartRate || 0);
+      });
   }, [students, searchQuery, statusFilter]);
   
   // Memoized stats calculation
@@ -578,27 +615,76 @@ export default function MonitoringPage() {
   }, []);
   
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar className="hidden lg:block" />
-      
-      <div className="flex-1 lg:ml-64">
-        <AuthNavbar />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
+      {/* Animated background blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div 
+          className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" 
+          animate={prefersReducedMotion ? undefined : { scale: [1, 1.05, 1] }} 
+          transition={{ duration: 6, repeat: Infinity }} 
+        />
+        <motion.div 
+          className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" 
+          animate={prefersReducedMotion ? undefined : { y: [0, -10, 0] }} 
+          transition={{ duration: 5, repeat: Infinity }} 
+        />
+        <motion.div 
+          className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" 
+          animate={prefersReducedMotion ? undefined : { scale: [1, 1.08, 1] }} 
+          transition={{ duration: 7, repeat: Infinity }} 
+        />
+        <motion.div 
+          className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" 
+          animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }} 
+          transition={{ duration: 6, repeat: Infinity }} 
+        />
+      </div>
+
+      <div className="flex min-h-screen relative z-10">
+        <Sidebar className="hidden lg:block" />
         
-        <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
-          {/* Header */}
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Student Health Monitoring</h1>
-              <p className="text-muted-foreground">
-                Real-time vitals tracking • {classroomsData?.find(c => c.physicalId === selectedClassroom)?.name || 'Class'} • {lastUpdateTime.toLocaleTimeString()}
-              </p>
+        <div className="flex-1 lg:ml-64">
+          <AuthNavbar />
+          
+          <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
+            {/* Header */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
+            >
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                <motion.div
+                  animate={prefersReducedMotion ? undefined : { y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="relative"
+                >
+                  <Image
+                    src="/images/mascots/mascot_cheer.png"
+                    alt="Stathis Monitor Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                </motion.div>
+              </div>
+              
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Student Health Monitoring</h1>
+                <p className="text-muted-foreground mt-1">
+                  Real-time vitals tracking • {classroomsData?.find(c => c.physicalId === selectedClassroom)?.name || 'Class'} • {lastUpdateTime.toLocaleTimeString()}
+                </p>
+              </div>
             </div>
             
             <div className="flex flex-col md:flex-row items-end md:items-center space-y-2 md:space-y-0 md:space-x-2">
               <div className="flex items-center space-x-2">
                 {/* Classroom selector */}
                 <Select value={selectedClassroom || ''} onValueChange={handleClassroomChange}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[180px] rounded-xl border-border/50 bg-card/80 backdrop-blur-xl">
                     <SelectValue placeholder="Select classroom" />
                   </SelectTrigger>
                   <SelectContent>
@@ -636,7 +722,7 @@ export default function MonitoringPage() {
                   placeholder="Search students..."
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  className="pl-9 md:w-[250px] lg:w-[300px]"
+                  className="pl-9 md:w-[250px] lg:w-[300px] rounded-xl border-border/50 bg-card/80 backdrop-blur-xl"
                 />
               </div>
               
@@ -645,50 +731,61 @@ export default function MonitoringPage() {
                 variant="outline" 
                 size="icon" 
                 onClick={toggleStatusFilter}
-                className={statusFilter !== "all" ? "bg-orange-100" : ""}
+                className={cn("rounded-xl", statusFilter !== "all" ? "bg-orange-100 dark:bg-orange-900/30" : "")}
               >
                 <Filter className="h-4 w-4" />
               </Button>
             </div>
-          </div>
+          </motion.div>
           
           {/* Stats cards */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card className="border-l-4 border-l-green-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Students</CardTitle>
-                <Users className="h-4 w-4 text-green-500" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="grid grid-cols-1 gap-6 md:grid-cols-3"
+          >
+            <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group border-l-4 border-l-green-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Students</CardTitle>
+                <div className="p-2 rounded-full bg-green-500/10 group-hover:bg-green-500/20 transition-colors duration-200">
+                  <Users className="h-4 w-4 text-green-500" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-400 bg-clip-text text-transparent">{stats.active}</div>
+                <p className="text-xs text-muted-foreground mt-2">
                   {Math.round((stats.active / stats.total) * 100) || 0}% of total
                 </p>
               </CardContent>
             </Card>
             
-            <Card className="border-l-4 border-l-orange-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-orange-500" />
+            <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group border-l-4 border-l-orange-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Needs Attention</CardTitle>
+                <div className="p-2 rounded-full bg-orange-500/10 group-hover:bg-orange-500/20 transition-colors duration-200">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{stats.warning}</div>
-                <p className="text-xs text-muted-foreground">High heart rate detected</p>
+                <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-orange-400 bg-clip-text text-transparent">{stats.warning}</div>
+                <p className="text-xs text-muted-foreground mt-2">High heart rate detected</p>
               </CardContent>
             </Card>
             
-            <Card className="border-l-4 border-l-gray-500">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Inactive</CardTitle>
-                <UserRoundX className="h-4 w-4 text-gray-500" />
+            <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group border-l-4 border-l-gray-500">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Inactive</CardTitle>
+                <div className="p-2 rounded-full bg-gray-500/10 group-hover:bg-gray-500/20 transition-colors duration-200">
+                  <UserRoundX className="h-4 w-4 text-gray-500" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-gray-600">{stats.inactive}</div>
-                <p className="text-xs text-muted-foreground">No data received</p>
+                <div className="text-3xl font-bold bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-transparent">{stats.inactive}</div>
+                <p className="text-xs text-muted-foreground mt-2">No data received</p>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
           
           {/* Main content */}
           {isLoading ? (
@@ -726,6 +823,7 @@ export default function MonitoringPage() {
               </CardDescription>
             </Card>
           )}
+          </div>
         </div>
       </div>
     </div>

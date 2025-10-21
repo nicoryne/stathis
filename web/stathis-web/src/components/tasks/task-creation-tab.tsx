@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ClipboardList, Search, Filter, Grid3X3, List, X, MoreHorizontal, Edit, Trash2, ArrowLeft, Plus, CalendarIcon, Eye, Trash, Loader2 } from 'lucide-react';
+import { ClipboardList, Search, Filter, Grid3X3, List, X, MoreHorizontal, Edit, Trash2, ArrowLeft, Plus, CalendarIcon, Clock, Eye, Trash, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { getClassroomTasks, startTask, deactivateTask, deleteTask, updateTask } from '@/services/tasks/api-task-client';
@@ -189,7 +189,14 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   const [editTaskDescription, setEditTaskDescription] = useState('');
   const [editTaskSubmissionDate, setEditTaskSubmissionDate] = useState('');
   const [editTaskClosingDate, setEditTaskClosingDate] = useState('');
+  const [editTaskTime, setEditTaskTime] = useState('23:59');
   const [editTaskMaxAttempts, setEditTaskMaxAttempts] = useState<number | undefined>(undefined);
+  
+  // Track tasks currently being deactivated to prevent duplicate attempts
+  const [deactivatingTasks, setDeactivatingTasks] = useState<Set<string>>(new Set());
+  
+  // Track which tasks we've already processed to avoid duplicate checks
+  const processedTasksRef = useRef<Set<string>>(new Set());
   
   const queryClient = useQueryClient();
   
@@ -286,12 +293,32 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
   
   // Mutation for deactivating a task
   const deactivateTaskMutation = useMutation({
-    mutationFn: (physicalId: string) => deactivateTask(physicalId),
-    onSuccess: () => {
+    mutationFn: (physicalId: string) => {
+      // Add to deactivating set to prevent duplicate attempts
+      setDeactivatingTasks(prev => new Set(prev).add(physicalId));
+      return deactivateTask(physicalId);
+    },
+    onSuccess: (data, physicalId) => {
+      // Remove from deactivating set
+      setDeactivatingTasks(prev => {
+        const next = new Set(prev);
+        next.delete(physicalId);
+        return next;
+      });
+      // Don't remove from processedTasksRef - keep it there to prevent re-processing
       queryClient.invalidateQueries({ queryKey: ['classroom-tasks', classroomId] });
       toast.success('Task deactivated successfully');
+      console.log(`Task ${physicalId} deactivated successfully`);
     },
-    onError: (error) => {
+    onError: (error, physicalId) => {
+      // Remove from deactivating set even on error
+      setDeactivatingTasks(prev => {
+        const next = new Set(prev);
+        next.delete(physicalId);
+        return next;
+      });
+      // Remove from processed set so it can be retried
+      processedTasksRef.current.delete(physicalId);
       console.error('Error deactivating task:', error);
       toast.error('Failed to deactivate task: ' + (error as Error).message);
     }
@@ -345,6 +372,15 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     setEditTaskDescription(task.description || '');
     setEditTaskSubmissionDate(task.submissionDate);
     setEditTaskClosingDate(task.closingDate);
+    
+    // Extract time from submissionDate
+    if (task.submissionDate) {
+      const date = new Date(task.submissionDate);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      setEditTaskTime(`${hours}:${minutes}`);
+    }
+    
     setEditTaskMaxAttempts(task.maxAttempts);
     
     // Determine template type from task data
@@ -419,12 +455,18 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     if (!selectedTask) return;
     
     // Create update data object with all required fields from TaskBodyDTO
+    // Combine date and time
+    const [hours, minutes] = editTaskTime.split(':').map(Number);
+    const combinedDate = new Date(editTaskSubmissionDate);
+    combinedDate.setHours(hours, minutes, 0, 0);
+    const formattedDueDate = combinedDate.toISOString().replace(/\.\d{3}/, '');
+    
     const updateData: Partial<TaskResponseDTO> = {
       // Required fields
       name: editTaskName,
       description: editTaskDescription,
-      submissionDate: editTaskSubmissionDate,
-      closingDate: editTaskClosingDate,
+      submissionDate: formattedDueDate,
+      closingDate: formattedDueDate,
       classroomPhysicalId: selectedTask.classroomPhysicalId,
       
       // Optional fields
@@ -468,7 +510,7 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     });
   };
 
-  // Helper function to format date
+  // Helper function to format date and time
   const formatDate = (dateString: string) => {
     if (!dateString) return 'No date set';
     
@@ -482,7 +524,8 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
         return 'Invalid date format';
       }
       
-      return format(date, 'PPP');
+      // Format: "October 23rd, 2025 • 11:59 PM"
+      return `${format(date, 'PPP')} • ${format(date, 'p')}`;
     } catch (e) {
       console.error('Error formatting date:', e);
       return 'Date format error';
@@ -585,46 +628,46 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     try {
       const closingDate = new Date(task.closingDate);
       const now = new Date();
-      return closingDate < now;
+      const isOverdue = closingDate < now;
+      
+      // Debug log for verification
+      if (task.active) {
+        console.log(`Task "${task.name}": closing=${closingDate.toLocaleString()}, now=${now.toLocaleString()}, overdue=${isOverdue}`);
+      }
+      
+      return isOverdue;
     } catch (e) {
       console.error('Error parsing closing date:', e);
       return false;
     }
   };
 
-  // Auto-deactivate overdue tasks
+  // Check for overdue tasks immediately when tasks load (on manual refresh)
   useEffect(() => {
     if (!tasks || tasks.length === 0) return;
 
-    // Check for overdue tasks that are still active
-    const overdueTasks = tasks.filter(task => 
-      task.active && isTaskOverdue(task)
-    );
-
-    // Deactivate each overdue task
-    overdueTasks.forEach(task => {
-      console.log(`Auto-deactivating overdue task: ${task.name} (closing date: ${task.closingDate})`);
-      deactivateTaskMutation.mutate(task.physicalId);
+    console.log('Checking for overdue tasks...');
+    
+    const overdueTasks = tasks.filter(task => {
+      const isActive = task.active;
+      const isOverdue = isTaskOverdue(task);
+      const isAlreadyBeingDeactivated = deactivatingTasks.has(task.physicalId);
+      const wasProcessed = processedTasksRef.current.has(task.physicalId);
+      
+      return isActive && isOverdue && !isAlreadyBeingDeactivated && !wasProcessed;
     });
-  }, [tasks]); // Run when tasks change
 
-  // Set up periodic check for overdue tasks (every minute)
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (!tasks || tasks.length === 0) return;
-
-      const overdueTasks = tasks.filter(task => 
-        task.active && isTaskOverdue(task)
-      );
-
+    if (overdueTasks.length > 0) {
+      console.log(`Found ${overdueTasks.length} overdue task(s) to deactivate`);
       overdueTasks.forEach(task => {
-        console.log(`Auto-deactivating overdue task (periodic check): ${task.name}`);
+        console.log(`Auto-deactivating overdue task: ${task.name}`);
+        processedTasksRef.current.add(task.physicalId);
         deactivateTaskMutation.mutate(task.physicalId);
       });
-    }, 60000); // Check every 60 seconds
-
-    return () => clearInterval(intervalId);
-  }, [tasks]);
+    } else {
+      console.log('No overdue tasks found');
+    }
+  }, [tasks]); // Check whenever tasks change (including on refresh)
 
   return (
     <div className="space-y-6">
@@ -725,6 +768,42 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                 </Popover>
               </div>
             
+              {/* Due Time */}
+              <div>
+                <label className="text-lg font-semibold block mb-3">Due Time</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-14 pl-4 text-left font-normal rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base justify-start"
+                    >
+                      {editTaskTime ? (
+                        (() => {
+                          const [hours, minutes] = editTaskTime.split(':').map(Number);
+                          const period = hours >= 12 ? 'PM' : 'AM';
+                          const displayHours = hours % 12 || 12;
+                          return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+                        })()
+                      ) : (
+                        <span className="text-muted-foreground">Select due time</span>
+                      )}
+                      <Clock className="ml-auto h-5 w-5 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl" align="start">
+                    <div className="p-4">
+                      <Input
+                        type="time"
+                        value={editTaskTime}
+                        onChange={(e) => setEditTaskTime(e.target.value)}
+                        className="h-12 rounded-xl border-border/30 bg-background/60 backdrop-blur-sm text-base"
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <p className="text-sm text-muted-foreground mt-2">Set the specific time for the deadline</p>
+              </div>
+
               <div>
                 <label htmlFor="taskMaxAttempts" className="text-lg font-semibold block mb-3">Max Attempts</label>
                 <Input
@@ -1142,10 +1221,10 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                               variant="outline"
                               size="sm"
                               onClick={() => handleDeactivateTask(task.physicalId)}
-                              disabled={!task.active || deactivateTaskMutation.isPending}
+                              disabled={!task.active || deactivateTaskMutation.isPending || deactivatingTasks.has(task.physicalId)}
                               className="h-6 px-2 text-xs"
                             >
-                              {task.active ? 'Deactivate' : 'Inactive'}
+                              {deactivatingTasks.has(task.physicalId) ? 'Deactivating...' : task.active ? 'Deactivate' : 'Inactive'}
                             </Button>
                           </div>
                         </div>

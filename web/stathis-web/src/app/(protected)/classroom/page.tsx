@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useToast } from "@/components/ui/use-toast";
 import { ClassroomResponseDTO, ClassroomBodyDTO, createClassroom, deleteClassroom, activateClassroom, deactivateClassroom, updateClassroom, getTeacherClassrooms } from "@/services/api-classroom-client";
+import { getClassroomStudents } from "@/services/api-classroom";
 import { getCurrentUserPhysicalId, getCurrentUserEmail, getCurrentUserRole } from "@/lib/utils/jwt";
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -100,6 +101,44 @@ export default function ClassroomPage() {
     queryFn: () => getTeacherClassrooms(),
     enabled: !!userEmail // Only fetch if we have a user email
   });
+
+  // Enhance classrooms with verified/unverified student counts
+  const { data: enhancedClassrooms } = useQuery({
+    queryKey: ['teacher-classrooms-enhanced', classrooms],
+    queryFn: async () => {
+      if (!classrooms || classrooms.length === 0) return [];
+      
+      const enhanced = await Promise.all(
+        classrooms.map(async (classroom) => {
+          try {
+            const response = await getClassroomStudents(classroom.physicalId);
+            const students = response.students || [];
+            const verifiedCount = students.filter((s: any) => s.verified).length;
+            const unverifiedCount = students.length - verifiedCount;
+            
+            return {
+              ...classroom,
+              verifiedStudentCount: verifiedCount,
+              unverifiedStudentCount: unverifiedCount
+            };
+          } catch (error) {
+            console.error(`Failed to fetch students for classroom ${classroom.physicalId}:`, error);
+            return {
+              ...classroom,
+              verifiedStudentCount: classroom.studentCount || 0,
+              unverifiedStudentCount: 0
+            };
+          }
+        })
+      );
+      
+      return enhanced;
+    },
+    enabled: !!classrooms && classrooms.length > 0
+  });
+
+  // Use enhanced classrooms if available, otherwise fallback to regular classrooms
+  const displayClassrooms = enhancedClassrooms || classrooms;
   
   // Delete classroom mutation
   const deleteClassroomMutation = useMutation({
@@ -159,13 +198,13 @@ export default function ClassroomPage() {
   });
   
   // Filter classrooms based on search term and active tab
-  const filteredClassrooms = classrooms
-    ? classrooms
-        .filter((classroom: ClassroomResponseDTO) => 
+  const filteredClassrooms = displayClassrooms
+    ? displayClassrooms
+        .filter((classroom: any) => 
           classroom.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
           classroom.description.toLowerCase().includes(searchTerm.toLowerCase())
         )
-        .filter((classroom: ClassroomResponseDTO) => {
+        .filter((classroom: any) => {
           if (activeTab === 'all') return true;
           if (activeTab === 'active') return classroom.active;
           if (activeTab === 'inactive') return !classroom.active;
@@ -537,7 +576,21 @@ export default function ClassroomPage() {
                             </div>
                             <span className="text-muted-foreground">Students:</span>
                           </div>
-                          <span className="font-medium">{classroom.studentCount || 0} students</span>
+                          <span className="font-medium">
+                            {(classroom as any).verifiedStudentCount !== undefined 
+                              ? (
+                                <>
+                                  {(classroom as any).verifiedStudentCount} students
+                                  {(classroom as any).unverifiedStudentCount > 0 && (
+                                    <span className="text-muted-foreground italic ml-1">
+                                      ({(classroom as any).unverifiedStudentCount} unverified)
+                                    </span>
+                                  )}
+                                </>
+                              )
+                              : `${classroom.studentCount || 0} students`
+                            }
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <div className="flex items-center">

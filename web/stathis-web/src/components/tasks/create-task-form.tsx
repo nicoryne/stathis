@@ -22,7 +22,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, Plus, Search, Eye, Trash } from 'lucide-react';
+import { CalendarIcon, Clock, Loader2, Plus, Search, Eye, Trash } from 'lucide-react';
 import { 
   getLessonTemplate,
   getQuizTemplate,
@@ -85,6 +85,7 @@ const taskFormSchema = z.object({
       message: "Due date cannot be in the past"
     }
   ),
+  dueTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format (HH:MM)'),
   templateType: z.enum(['LESSON', 'QUIZ', 'EXERCISE'], {
     required_error: "Please select a template type",
   }),
@@ -152,22 +153,18 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel, onSwi
     enabled: selectedTemplateType === 'EXERCISE',
   });
 
+  // Default form values
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
       title: '',
       description: '',
       points: 3,
-    }
+      dueTime: '23:59',
+      templateType: undefined,
+      templatePhysicalId: undefined,
+    },
   });
-
-  // Update form value when template type changes
-  useEffect(() => {
-    if (selectedTemplateType) {
-      form.setValue('templateType', selectedTemplateType as 'LESSON' | 'QUIZ' | 'EXERCISE');
-      form.setValue('templatePhysicalId', ''); // Reset template selection
-    }
-  }, [selectedTemplateType, form]);
 
   const handleTemplateTypeChange = (value: string) => {
     setSelectedTemplateType(value);
@@ -254,7 +251,12 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel, onSwi
       
       // Format dates according to API specification, ensuring proper ISO format
       // The spec requires: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)$
-      const dueDate = data.dueDate.toISOString();
+      // Combine date and time
+      const [hours, minutes] = data.dueTime.split(':').map(Number);
+      const combinedDate = new Date(data.dueDate);
+      combinedDate.setHours(hours, minutes, 0, 0);
+      
+      const dueDate = combinedDate.toISOString();
       // Trim milliseconds if present to match exact pattern
       const formattedDueDate = dueDate.replace(/\.\d{3}/, '');
       
@@ -1187,6 +1189,7 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel, onSwi
               )}
             />
 
+            {/* Due Date */}
             <FormField
               control={form.control}
               name="dueDate"
@@ -1223,6 +1226,62 @@ export function CreateTaskForm({ classroomPhysicalId, onSuccess, onCancel, onSwi
                   <FormMessage />
                 </FormItem>
               )}
+            />
+
+            {/* Due Time */}
+            <FormField
+              control={form.control}
+              name="dueTime"
+              render={({ field }) => {
+                // Format time to 12-hour format with AM/PM
+                const formatTime = (time: string) => {
+                  if (!time) return null;
+                  const [hours, minutes] = time.split(':').map(Number);
+                  const period = hours >= 12 ? 'PM' : 'AM';
+                  const displayHours = hours % 12 || 12;
+                  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+                };
+
+                return (
+                  <FormItem className="flex flex-col">
+                    <FormLabel className="text-lg font-semibold">Due Time</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-4 text-left font-normal h-14 rounded-2xl border-border/30 bg-background/60 backdrop-blur-sm text-base",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              formatTime(field.value)
+                            ) : (
+                              <span>Select due time</span>
+                            )}
+                            <Clock className="ml-auto h-5 w-5 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-card/90 backdrop-blur-xl border-border/30 rounded-2xl" align="start">
+                        <div className="p-4">
+                          <Input
+                            type="time"
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            className="h-12 rounded-xl border-border/30 bg-background/60 backdrop-blur-sm text-base"
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <FormDescription className="text-sm text-muted-foreground">
+                      Set the specific time for the deadline
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             <FormField
