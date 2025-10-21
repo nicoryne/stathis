@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -165,14 +166,27 @@ fun TaskTemplateScreen(
                         "EXERCISE" -> {
                             val exerciseTemplate = currentState.template as? ExerciseTemplate
                             if (exerciseTemplate != null) {
-                                ExerciseTemplateRenderer(
-                                    template = exerciseTemplate,
-                                    onComplete = { performance ->
-                                        viewModel.submitExercise(taskId, performance)
-                                        onTaskCompleted()
-                                    },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                // Wait for task detail to load before rendering exercise template
+                                val currentTaskDetail = taskDetail
+                                if (currentTaskDetail != null) {
+                                    ExerciseTemplateRenderer(
+                                        template = exerciseTemplate,
+                                        classroomId = "${currentTaskDetail.classroomPhysicalId}|${currentTaskDetail.physicalId}", // Encode both classroom and task IDs
+                                        onComplete = { performance ->
+                                            viewModel.submitExercise(taskId, performance)
+                                            onTaskCompleted()
+                                        },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    // Show loading while waiting for task detail
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
                             } else {
                                 ErrorMessage("Invalid exercise template")
                             }

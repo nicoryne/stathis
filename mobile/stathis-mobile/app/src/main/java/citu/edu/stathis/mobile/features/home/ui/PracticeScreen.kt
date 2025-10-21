@@ -69,7 +69,7 @@ fun PracticeScreen(
             DashboardHeader(
                 userName = profileState.profile?.firstName ?: "Student",
                 streakCount = (progressState as? ProgressState.Success)?.progress?.streakDays ?: 0,
-                mascotState = determineMascotStateFromProgress(progressState, achievementsState)
+                mascotState = determineMascotStateFromProgress(progressState, achievementsState, streak)
             )
         }
 
