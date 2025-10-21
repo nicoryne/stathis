@@ -303,6 +303,94 @@ export default function DashboardPage() {
     };
   })() : { studentId: '', studentName: 'No data', averageScore: 0 };
 
+  // Calculate aggregated statistics from all tasks
+  const totalActiveStudents = allTasksScores ? (() => {
+    const uniqueStudents = new Set<string>();
+    Object.values(allTasksScores).forEach(taskData => {
+      taskData.scores.forEach((score: Score) => uniqueStudents.add(score.studentId));
+    });
+    return uniqueStudents.size;
+  })() : 0;
+
+  const studentCompletionRate = allTasksScores ? (() => {
+    let totalStudents = 0;
+    let completedStudents = 0;
+    Object.values(allTasksScores).forEach(taskData => {
+      if (taskData.analytics) {
+        totalStudents = Math.max(totalStudents, taskData.analytics.totalStudents);
+        completedStudents = Math.max(completedStudents, taskData.analytics.completedStudents);
+      }
+    });
+    return totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+  })() : 0;
+
+  const overallAverageScore = allTasksScores ? (() => {
+    const validAnalytics = Object.values(allTasksScores)
+      .map(taskData => taskData.analytics)
+      .filter(a => a && a.averageScore > 0);
+    if (validAnalytics.length === 0) return 0;
+    const sum = validAnalytics.reduce((acc, a) => acc + (a?.averageScore || 0), 0);
+    return Math.round(sum / validAnalytics.length);
+  })() : 0;
+
+  // Calculate task completion (deactivated tasks)
+  const taskCompletionStats = tasksData ? (() => {
+    const completedTasks = tasksData.filter(t => t.started && !t.active).length;
+    const totalTasks = tasksData.length;
+    const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    return {
+      completed: completedTasks,
+      total: totalTasks,
+      percentage
+    };
+  })() : { completed: 0, total: 0, percentage: 0 };
+
+  // Calculate top student based on overall performance across all tasks
+  const topStudent = allTasksScores ? (() => {
+    const studentPerformance: Record<string, { totalScore: number, count: number }> = {};
+    
+    // Aggregate scores for each student across all tasks
+    Object.values(allTasksScores).forEach(taskData => {
+      taskData.scores.forEach((score: Score) => {
+        if (score.completed) {
+          if (!studentPerformance[score.studentId]) {
+            studentPerformance[score.studentId] = { totalScore: 0, count: 0 };
+          }
+          studentPerformance[score.studentId].totalScore += score.score;
+          studentPerformance[score.studentId].count += 1;
+        }
+      });
+    });
+    
+    // Find student with highest average score
+    let topStudentId = '';
+    let highestAverage = 0;
+    
+    Object.entries(studentPerformance).forEach(([studentId, data]) => {
+      const average = data.totalScore / data.count;
+      if (average > highestAverage) {
+        highestAverage = average;
+        topStudentId = studentId;
+      }
+    });
+    
+    // Get student name from classroom students data
+    let topStudentName = 'No data';
+    if (topStudentId && classroomStudentsData?.students) {
+      const student = classroomStudentsData.students.find(s => s.physicalId === topStudentId);
+      if (student) {
+        topStudentName = `${student.firstName} ${student.lastName}`;
+      }
+    }
+    
+    return { 
+      studentId: topStudentId, 
+      studentName: topStudentName,
+      averageScore: Math.round(highestAverage) 
+    };
+  })() : { studentId: '', studentName: 'No data', averageScore: 0 };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">

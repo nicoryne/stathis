@@ -64,7 +64,13 @@ class TaskTemplateViewModel @Inject constructor(
                             createMockQuizTemplate()
                         }
                     }
-                    "EXERCISE" -> createMockExerciseTemplate()
+                    "EXERCISE" -> {
+                        if (!templateId.isNullOrBlank()) {
+                            taskRepository.getExerciseTemplate(templateId).first()
+                        } else {
+                            createMockExerciseTemplate()
+                        }
+                    }
                     else -> throw IllegalArgumentException("Unknown template type: $templateType")
                 }
 
@@ -96,39 +102,50 @@ class TaskTemplateViewModel @Inject constructor(
         }
     }
 
+    fun submitLesson(taskId: String, lessonTemplateId: String) {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("TaskTemplateViewModel", "Submitting lesson completion for task: $taskId, template: $lessonTemplateId")
+                
+                // Submit lesson completion to backend
+                taskRepository.completeLesson(taskId, lessonTemplateId)
+                
+                // Increment lesson attempts in cache
+                LessonAttemptsCache.increment(taskId)
+                
+                // Mark task as completed for immediate UI feedback
+                TaskCompletionCache.markCompleted(taskId)
+                
+                android.util.Log.d("TaskTemplateViewModel", "Lesson submitted successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("TaskTemplateViewModel", "Failed to submit lesson", e)
+                _error.value = e.message
+            }
+        }
+    }
+
     fun submitQuiz(taskId: String, submission: QuizSubmission) {
         viewModelScope.launch {
             try {
                 val template = (_templateState.value as? TemplateState.Success)?.template as? QuizTemplate
                 if (template != null) {
-                    // Prefer backend auto-check to compute and persist the score
-                    // Build minimal payload for backend: answers as zero-based list
-                    val autoCheckSubmission = submission.copy(
-                        taskId = taskId,
-                        templateId = template.physicalId
-                    )
-                    // Only call auto-check per API policy; backend stores attempts/score and enforces maxAttempts
-                    val scoreResponse = taskRepository.autoCheckQuiz(taskId, template.physicalId, autoCheckSubmission).first()
-                    // Do not update best score cache; UI shows latest attempt only
-                    // Proactively refresh so UI reflects attempts/score/completion
-                    runCatching { taskRepository.getStudentTask(taskId).first() }
-                    // Small retry with backoff to ensure score row is visible via progress immediately
-                    kotlin.runCatching {
-                        var retries = 3
-                        var delayMs = 200L
-                        while (retries-- > 0) {
-                            val progress = taskRepository.getTaskProgress(taskId).first()
-                            if ((progress.quizScore ?: -1) >= 0) break
-                            kotlinx.coroutines.delay(delayMs)
-                            delayMs *= 2
-                        }
-                    }
+                    // Convert QuizSubmission to QuizAutoCheckRequest (just the answer indices)
+                    val answerIndices = submission.answers.map { it.selectedAnswer }
+                    val autoCheckRequest = QuizAutoCheckRequest(answers = answerIndices)
+                    
+                    android.util.Log.d("TaskTemplateViewModel", "Submitting quiz with answers: $answerIndices")
+                    android.util.Log.d("TaskTemplateViewModel", "TaskId: $taskId, TemplateId: ${template.physicalId}")
+                    
+                    val scoreResponse = taskRepository.autoCheckQuiz(taskId, template.physicalId, autoCheckRequest).first()
+                    android.util.Log.d("TaskTemplateViewModel", "Quiz submitted successfully, score: ${scoreResponse.score ?: 0}")
+                    
                     // Optimistically mark completion for immediate UI feedback
                     TaskCompletionCache.markCompleted(taskId)
                     // Record streak
                     streakManager.recordActivity()
                 }
             } catch (e: Exception) {
+                android.util.Log.e("TaskTemplateViewModel", "Failed to submit quiz", e)
                 _error.value = e.message
             }
         }
@@ -137,15 +154,24 @@ class TaskTemplateViewModel @Inject constructor(
     fun submitExercise(taskId: String, performance: ExercisePerformance) {
         viewModelScope.launch {
             try {
+                android.util.Log.d("TaskTemplateViewModel", "Submitting exercise completion for task: $taskId, template: ${performance.templateId}")
+                
                 // Mark exercise as completed for the task
                 taskRepository.completeExercise(taskId, performance.templateId)
+                
+                // Increment exercise attempts in cache (using LessonAttemptsCache for now)
+                LessonAttemptsCache.increment(taskId)
+                
                 // Optimistic completion for UI
                 TaskCompletionCache.markCompleted(taskId)
+                
+                android.util.Log.d("TaskTemplateViewModel", "Exercise submitted successfully")
                 // Refresh progress so list reflects completion immediately
                 runCatching { taskRepository.getTaskProgress(taskId).first() }
                 // Record streak
                 streakManager.recordActivity()
             } catch (e: Exception) {
+                android.util.Log.e("TaskTemplateViewModel", "Failed to submit exercise", e)
                 _error.value = e.message
             }
         }

@@ -30,11 +30,22 @@ import citu.edu.stathis.mobile.features.auth.ui.LoginScreen
 import citu.edu.stathis.mobile.features.vitals.ui.HealthConnectScreen
 import citu.edu.stathis.mobile.features.tasks.presentation.TaskDetailScreen
 import citu.edu.stathis.mobile.features.tasks.presentation.TaskListScreen
+import citu.edu.stathis.mobile.features.classroom.presentation.viewmodel.ClassroomViewModel
 import citu.edu.stathis.mobile.core.data.AuthTokenManager
 import citu.edu.stathis.mobile.features.auth.domain.usecase.TokenValidationUseCase
 import citu.edu.stathis.mobile.features.auth.data.enums.UserRoles
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun HomeNavHost(navController: NavHostController) {
@@ -72,7 +83,19 @@ fun HomeNavHost(navController: NavHostController) {
             arguments = listOf(navArgument("classroomId") { type = NavType.StringType })
         ) { backStackEntry ->
             val classroomId = backStackEntry.arguments?.getString("classroomId") ?: return@composable
-            ClassroomDetailScreen(classroomId = classroomId, navController = navController)
+            val classroomViewModel: ClassroomViewModel = hiltViewModel()
+            val verifiedMap by classroomViewModel.verifiedMap.collectAsState()
+
+            // Ensure verification data is loaded when entering directly
+            LaunchedEffect(verifiedMap.isEmpty()) {
+                if (verifiedMap.isEmpty()) classroomViewModel.loadStudentClassrooms()
+            }
+
+            when (verifiedMap[classroomId]) {
+                null -> PendingVerificationLoading(onBack = { navController.popBackStack() })
+                true -> ClassroomDetailScreen(classroomId = classroomId, navController = navController)
+                false -> PendingVerificationScreen(onBack = { navController.popBackStack() })
+            }
         }
         composable(HomeNavigationItem.Profile.route) { ProfileScreen(navController) }
         composable(
@@ -161,15 +184,34 @@ fun HomeNavHost(navController: NavHostController) {
             popExitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right, animationSpec = tween(300)) }
         ) { backStackEntry ->
             val classroomId = backStackEntry.arguments?.getString("classroomId") ?: return@composable
-            TaskListScreen(
-                classroomId = classroomId,
-                onTaskClick = { taskId ->
-                    navController.navigate("task_detail/$taskId")
-                },
-                onNavigateBack = {
-                    navController.popBackStack()
+            val classroomViewModel: ClassroomViewModel = hiltViewModel()
+            val verifiedMap by classroomViewModel.verifiedMap.collectAsState()
+
+            // Ensure verification data is loaded when entering directly
+            LaunchedEffect(verifiedMap.isEmpty()) {
+                if (verifiedMap.isEmpty()) classroomViewModel.loadStudentClassrooms()
+            }
+
+            when (verifiedMap[classroomId]) {
+                null -> {
+                    // While verification map is loading, show a lightweight loading state
+                    PendingVerificationLoading(onBack = { navController.popBackStack() })
                 }
-            )
+                true -> {
+                    TaskListScreen(
+                        classroomId = classroomId,
+                        onTaskClick = { taskId ->
+                            navController.navigate("task_detail/$taskId")
+                        },
+                        onNavigateBack = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
+                false -> {
+                    PendingVerificationScreen(onBack = { navController.popBackStack() })
+                }
+            }
         }
         composable(
             route = "task_detail/{taskId}",
@@ -280,3 +322,77 @@ fun HomeNavHost(navController: NavHostController) {
 }
 
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PendingVerificationScreen(onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Pending Verification") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = "Your enrollment is pending teacher verification.",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "You will gain access once verified.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PendingVerificationLoading(onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Loading…") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+    }
+}

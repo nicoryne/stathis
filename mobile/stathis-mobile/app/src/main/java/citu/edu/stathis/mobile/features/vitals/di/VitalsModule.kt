@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.features.vitals.di
 import citu.edu.stathis.mobile.features.vitals.domain.VitalsApiService
 import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsRepositoryImpl
 import citu.edu.stathis.mobile.features.vitals.domain.repository.VitalsRepository
+import citu.edu.stathis.mobile.features.vitals.data.service.VitalsRestApiService
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -30,6 +31,12 @@ object VitalsNetworkModule {
     @Singleton
     fun provideVitalsApiService(retrofit: Retrofit): VitalsApiService {
         return retrofit.create(VitalsApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideVitalsRestApiService(retrofit: Retrofit): VitalsRestApiService {
+        return retrofit.create(VitalsRestApiService::class.java)
     }
 }
 

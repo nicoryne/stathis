@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import citu.edu.stathis.mobile.features.vitals.data.HealthConnectManager
 import citu.edu.stathis.mobile.features.vitals.data.VitalsCache
 import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
+import citu.edu.stathis.mobile.features.vitals.data.service.ExerciseVitalsMonitoringService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -17,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HealthConnectViewModel @Inject constructor(
     private val healthConnectManager: HealthConnectManager,
-    private val vitalsCache: VitalsCache
+    private val vitalsCache: VitalsCache,
+    val exerciseVitalsMonitoringService: ExerciseVitalsMonitoringService
 ) : ViewModel() {
 
     private val _connectionState = MutableStateFlow(HealthConnectManager.ConnectionState.DISCONNECTED)
@@ -97,6 +99,12 @@ class HealthConnectViewModel @Inject constructor(
         _isMonitoring.value = false
         monitoringJob?.cancel()
         monitoringJob = null
+    }
+
+    fun onPermissionsGranted() {
+        viewModelScope.launch {
+            healthConnectManager.onPermissionsGranted()
+        }
     }
 
     private fun loadCachedVitals() {

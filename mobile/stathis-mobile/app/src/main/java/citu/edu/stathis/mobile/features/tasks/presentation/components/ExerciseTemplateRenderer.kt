@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.health.connect.client.PermissionController
@@ -31,69 +32,98 @@ import citu.edu.stathis.mobile.features.tasks.data.model.ExerciseTemplate
 import citu.edu.stathis.mobile.features.tasks.data.model.ExercisePerformance
 import citu.edu.stathis.mobile.features.exercise.ui.screens.ExerciseScreen
 import citu.edu.stathis.mobile.features.vitals.ui.HealthConnectViewModel
+import citu.edu.stathis.mobile.features.vitals.data.service.ExerciseVitalsMonitoringService
+import citu.edu.stathis.mobile.features.vitals.data.repository.VitalsPostingState
+import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
+import citu.edu.stathis.mobile.core.data.AuthTokenManager
+import kotlinx.coroutines.flow.firstOrNull
+import citu.edu.stathis.mobile.features.exercise.data.ExerciseDetector
+import citu.edu.stathis.mobile.features.exercise.data.ExerciseResult
+import citu.edu.stathis.mobile.features.exercise.data.model.ExerciseState
+import citu.edu.stathis.mobile.features.tasks.presentation.TaskViewModel
+import com.google.mlkit.vision.pose.Pose
 
 @Composable
 fun ExerciseTemplateRenderer(
     template: ExerciseTemplate,
+    classroomId: String? = null,
     onComplete: (ExercisePerformance) -> Unit,
+    onCancel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isExerciseStarted by remember { mutableStateOf(false) }
     var isExerciseCompleted by remember { mutableStateOf(false) }
     var exercisePerformance by remember { mutableStateOf<ExercisePerformance?>(null) }
     
-    Column(
+    Box(
         modifier = modifier.fillMaxSize()
     ) {
-        // Exercise Header
-        ExerciseHeader(
-            template = template,
-            isStarted = isExerciseStarted,
-            isCompleted = isExerciseCompleted,
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        // Content Area
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            if (!isExerciseStarted) {
-                ExerciseInstructions(
+        if (!isExerciseStarted) {
+            // Show header and instructions when exercise hasn't started
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                ExerciseHeader(
                     template = template,
-                    onStart = { isExerciseStarted = true },
-                    modifier = Modifier.fillMaxSize()
+                    isStarted = isExerciseStarted,
+                    isCompleted = isExerciseCompleted,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            } else if (!isExerciseCompleted) {
-                // Use the real exercise screen with camera and pose classification
-                ExerciseScreen(navController = rememberNavController())
                 
-                // Overlay with exercise controls
-                ExerciseControlsOverlay(
-                    template = template,
-                    onComplete = { performance ->
-                        exercisePerformance = performance
-                        isExerciseCompleted = true
-                        onComplete(performance)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                exercisePerformance?.let { performance ->
-                    ExerciseResults(
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    ExerciseInstructions(
                         template = template,
-                        performance = performance,
-                        onRetry = {
-                            isExerciseStarted = false
-                            isExerciseCompleted = false
-                            exercisePerformance = null
-                        },
+                        onStart = { isExerciseStarted = true },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
+            }
+        } else if (!isExerciseCompleted) {
+            // Fullscreen exercise mode - no header, just camera and overlays
+            ExerciseScreen(
+                navController = rememberNavController(),
+                enableVitalsIndicator = false, // We'll show our own vitals indicator
+                enablePostureAnalysis = true
+            )
+            
+            // Overlay with exercise controls
+            ExerciseControlsOverlay(
+                template = template,
+                classroomId = classroomId,
+                onComplete = { performance ->
+                    exercisePerformance = performance
+                    isExerciseCompleted = true
+                    onComplete(performance)
+                },
+                onCancel = {
+                    // Reset exercise state when cancelled
+                    isExerciseStarted = false
+                    isExerciseCompleted = false
+                    exercisePerformance = null
+                    // Call the provided cancel callback
+                    onCancel?.invoke()
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            // Show results
+            exercisePerformance?.let { performance ->
+                ExerciseResults(
+                    template = template,
+                    performance = performance,
+                    onRetry = {
+                        isExerciseStarted = false
+                        isExerciseCompleted = false
+                        exercisePerformance = null
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
     }
@@ -506,18 +536,158 @@ private fun ProgressIndicator(
 }
 
 @Composable
+private fun CompactProgressIndicator(
+    label: String,
+    current: Int,
+    goal: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    val progress = if (goal > 0) (current.toFloat() / goal).coerceAtMost(1f) else 0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(300),
+        label = "progress"
+    )
+    
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        
+        Spacer(modifier = Modifier.height(2.dp))
+        
+        Text(
+            text = "$current/$goal",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        Spacer(modifier = Modifier.height(2.dp))
+        
+        LinearProgressIndicator(
+            progress = animatedProgress,
+            modifier = Modifier
+                .width(40.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp)),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+        )
+    }
+}
+
+@Composable
+private fun MinimalProgressIndicator(
+    label: String,
+    current: Int,
+    goal: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    val progress = if (goal > 0) (current.toFloat() / goal).coerceAtMost(1f) else 0f
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(300),
+        label = "progress"
+    )
+    
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(12.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        
+        Text(
+            text = "$current/$goal",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        LinearProgressIndicator(
+            progress = animatedProgress,
+            modifier = Modifier
+                .width(20.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(1.5.dp)),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+        )
+    }
+}
+
+@Composable
 private fun ExerciseControlsOverlay(
     template: ExerciseTemplate,
+    classroomId: String?,
     onComplete: (ExercisePerformance) -> Unit,
+    onCancel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var currentReps by remember { mutableIntStateOf(0) }
     var currentTime by remember { mutableIntStateOf(0) }
     var currentAccuracy by remember { mutableFloatStateOf(0f) }
     var isTimerRunning by remember { mutableStateOf(false) }
+    var shouldRequestPermissions by remember { mutableStateOf(false) }
+    var shouldStopWithPostActivity by remember { mutableStateOf(false) }
+    
+    // Pose detection state
+    val exerciseDetector = remember { ExerciseDetector() }
+    var exerciseState by remember { mutableStateOf(ExerciseState.WAITING) }
+    var exerciseConfidence by remember { mutableFloatStateOf(0f) }
+    var exerciseFeedback by remember { mutableStateOf<List<String>>(emptyList()) }
+    var latestPose by remember { mutableStateOf<Pose?>(null) }
+    
+    // Function to handle pose detection
+    val handlePoseDetection = remember(template.exerciseType) { { pose: Pose ->
+        latestPose = pose
+        val result: ExerciseResult = when (template.exerciseType.lowercase()) {
+            "squat" -> exerciseDetector.analyzeSquat(pose)
+            "pushup", "push-up" -> exerciseDetector.analyzePushup(pose)
+            else -> ExerciseResult(ExerciseState.WAITING, emptyList(), false, 0f, currentReps)
+        }
+        
+        currentReps = result.repCount
+        exerciseState = result.state
+        exerciseConfidence = result.confidence ?: 0f
+        exerciseFeedback = result.feedback
+        
+        // Update accuracy based on confidence
+        currentAccuracy = (exerciseConfidence * 100f).coerceAtMost(100f)
+    } }
     
     val healthConnectViewModel: HealthConnectViewModel = hiltViewModel()
     val connectionState by healthConnectViewModel.connectionState.collectAsState()
+    val vitalSigns by healthConnectViewModel.vitalSigns.collectAsState()
+    
+    // Get the exercise vitals monitoring service from the HealthConnectViewModel
+    // Since ExerciseVitalsMonitoringService is not a ViewModel, we'll access it through the HealthConnectViewModel
+    val exerciseVitalsMonitoringService = healthConnectViewModel.exerciseVitalsMonitoringService
+    val isVitalsMonitoring by exerciseVitalsMonitoringService.isMonitoring.collectAsState()
+    val vitalsPostingState by exerciseVitalsMonitoringService.postingState.collectAsState()
+    
+    // Initialize HealthConnect when the overlay is first created
+    LaunchedEffect(Unit) {
+        healthConnectViewModel.connect()
+        healthConnectViewModel.startMonitoring()
+    }
+    
+    // Get current user context through TaskViewModel
+    val taskViewModel: TaskViewModel = hiltViewModel()
+    val currentPhysicalId by taskViewModel.authTokenManager.physicalIdFlow.collectAsState(initial = null)
+    
+    // Remember the classroom ID for use in LaunchedEffect
+    val rememberedClassroomId = remember(classroomId) { classroomId }
     
     // Health Connect permission launcher
     val requiredPermissions = remember {
@@ -534,23 +704,84 @@ private fun ExerciseControlsOverlay(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { grantedPermissions ->
         if (grantedPermissions.containsAll(requiredPermissions)) {
-            healthConnectViewModel.connect()
+            healthConnectViewModel.onPermissionsGranted()
             healthConnectViewModel.startMonitoring()
+        } else {
+            // Some permissions denied, still allow exercise but without Health Connect
+            healthConnectViewModel.disconnect()
         }
     }
     
-    // Real-time rep counting and posture validation would come from pose detection
-    // For now, we'll simulate the progress based on the template goals
-    LaunchedEffect(isTimerRunning) {
+    // Handle permission request when needed
+    LaunchedEffect(shouldRequestPermissions) {
+        if (shouldRequestPermissions) {
+            kotlinx.coroutines.delay(1000)
+            permissionLauncher.launch(requiredPermissions)
+            shouldRequestPermissions = false
+        }
+    }
+    
+    // Handle stopping with post-activity vitals
+    LaunchedEffect(shouldStopWithPostActivity) {
+        if (shouldStopWithPostActivity) {
+            val fallbackVitals = VitalSigns(
+                userId = currentPhysicalId ?: "unknown_user",
+                systolicBP = 120,
+                diastolicBP = 80,
+                heartRate = 70,
+                respirationRate = 16,
+                temperature = 36.5f,
+                oxygenSaturation = 98.0f
+            )
+            exerciseVitalsMonitoringService.stopMonitoringWithPostActivity(vitalSigns ?: fallbackVitals)
+            shouldStopWithPostActivity = false
+        }
+    }
+    
+    LaunchedEffect(isTimerRunning, rememberedClassroomId) {
         if (isTimerRunning) {
+            // Start vitals monitoring when exercise starts
+            if (connectionState == citu.edu.stathis.mobile.features.vitals.data.HealthConnectManager.ConnectionState.CONNECTED) {
+                // Decode classroomId to extract both classroom and task physical IDs
+                val (actualClassroomId, taskPhysicalId) = if (rememberedClassroomId?.contains("|") == true) {
+                    val parts = rememberedClassroomId.split("|")
+                    Pair(parts[0], parts.getOrNull(1))
+                } else {
+                    Pair(rememberedClassroomId, null)
+                }
+                
+                exerciseVitalsMonitoringService.startMonitoring(
+                    classroomId = actualClassroomId ?: "unknown_classroom", // Use decoded classroom ID
+                    taskId = taskPhysicalId ?: template.physicalId, // Use decoded task physical ID (TASK-UUID), fallback to template
+                    physicalId = currentPhysicalId ?: "unknown_user", // Use actual user physical ID
+                    studentId = currentPhysicalId ?: "unknown_user", // Use actual user physical ID as student ID
+                    vitalsProvider = { vitalSigns },
+                    scope = this
+                )
+            }
+            
+            // Reset exercise detector when starting
+            exerciseDetector.resetExercise()
+            currentReps = 0
+            currentTime = 0
+            
+            // Timer for exercise duration
             while (currentTime < template.goalTime && currentReps < template.goalReps) {
                 kotlinx.coroutines.delay(1000)
                 currentTime++
-                if (currentTime % 3 == 0) { // Simulate rep every 3 seconds
-                    currentReps++
-                    currentAccuracy = (70f + (currentReps * 2f)).coerceAtMost(95f) // Simulate improving accuracy
-                }
             }
+            
+            // Stop vitals monitoring with post-activity vitals when exercise completes
+            val fallbackVitals = VitalSigns(
+                userId = currentPhysicalId ?: "unknown_user",
+                systolicBP = 120,
+                diastolicBP = 80,
+                heartRate = 70,
+                respirationRate = 16,
+                temperature = 36.5f,
+                oxygenSaturation = 98.0f
+            )
+            exerciseVitalsMonitoringService.stopMonitoringWithPostActivity(vitalSigns ?: fallbackVitals)
             
             // Exercise completed
             val performance = ExercisePerformance(
@@ -566,106 +797,275 @@ private fun ExerciseControlsOverlay(
                 score = calculateScore(currentReps, currentAccuracy, currentTime, template)
             )
             onComplete(performance)
+        } else {
+            // Stop vitals monitoring when timer stops
+            exerciseVitalsMonitoringService.stopMonitoring()
         }
     }
     
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        // Progress overlay at the top
+        // Minimal progress overlay at the very top edge
         Card(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(16.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Exercise type and difficulty
                 Text(
-                    text = "${template.exerciseType} - ${template.exerciseDifficulty}",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "${template.exerciseType.replace("_", " ")} - ${template.exerciseDifficulty}",
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Progress indicators
+                // Progress indicators in a single row
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ProgressIndicator(
-                        label = "Reps",
+                    MinimalProgressIndicator(
+                        label = "R",
                         current = currentReps,
                         goal = template.goalReps,
                         icon = Icons.Default.Repeat
                     )
                     
-                    ProgressIndicator(
-                        label = "Time",
+                    MinimalProgressIndicator(
+                        label = "T",
                         current = currentTime,
                         goal = template.goalTime,
                         icon = Icons.Default.Timer
                     )
                     
-                    ProgressIndicator(
-                        label = "Accuracy",
+                    MinimalProgressIndicator(
+                        label = "A",
                         current = currentAccuracy.toInt(),
                         goal = template.goalAccuracy,
                         icon = Icons.Default.GpsFixed
                     )
                 }
+                
+                // Pose status
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = when (exerciseState) {
+                            ExerciseState.WAITING -> Icons.Default.Person
+                            ExerciseState.UP -> Icons.Default.TrendingUp
+                            ExerciseState.DOWN -> Icons.Default.TrendingDown
+                            ExerciseState.INVALID -> Icons.Default.Warning
+                        },
+                        contentDescription = "Pose Detection",
+                        tint = when (exerciseState) {
+                            ExerciseState.WAITING -> MaterialTheme.colorScheme.onSurfaceVariant
+                            ExerciseState.UP -> MaterialTheme.colorScheme.primary
+                            ExerciseState.DOWN -> MaterialTheme.colorScheme.secondary
+                            ExerciseState.INVALID -> MaterialTheme.colorScheme.error
+                        },
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = "${(exerciseConfidence * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
         
-        // Control buttons at the bottom
+        // Prominent health monitoring indicator in top-right corner
+        Card(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Heart Rate
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Heart rate",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = vitalSigns?.heartRate?.let { "$it" } ?: "--",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "BPM",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+                
+                // Divider
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .size(width = 1.dp, height = 20.dp)
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                )
+                
+                // Oxygen Saturation
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WaterDrop,
+                        contentDescription = "Oxygen saturation",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = vitalSigns?.oxygenSaturation?.let { "${it.toInt()}" } ?: "--",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp
+                        )
+                        Text(
+                            text = "SpO2",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 8.sp
+                        )
+                    }
+                }
+            }
+        }
+        
+        // Improved control buttons at the bottom with better spacing
         Card(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
                 .fillMaxWidth(),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Cancel Button
+                Button(
+                    onClick = {
+                        // Stop vitals monitoring with post-activity vitals
+                        // We'll handle this in the LaunchedEffect below
+                        shouldStopWithPostActivity = true
+                        // Call cancel callback if provided
+                        onCancel?.invoke()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                
+                // Start/Stop Button
                 Button(
                     onClick = { 
                         if (!isTimerRunning) {
-                            // Prompt for Health Connect permissions when starting exercise
-                            if (connectionState == citu.edu.stathis.mobile.features.vitals.data.HealthConnectManager.ConnectionState.DISCONNECTED) {
-                                permissionLauncher.launch(requiredPermissions)
-                            } else {
-                                healthConnectViewModel.startMonitoring()
+                            // Try to connect to Health Connect when starting exercise
+                            when (connectionState) {
+                                citu.edu.stathis.mobile.features.vitals.data.HealthConnectManager.ConnectionState.DISCONNECTED -> {
+                                    // Try to connect first
+                                    healthConnectViewModel.connect()
+                                    // If still disconnected after a brief delay, request permissions
+                                    shouldRequestPermissions = true
+                                }
+                                citu.edu.stathis.mobile.features.vitals.data.HealthConnectManager.ConnectionState.CONNECTED -> {
+                                    // Already connected, start monitoring
+                                    healthConnectViewModel.startMonitoring()
+                                }
+                                else -> {
+                                    // For other states, just try to connect
+                                    healthConnectViewModel.connect()
+                                }
                             }
                         }
                         isTimerRunning = !isTimerRunning 
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isTimerRunning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
                     Icon(
                         imageVector = if (isTimerRunning) Icons.Default.Stop else Icons.Default.PlayArrow,
-                        contentDescription = if (isTimerRunning) "Stop" else "Start"
+                        contentDescription = if (isTimerRunning) "Stop" else "Start",
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isTimerRunning) "Stop" else "Start")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isTimerRunning) "Stop" else "Start",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
                 
+                // Complete Button
                 Button(
                     onClick = {
+                        // Stop vitals monitoring with post-activity vitals
+                        shouldStopWithPostActivity = true
                         // Complete exercise manually
                         val performance = ExercisePerformance(
                             taskId = "",
@@ -680,14 +1080,21 @@ private fun ExerciseControlsOverlay(
                             score = calculateScore(currentReps, currentAccuracy, currentTime, template)
                         )
                         onComplete(performance)
-                    }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Complete"
+                        contentDescription = "Complete",
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Complete")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Complete",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             }
         }
