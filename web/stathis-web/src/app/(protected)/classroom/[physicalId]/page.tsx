@@ -55,18 +55,18 @@ const StatCard = ({ title, value, description, icon, className = '' }: StatCardP
     whileHover={{ scale: 1.02 }}
     className="group"
   >
-    <Card className={`overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 ${className}`}>
+    <Card className={`overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+          <CardTitle className="text-sm font-medium text-muted-foreground truncate">{title}</CardTitle>
+          <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200 flex-shrink-0">
             {icon}
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">{value}</div>
+        <div className="text-xs text-muted-foreground mt-1 line-clamp-3">{description}</div>
       </CardContent>
     </Card>
   </motion.div>
@@ -515,7 +515,7 @@ export default function ClassroomDetailPage() {
                 <span className="font-medium text-foreground">{classroom.name}</span>
                 <Badge 
                   variant={classroom.active ? "default" : "secondary"} 
-                  className={classroom.active ? "ml-2 bg-green-500/10 text-green-600 border-green-500/20" : "ml-2 bg-muted/50"}
+                  className={classroom.active ? "ml-2 bg-green-500/10 text-green-600 border-green-500/20" : "bg-purple-500/10 text-purple-600 border-purple-500/20"}
                 >
                   {classroom.active ? 'Active' : 'Inactive'}
                 </Badge>

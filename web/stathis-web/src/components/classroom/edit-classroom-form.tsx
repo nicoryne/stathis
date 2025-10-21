@@ -33,9 +33,10 @@ interface EditClassroomFormProps {
   classroom: ClassroomResponseDTO;
   onSuccess: () => void;
   onCancel: () => void;
+  onUpdate?: () => void;
 }
 
-export function EditClassroomForm({ classroom, onSuccess, onCancel }: EditClassroomFormProps) {
+export function EditClassroomForm({ classroom, onSuccess, onCancel, onUpdate }: EditClassroomFormProps) {
   const form = useForm<ClassroomFormValues>({
     resolver: zodResolver(classroomSchema),
     defaultValues: {
@@ -49,11 +50,11 @@ export function EditClassroomForm({ classroom, onSuccess, onCancel }: EditClassr
       updateClassroom(classroom.physicalId, data),
     onSuccess: () => {
       toast.success('Classroom updated successfully');
-      onSuccess();
       form.reset();
-      
-      // Force a page refresh after successful update
-      window.location.href = window.location.pathname;
+      if (onUpdate) {
+        onUpdate();
+      }
+      onSuccess();
     },
     onError: (error) => {
       toast.error(`Failed to update classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -64,15 +65,9 @@ export function EditClassroomForm({ classroom, onSuccess, onCancel }: EditClassr
     updateClassroomMutation.mutate(values);
   };
 
-  // Create a handler that calls the provided onCancel and refreshes the page
+  // Create a handler that calls the provided onCancel
   const handleCancel = () => {
-    // Call the provided onCancel function
     onCancel();
-    
-    // Force a page refresh after a brief delay
-    setTimeout(() => {
-      window.location.href = window.location.pathname;
-    }, 100);
   };
 
   return (

@@ -8,6 +8,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { CustomModal } from '@/components/ui/custom-modal';
+import { EditModal } from '@/components/ui/edit-modal';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -47,18 +49,18 @@ const StatCard = ({ title, value, description, icon: Icon, className = '' }: Sta
     whileHover={{ scale: 1.02 }}
     className="group"
   >
-    <Card className={`overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 ${className}`}>
+    <Card className={`overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-          <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+          <CardTitle className="text-sm font-medium text-muted-foreground truncate">{title}</CardTitle>
+          <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200 flex-shrink-0">
             <Icon className="h-4 w-4 text-primary" />
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">{value}</div>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{description}</p>
       </CardContent>
     </Card>
   </motion.div>
@@ -72,15 +74,6 @@ export default function ClassroomPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  
-  // Function to safely close the edit dialog
-  const closeEditDialog = useCallback(() => {
-    setEditDialogOpen(false);
-    // Reset selected classroom after a short delay to avoid UI flicker
-    setTimeout(() => {
-      setSelectedClassroom(null);
-    }, 100);
-  }, []);
   const [selectedClassroom, setSelectedClassroom] = useState<ClassroomResponseDTO | null>(null);
   const userPhysicalId = getCurrentUserPhysicalId();
   const userEmail = getCurrentUserEmail();
@@ -99,6 +92,7 @@ export default function ClassroomPage() {
     }
   }, [userEmail, router]);
   
+  
   // Fetch classrooms for the current teacher
   // The backend will identify the teacher using the security context from the JWT token
   const { data: classrooms, isLoading, isError, error, refetch } = useQuery({
@@ -113,25 +107,13 @@ export default function ClassroomPage() {
     onSuccess: () => {
       toast.success('Classroom deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['teacher-classrooms'] });
-      // Close the dialog first
       setDeleteDialogOpen(false);
       setSelectedClassroom(null);
-      
-      // Guaranteed full page refresh to reset all state
-      setTimeout(() => {
-        window.location.href = window.location.pathname;
-      }, 500);
     },
     onError: (error) => {
       toast.error(`Failed to delete classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // Close the dialog first
       setDeleteDialogOpen(false);
       setSelectedClassroom(null);
-      
-      // Guaranteed full page refresh to reset all state
-      setTimeout(() => {
-        window.location.href = window.location.pathname;
-      }, 500);
     }
   });
   
@@ -141,25 +123,14 @@ export default function ClassroomPage() {
       updateClassroom(physicalId, updates),
     onSuccess: () => {
       toast.success('Classroom updated successfully');
-      // Close the dialog first
+      queryClient.invalidateQueries({ queryKey: ['teacher-classrooms'] });
       setEditDialogOpen(false);
       setSelectedClassroom(null);
-      
-      // Guaranteed full page refresh to reset all state
-      setTimeout(() => {
-        window.location.href = window.location.pathname;
-      }, 500);
     },
     onError: (error) => {
       toast.error(`Failed to update classroom: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      // Close the dialog and reset state
       setEditDialogOpen(false);
       setSelectedClassroom(null);
-      
-      // Guaranteed full page refresh to reset all state
-      setTimeout(() => {
-        window.location.href = window.location.pathname;
-      }, 500);
     }
   });
   
@@ -492,7 +463,7 @@ export default function ClassroomPage() {
                         <div className="flex items-center gap-2">
                           <Badge 
                             variant={classroom.active ? "default" : "secondary"}
-                            className={classroom.active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted/50"}
+                            className={classroom.active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-purple-500/10 text-purple-600 border-purple-500/20"}
                           >
                             {classroom.active ? 'Active' : 'Inactive'}
                           </Badge>
@@ -607,24 +578,26 @@ export default function ClassroomPage() {
         </main>
       </div>
       
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-card/80 backdrop-blur-xl border-border/50">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-destructive/10">
-                <Trash2 className="h-5 w-5 text-destructive" />
-              </div>
-              Delete Classroom
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete the classroom "{selectedClassroom?.name}"? This action cannot be undone 
-              and will permanently remove all classroom data, including student enrollments and tasks.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
+      {/* Delete Confirmation Modal */}
+      <CustomModal
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSelectedClassroom(null);
+        }}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-destructive/10">
+              <Trash2 className="h-5 w-5 text-destructive" />
+            </div>
+            <span>Delete Classroom</span>
+          </div>
+        }
+        description={`Are you sure you want to delete the classroom "${selectedClassroom?.name}"? This action cannot be undone and will permanently remove all classroom data, including student enrollments and tasks.`}
+        footer={
+          <>
+            <Button
+              variant="outline"
               onClick={() => {
                 setDeleteDialogOpen(false);
                 setSelectedClassroom(null);
@@ -634,9 +607,13 @@ export default function ClassroomPage() {
             >
               Cancel
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => selectedClassroom && deleteClassroomMutation.mutate(selectedClassroom.physicalId)}
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedClassroom) {
+                  deleteClassroomMutation.mutate(selectedClassroom.physicalId);
+                }
+              }}
               disabled={deleteClassroomMutation.isPending}
               className="bg-destructive hover:bg-destructive/90"
             >
@@ -647,60 +624,47 @@ export default function ClassroomPage() {
                 </>
               ) : 'Delete Classroom'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      />
 
-      {/* Edit Classroom Dialog */}
-      <Dialog 
-        open={editDialogOpen} 
-        onOpenChange={(open) => {
-          if (!open) {
-            // Close the dialog
-            setEditDialogOpen(false);
-            setSelectedClassroom(null);
-            
-            // Force a page refresh after a brief delay
-            setTimeout(() => {
-              window.location.href = window.location.pathname;
-            }, 100);
-          } else {
-            setEditDialogOpen(true);
-          }
+      {/* Edit Classroom Modal */}
+      <EditModal
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedClassroom(null);
         }}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-primary/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </div>
+            <span>Edit Classroom</span>
+          </div>
+        }
+        description="Update the details of your classroom."
       >
-        <DialogContent className="sm:max-w-[600px] bg-card/80 backdrop-blur-xl border-border/50">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-              </div>
-              Edit Classroom
-            </DialogTitle>
-            <DialogDescription>
-              Update the details of your classroom.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedClassroom && (
-            <EditClassroomForm 
-              classroom={selectedClassroom}
-              onSuccess={() => {
-                setEditDialogOpen(false);
-                // The component will handle the page refresh
-              }}
-              onCancel={() => {
-                setEditDialogOpen(false);
-                // Only reset selected classroom after dialog closes
-                setTimeout(() => setSelectedClassroom(null), 100);
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        {selectedClassroom && (
+          <EditClassroomForm 
+            classroom={selectedClassroom}
+            onSuccess={() => {
+              setEditDialogOpen(false);
+              setSelectedClassroom(null);
+            }}
+            onCancel={() => {
+              setEditDialogOpen(false);
+              setSelectedClassroom(null);
+            }}
+            onUpdate={() => {
+              queryClient.invalidateQueries({ queryKey: ['teacher-classrooms'] });
+            }}
+          />
+        )}
+      </EditModal>
     </div>
   );
 }

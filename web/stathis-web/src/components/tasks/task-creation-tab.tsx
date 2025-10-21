@@ -25,24 +25,9 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DeleteTaskModal } from '@/components/ui/delete-task-modal';
+import { EditTaskModal } from '@/components/ui/edit-task-modal';
+import { CreateTaskModal } from '@/components/ui/create-task-modal';
 import {
   Select,
   SelectContent,
@@ -334,6 +319,8 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     onError: (error) => {
       console.error('Error deleting task:', error);
       toast.error('Failed to delete task: ' + (error as Error).message);
+      setDeleteDialogOpen(false);
+      setSelectedTask(null);
     }
   });
   
@@ -422,6 +409,8 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
     onError: (error) => {
       console.error('Error updating task:', error);
       toast.error('Failed to update task: ' + (error as Error).message);
+      setEditDialogOpen(false);
+      setSelectedTask(null);
     }
   });
   
@@ -639,85 +628,44 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="sm:max-w-[500px] bg-card/98 backdrop-blur-xl border-border/30 shadow-2xl rounded-3xl overflow-hidden">
-          <AlertDialogHeader className="p-8 pb-6">
-            <motion.div
-              initial={{ opacity: 0, y: -15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="flex items-center gap-5"
-            >
-              <div className="relative">
-                <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-destructive/25 to-destructive/15 blur-xl" />
-                <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-destructive to-destructive/80 flex items-center justify-center shadow-xl">
-                  <Trash className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <AlertDialogTitle className="text-2xl font-bold text-destructive leading-tight">
-                  Delete Task
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-muted-foreground mt-2 text-base">
-                  This action cannot be undone. This will permanently delete the task
-                  "{selectedTask?.name}" and remove it from the classroom.
-                </AlertDialogDescription>
-              </div>
-            </motion.div>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex justify-end gap-4 px-8 pb-8">
-            <AlertDialogCancel className="px-8 h-12 bg-card/80 backdrop-blur-xl border-border/30 hover:bg-card/90 rounded-2xl text-base font-medium transition-all duration-200">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteTask}
-              disabled={deleteTaskMutation.isPending}
-              className="px-8 h-12 bg-gradient-to-r from-destructive to-destructive/80 hover:from-destructive/90 hover:to-destructive/70 shadow-lg hover:shadow-xl transition-all duration-200 rounded-2xl text-base font-medium"
-            >
-              {deleteTaskMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash className="mr-2 h-5 w-5" />
-                  Delete Task
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Confirmation Modal */}
+      <DeleteTaskModal
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSelectedTask(null);
+        }}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-destructive/10">
+              <Trash2 className="h-5 w-5 text-destructive" />
+            </div>
+            <span className="text-destructive">Delete Task</span>
+          </div>
+        }
+        description={`This action cannot be undone. This will permanently delete the task "${selectedTask?.name}" and remove it from the classroom.`}
+        onConfirm={handleDeleteTask}
+        isDeleting={deleteTaskMutation.isPending}
+      />
       
-      {/* Edit Task Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col p-0 gap-0 bg-card/98 backdrop-blur-xl border-border/30 shadow-2xl rounded-3xl overflow-hidden">
-          <DialogHeader className="p-8 pb-6 sticky top-0 z-10 bg-gradient-to-r from-background/98 to-card/98 backdrop-blur-xl border-b border-border/20">
-            <motion.div
-              initial={{ opacity: 0, y: -15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="flex items-center gap-5"
-            >
-              <div className="relative">
-                <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-primary/25 to-secondary/25 blur-xl" />
-                <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-xl">
-                  <Edit className="h-6 w-6 text-white" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-tight">
-                  Edit Task
-                </DialogTitle>
-                <DialogDescription className="text-muted-foreground mt-2 text-base">
-                  Update task details and settings
-                </DialogDescription>
-              </div>
-            </motion.div>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-8 pt-6 bg-gradient-to-b from-background/40 to-card/20 custom-scrollbar">
+      {/* Edit Task Modal */}
+      <EditTaskModal
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedTask(null);
+        }}
+        title={
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-full bg-primary/10">
+              <Edit className="h-5 w-5 text-primary" />
+            </div>
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Edit Task</span>
+          </div>
+        }
+        description="Update task details and settings"
+      >
+        <div className="space-y-6">
             <motion.div
               initial={{ opacity: 0, y: 25 }}
               animate={{ opacity: 1, y: 0 }}
@@ -875,11 +823,14 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
               </div>
             )}
             </motion.div>
-          </div>
-          <DialogFooter className="flex justify-end gap-4 pt-8 border-t border-border/20 px-8 pb-8">
+          
+          <div className="flex justify-end gap-4 pt-8 border-t border-border/20">
             <Button 
               variant="outline" 
-              onClick={() => setEditDialogOpen(false)}
+              onClick={() => {
+                setEditDialogOpen(false);
+                setSelectedTask(null);
+              }}
               className="px-8 h-12 bg-card/80 backdrop-blur-xl border-border/30 hover:bg-card/90 rounded-2xl text-base font-medium transition-all duration-200"
             >
               Cancel
@@ -901,9 +852,9 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
                 </>
               )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </EditTaskModal>
       
       {/* Enhanced Header with Search and Controls */}
       <div className="space-y-4">
@@ -1010,98 +961,67 @@ export function TaskCreationTab({ classroomId }: TaskCreationTabProps) {
       </div>
 
       {/* Enhanced Sequential Modal Flow */}
-      <Dialog open={creatingTask} onOpenChange={setCreatingTask}>
-        <DialogContent className="sm:max-w-[800px] max-h-[85vh] flex flex-col p-0 gap-0 bg-card/98 backdrop-blur-xl border-border/30 shadow-2xl rounded-3xl overflow-hidden">
-          {modalMode === 'task' ? (
-            <>
-              <DialogHeader className="p-8 pb-6 sticky top-0 z-10 bg-gradient-to-r from-background/98 to-card/98 backdrop-blur-xl border-b border-border/20">
-                <motion.div
-                  initial={{ opacity: 0, y: -15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="flex items-center gap-5"
-                >
-                  <div className="relative">
-                    <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-primary/25 to-secondary/25 blur-xl" />
-                    <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center shadow-xl">
-                      <Plus className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent leading-tight">
-                      Create New Task
-                    </DialogTitle>
-                    <DialogDescription className="text-muted-foreground mt-2 text-base">
-                      Set up a new assignment for your students
-                    </DialogDescription>
-                  </div>
-                </motion.div>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-8 pt-6 bg-gradient-to-b from-background/40 to-card/20 custom-scrollbar">
-                <motion.div
-                  initial={{ opacity: 0, y: 25 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-                >
-                  <CreateTaskForm 
-                    classroomPhysicalId={classroomId} 
-                    onSuccess={handleTaskCreated} 
-                    onCancel={handleCancelCreation}
-                    onSwitchToTemplate={handleSwitchToTemplate}
-                  />
-                </motion.div>
+      <CreateTaskModal
+        open={creatingTask}
+        onClose={() => {
+          setCreatingTask(false);
+          setModalMode('task');
+          setTaskFormData(null);
+        }}
+        title={
+          modalMode === 'task' ? (
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Plus className="h-5 w-5 text-primary" />
               </div>
-            </>
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Create New Task</span>
+            </div>
           ) : (
-            <>
-              <DialogHeader className="p-8 pb-6 sticky top-0 z-10 bg-gradient-to-r from-background/98 to-card/98 backdrop-blur-xl border-b border-border/20">
-                <motion.div
-                  initial={{ opacity: 0, y: -15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="flex items-center gap-5"
-                >
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBackToTask}
-                    className="h-10 w-10 p-0 hover:bg-muted/60 rounded-full transition-all duration-200 hover:scale-105 hover:shadow-md"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
-                  <div className="relative">
-                    <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-secondary/25 to-accent/25 blur-xl" />
-                    <div className="relative w-12 h-12 rounded-full bg-gradient-to-r from-secondary to-accent flex items-center justify-center shadow-xl">
-                      <Plus className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent leading-tight">
-                      Create New Template
-                    </DialogTitle>
-                    <DialogDescription className="text-muted-foreground mt-2 text-base">
-                      Build a reusable template for your tasks
-                    </DialogDescription>
-                  </div>
-                </motion.div>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-8 pt-6 bg-gradient-to-b from-background/40 to-card/20 custom-scrollbar">
-                <motion.div
-                  initial={{ opacity: 0, y: 25 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-                >
-                  <InlineTemplateCreation 
-                    templateType={taskFormData?.templateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
-                    onTemplateCreated={handleTemplateCreated}
-                    onCancel={handleBackToTask}
-                  />
-                </motion.div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToTask}
+                className="h-8 w-8 p-0 hover:bg-muted/60 rounded-full"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="p-2 rounded-full bg-secondary/10">
+                <Plus className="h-5 w-5 text-secondary" />
               </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+              <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Create New Template</span>
+            </div>
+          )
+        }
+        description={modalMode === 'task' ? "Set up a new assignment for your students" : "Build a reusable template for your tasks"}
+      >
+        {modalMode === 'task' ? (
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+          >
+            <CreateTaskForm 
+              classroomPhysicalId={classroomId} 
+              onSuccess={handleTaskCreated} 
+              onCancel={handleCancelCreation}
+              onSwitchToTemplate={handleSwitchToTemplate}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+          >
+            <InlineTemplateCreation 
+              templateType={taskFormData?.templateType as 'LESSON' | 'QUIZ' | 'EXERCISE'} 
+              onTemplateCreated={handleTemplateCreated}
+              onCancel={handleBackToTask}
+            />
+          </motion.div>
+        )}
+      </CreateTaskModal>
 
       {!creatingTask && (
         <div className="space-y-4">
