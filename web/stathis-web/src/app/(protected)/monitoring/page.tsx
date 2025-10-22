@@ -641,9 +641,9 @@ export default function MonitoringPage() {
       </div>
 
       <div className="flex min-h-screen relative z-10">
-        <Sidebar className="hidden lg:block" />
+        <Sidebar className="w-64 flex-shrink-0" />
         
-        <div className="flex-1 lg:ml-64">
+        <div className="flex-1 md:ml-64">
           <AuthNavbar />
           
           <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
