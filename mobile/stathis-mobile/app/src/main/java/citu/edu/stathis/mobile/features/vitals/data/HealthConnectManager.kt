@@ -14,6 +14,7 @@ import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import citu.edu.stathis.mobile.features.vitals.data.model.VitalSigns
+import citu.edu.stathis.mobile.features.vitals.data.utils.BloodPressureEstimator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ class HealthConnectManager @Inject constructor(
 
     private lateinit var healthConnectClient: HealthConnectClient
     private var isClientInitialized = false
+    private val bloodPressureEstimator = BloodPressureEstimator()
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -111,6 +113,41 @@ class HealthConnectManager @Inject constructor(
         return PermissionController.createRequestPermissionResultContract()
     }
 
+    suspend fun requestPermissionsAndConnect(): Boolean {
+        Log.d(TAG, "Requesting permissions and attempting to connect")
+        if (!isClientInitialized) {
+            Log.e(TAG, "Health Connect client not available.")
+            return false
+        }
+        
+        if (!isHealthConnectAvailable()) {
+            Log.w(TAG, "Health Connect SDK not available.")
+            return false
+        }
+        
+        try {
+            val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
+            Log.d(TAG, "Current granted permissions: $grantedPermissions")
+            
+            if (grantedPermissions.containsAll(permissions)) {
+                Log.d(TAG, "All permissions already granted, connecting...")
+                connect()
+                return true
+            } else {
+                Log.d(TAG, "Missing permissions: ${permissions - grantedPermissions}")
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking permissions", e)
+            return false
+        }
+    }
+
+    suspend fun onPermissionsGranted() {
+        Log.d(TAG, "Permissions granted, attempting to reconnect")
+        connect()
+    }
+
     fun setUserId(userId: String) {
         currentUserId = userId
         Log.d(TAG, "User ID set: $userId")
@@ -119,25 +156,34 @@ class HealthConnectManager @Inject constructor(
     suspend fun connect() {
         Log.v(TAG, "Attempting to connect to Health Connect")
         _connectionState.value = ConnectionState.CONNECTING
+        
         if (!isClientInitialized) {
             Log.e(TAG, "Health Connect client not available.")
             _connectionState.value = ConnectionState.UNAVAILABLE
             return
         }
+        
         if (!isHealthConnectAvailable()) {
             Log.w(TAG, "Health Connect SDK not available.")
             _connectionState.value = ConnectionState.UNAVAILABLE
             return
         }
-        val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
-        Log.d(TAG, "Permissions check during connect: granted=$grantedPermissions")
-        if (grantedPermissions.containsAll(permissions)) {
-            Log.d(TAG, "All permissions granted, setting state to CONNECTED")
-            _connectionState.value = ConnectionState.CONNECTED
-            fetchLatestVitals()
-        } else {
-            Log.w(TAG, "Permissions not granted: Missing ${permissions - grantedPermissions}")
-            _connectionState.value = ConnectionState.DISCONNECTED
+        
+        try {
+            val grantedPermissions = healthConnectClient.permissionController.getGrantedPermissions()
+            Log.d(TAG, "Permissions check during connect: granted=$grantedPermissions")
+            
+            if (grantedPermissions.containsAll(permissions)) {
+                Log.d(TAG, "All permissions granted, setting state to CONNECTED")
+                _connectionState.value = ConnectionState.CONNECTED
+                fetchLatestVitals()
+            } else {
+                Log.w(TAG, "Permissions not granted: Missing ${permissions - grantedPermissions}")
+                _connectionState.value = ConnectionState.DISCONNECTED
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during connection attempt", e)
+            _connectionState.value = ConnectionState.UNAVAILABLE
         }
     }
 
@@ -150,10 +196,11 @@ class HealthConnectManager @Inject constructor(
     suspend fun fetchLatestVitals() {
         val userId = currentUserId
         if (userId == null) {
-            Log.w(TAG, "User ID not set. Cannot fetch vitals.")
-            _vitalSigns.value = null
-            return
+            Log.w(TAG, "User ID not set. Using default user ID for vitals fetch.")
+            // Use a default user ID if none is set
+            currentUserId = "default_user"
         }
+        
         if (!isClientInitialized) {
             Log.w(TAG, "Health Connect client not initialized.")
             _vitalSigns.value = null
@@ -225,16 +272,39 @@ class HealthConnectManager @Inject constructor(
             val mostRecentRecordInstant = allRecordInstants.maxOrNull()
 
             if (mostRecentRecordInstant != null) {
+                val heartRate = latestHeartRateRecord?.samples?.lastOrNull()?.beatsPerMinute?.toInt() ?: 75
+                
+                // Use actual blood pressure if available, otherwise estimate from heart rate
+                val (systolicBP, diastolicBP) = if (latestBloodPressureRecord != null) {
+                    Pair(
+                        latestBloodPressureRecord.systolic.inMillimetersOfMercury.toInt(),
+                        latestBloodPressureRecord.diastolic.inMillimetersOfMercury.toInt()
+                    )
+                } else {
+                    // Estimate blood pressure from heart rate
+                    val estimatedBP = bloodPressureEstimator.estimateBloodPressure(
+                        heartRate = heartRate,
+                        age = 25, // TODO: Get actual user age
+                        isResting = heartRate <= 100
+                    )
+                    Log.d(TAG, "Estimated blood pressure from heart rate $heartRate: ${estimatedBP.first}/${estimatedBP.second}")
+                    estimatedBP
+                }
+                
                 val vitalSignsData = VitalSigns(
-                    userId = userId,
-                    systolicBP = latestBloodPressureRecord?.systolic?.inMillimetersOfMercury?.toInt() ?: 120,
-                    diastolicBP = latestBloodPressureRecord?.diastolic?.inMillimetersOfMercury?.toInt() ?: 80,
-                    heartRate = latestHeartRateRecord?.samples?.lastOrNull()?.beatsPerMinute?.toInt() ?: 75,
+                    userId = currentUserId ?: "default_user",
+                    systolicBP = systolicBP,
+                    diastolicBP = diastolicBP,
+                    heartRate = heartRate,
                     respirationRate = latestRespiratoryRateRecord?.rate?.toInt() ?: 16,
                     temperature = latestTemperatureRecord?.temperature?.inCelsius?.toFloat() ?: 36.5f,
                     oxygenSaturation = latestOxygenSaturationRecord?.percentage?.value?.toFloat() ?: 98.0f,
                     timestamp = LocalDateTime.ofInstant(mostRecentRecordInstant, ZoneId.systemDefault()),
-                    deviceName = "Health Connect"
+                    deviceName = "Health Connect",
+                    isBloodPressureEstimated = latestBloodPressureRecord == null,
+                    bloodPressureConfidence = if (latestBloodPressureRecord == null) {
+                        bloodPressureEstimator.getEstimationConfidence(heartRate)
+                    } else null
                 )
                 _vitalSigns.value = vitalSignsData
                 Log.d(TAG, "Fetched vital signs: $vitalSignsData")

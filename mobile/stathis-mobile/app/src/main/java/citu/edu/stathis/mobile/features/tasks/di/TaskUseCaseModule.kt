@@ -71,6 +71,26 @@ object TaskUseCaseModule {
     @Singleton
     fun provideCompleteExerciseResultUseCase(repository: TaskRepository): CompleteExerciseResultUseCase =
         CompleteExerciseResultUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideGetQuizScoreUseCase(repository: TaskRepository): GetQuizScoreUseCase =
+        GetQuizScoreUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideGetQuizScoreResultUseCase(repository: TaskRepository): GetQuizScoreResultUseCase =
+        GetQuizScoreResultUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideGetScoresByStudentAndTaskUseCase(repository: TaskRepository): GetScoresByStudentAndTaskUseCase =
+        GetScoresByStudentAndTaskUseCase(repository)
+
+    @Provides
+    @Singleton
+    fun provideGetScoresByStudentAndTaskResultUseCase(repository: TaskRepository): GetScoresByStudentAndTaskResultUseCase =
+        GetScoresByStudentAndTaskResultUseCase(repository)
 }
 
 

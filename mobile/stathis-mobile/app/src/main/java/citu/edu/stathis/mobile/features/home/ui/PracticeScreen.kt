@@ -68,7 +68,7 @@ fun PracticeScreen(
             val streak by streakManager.streak.collectAsState()
             DashboardHeader(
                 userName = profileState.profile?.firstName ?: "Student",
-                streakCount = streak,
+                streakCount = (progressState as? ProgressState.Success)?.progress?.streakDays ?: 0,
                 mascotState = determineMascotStateFromProgress(progressState, achievementsState, streak)
             )
         }
@@ -865,6 +865,6 @@ private fun determineMascotStateFromProgress(
         progressPercentage = progressPercentage,
         hasNewAchievements = achievementsState.isNotEmpty(),
         hasHealthAlerts = false, // TODO: Get from vitals state
-        streakCount = streakCount // use live streak passed to header
+        streakCount = (progressState as? ProgressState.Success)?.progress?.streakDays ?: 0
     )
 }

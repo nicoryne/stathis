@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock, Award, Check, ChevronDown, ClipboardList, MoreHorizontal, Plus, Settings, UserPlus, CheckCircle } from "lucide-react";
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { Loader2, ArrowLeft, Users, Calendar, ClipboardCheck, Book, FileText, Bell, Activity, PlusCircle, Settings2, ChevronRight, ExternalLink, Clock, Award, Check, ChevronDown, ClipboardList, MoreHorizontal, Plus, Settings, UserPlus, CheckCircle, HeartPulse, Sparkles, Clipboard, Check as CheckIcon } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,18 +48,28 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, description, icon, className = '' }: StatCardProps) => (
-  <Card className={`overflow-hidden ${className}`}>
-    <CardHeader className="pb-2">
-      <div className="flex items-center justify-between">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-      <p className="text-xs text-muted-foreground mt-1">{description}</p>
-    </CardContent>
-  </Card>
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6 }}
+    whileHover={{ scale: 1.02 }}
+    className="group"
+  >
+    <Card className={`overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 h-full ${className}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium text-muted-foreground truncate">{title}</CardTitle>
+          <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200 flex-shrink-0">
+            {icon}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent truncate">{value}</div>
+        <div className="text-xs text-muted-foreground mt-1 line-clamp-3">{description}</div>
+      </CardContent>
+    </Card>
+  </motion.div>
 );
 
 export default function ClassroomDetailPage() {
@@ -70,6 +82,9 @@ export default function ClassroomDetailPage() {
   
   // State for dialog visibility
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
+  // State for copy functionality
+  const [copied, setCopied] = useState(false);
   
   // User details for the header
   const [userDetails, setUserDetails] = useState({
@@ -97,6 +112,20 @@ export default function ClassroomDetailPage() {
       window.location.hash = activeTab;
     }
   }, [activeTab]);
+  
+  // Copy classroom code to clipboard
+  const handleCopyCode = async () => {
+    if (classroom?.classroomCode) {
+      try {
+        await navigator.clipboard.writeText(classroom.classroomCode);
+        setCopied(true);
+        toast.success('Classroom code copied to clipboard!');
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        toast.error('Failed to copy classroom code');
+      }
+    }
+  };
   
   // Ensure we have a valid user email before proceeding
   useEffect(() => {
@@ -339,8 +368,15 @@ export default function ClassroomDetailPage() {
   if (isErrorClassroom) {
     return renderErrorOrLoadingState(
       <div className="flex flex-col items-center justify-center text-center max-w-md">
-        <div className="text-destructive mb-4 text-5xl">
-          <ClipboardCheck className="h-12 w-12 mx-auto" />
+        <div className="relative mb-4">
+          <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-red-500/20 to-red-600/20 blur-2xl" />
+          <Image
+            src="/images/mascots/mascot_error.png"
+            alt="Stathis Error Mascot"
+            width={64}
+            height={64}
+            className="relative mx-auto drop-shadow-lg"
+          />
         </div>
         <h1 className="text-2xl font-bold mb-2">Error Loading Classroom</h1>
         <p className="text-muted-foreground mb-6">
@@ -367,8 +403,15 @@ export default function ClassroomDetailPage() {
   if (!classroom) {
     return renderErrorOrLoadingState(
       <div className="flex flex-col items-center justify-center text-center max-w-md">
-        <div className="text-muted-foreground mb-4 text-5xl">
-          <Book className="h-12 w-12 mx-auto" />
+        <div className="relative mb-4">
+          <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 blur-2xl" />
+          <Image
+            src="/images/mascots/mascot_error.png"
+            alt="Stathis Error Mascot"
+            width={64}
+            height={64}
+            className="relative mx-auto drop-shadow-lg"
+          />
         </div>
         <h1 className="text-2xl font-bold mb-2">Classroom Not Found</h1>
         <p className="text-muted-foreground mb-6">
@@ -383,13 +426,37 @@ export default function ClassroomDetailPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen relative overflow-hidden">
+      {/* Animated Background Particles */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5" />
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 bg-primary/20 rounded-full"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            animate={{
+              y: [0, -20, 0],
+              opacity: [0.3, 0.8, 0.3],
+            }}
+            transition={{
+              duration: 3 + Math.random() * 2,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+            }}
+          />
+        ))}
+      </div>
+
       <Sidebar className="w-64 flex-shrink-0" />
       
-      <div className="flex-1">
-        <header className="bg-background border-b">
+      <div className="flex-1 md:ml-64">
+        <header className="bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-30">
           <div className="flex h-16 items-center justify-end gap-4 px-4">
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90">
               <Bell className="h-5 w-5" />
             </Button>
             <DropdownMenu>
@@ -404,7 +471,7 @@ export default function ClassroomDetailPage() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
+              <DropdownMenuContent className="w-56 bg-card/80 backdrop-blur-xl border-border/50" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm leading-none font-medium">
@@ -425,31 +492,62 @@ export default function ClassroomDetailPage() {
           </div>
         </header>
         
-        <main className="p-6">
-          {/* Breadcrumb and classroom status */}
-          <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
-            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-              <Button 
-                onClick={() => router.push('/classroom')} 
-                variant="ghost"
-                size="sm"
-                className="hover:bg-transparent p-0 hover:text-primary"
-              >
-                Classrooms
-              </Button>
-              <ChevronRight className="h-4 w-4" />
-              <span className="font-medium text-foreground">{classroom.name}</span>
-              <Badge variant={classroom.active ? "default" : "secondary"} className="ml-2">
-                {classroom.active ? 'Active' : 'Inactive'}
-              </Badge>
+        <main className="p-6 relative">
+          {/* Welcome Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            {/* Breadcrumb and classroom status */}
+            <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
+              <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                <Button 
+                  onClick={() => router.push('/classroom')} 
+                  variant="ghost"
+                  size="sm"
+                  className="hover:bg-transparent p-0 hover:text-primary"
+                >
+                  Classrooms
+                </Button>
+                <ChevronRight className="h-4 w-4" />
+                <span className="font-medium text-foreground">{classroom.name}</span>
+                <Badge 
+                  variant={classroom.active ? "default" : "secondary"} 
+                  className={classroom.active ? "ml-2 bg-green-500/10 text-green-600 border-green-500/20" : "bg-purple-500/10 text-purple-600 border-purple-500/20"}
+                >
+                  {classroom.active ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
             </div>
-          </div>
-          
-          {/* Classroom header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold tracking-tight">{classroom.name}</h1>
-            <p className="text-muted-foreground mt-1">{classroom.description}</p>
-          </div>
+            
+            {/* Classroom header */}
+            <div className="flex items-center gap-6 mb-6">
+              <div className="relative">
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                <motion.div
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                  className="relative"
+                >
+                  <Image
+                    src="/images/mascots/mascot_celebrate.png"
+                    alt="Stathis Celebrate Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                </motion.div>
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  {classroom.name}
+                </h1>
+                <p className="text-muted-foreground mt-1">{classroom.description}</p>
+              </div>
+            </div>
+          </motion.div>
           
           {/* Classroom stats */}
           <div className="grid gap-6 mb-6 md:grid-cols-2 lg:grid-cols-4">
@@ -496,157 +594,246 @@ export default function ClassroomDetailPage() {
               description="Assigned tasks"
               icon={<ClipboardList className="h-4 w-4 text-muted-foreground" />}
             />
-            <StatCard
-              title="Classroom Code"
-              value={classroom.classroomCode || 'N/A'}
-              description="Share with students to join"
-              icon={<UserPlus className="h-4 w-4 text-muted-foreground" />}
-            />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              whileHover={{ scale: 1.02 }}
+              className="group"
+            >
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Classroom Code</CardTitle>
+                    <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+                      <UserPlus className="h-4 w-4 text-primary" />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent flex-1">
+                      {classroom.classroomCode || 'N/A'}
+                    </div>
+                    {classroom.classroomCode && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleCopyCode}
+                        className="h-8 w-8 p-0 hover:bg-primary/10 transition-colors duration-200 flex-shrink-0"
+                        title="Copy classroom code"
+                      >
+                        {copied ? (
+                          <CheckIcon className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Clipboard className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {classroom.classroomCode 
+                      ? 'Click the clipboard icon to copy' 
+                      : 'Share with students to join'
+                    }
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
           
           {/* Tabs for different classroom functions */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full md:w-auto inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground mb-6">
-              <TabsTrigger value="overview" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Overview</TabsTrigger>
-              <TabsTrigger value="students" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Students</TabsTrigger>
-              <TabsTrigger value="tasks" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Tasks</TabsTrigger>
-              {userRole === 'TEACHER' && (
-                <TabsTrigger value="scores" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Scores</TabsTrigger>
-              )}
-              {userRole === 'TEACHER' && (
-                <TabsTrigger value="templates" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Templates</TabsTrigger>
-              )}
-              {userRole === 'TEACHER' && (
-                <TabsTrigger value="settings" className="rounded-sm px-3 py-1.5 text-sm font-medium transition-all">Settings</TabsTrigger>
-              )}
-            </TabsList>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full md:w-auto inline-flex h-10 items-center justify-center rounded-xl bg-card/80 backdrop-blur-xl border-border/50 p-1 text-muted-foreground mb-6">
+                <TabsTrigger value="overview" className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Overview</TabsTrigger>
+                <TabsTrigger value="students" className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Students</TabsTrigger>
+                <TabsTrigger value="tasks" className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Tasks</TabsTrigger>
+                {userRole === 'TEACHER' && (
+                  <TabsTrigger value="scores" className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Scores</TabsTrigger>
+                )}
+                {userRole === 'TEACHER' && (
+                  <TabsTrigger value="templates" className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Templates</TabsTrigger>
+                )}
+                {userRole === 'TEACHER' && (
+                  <TabsTrigger value="settings" className="rounded-lg px-3 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/20">Settings</TabsTrigger>
+                )}
+              </TabsList>
             
             <TabsContent value="overview" className="space-y-4 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Classroom Details</CardTitle>
-                  <CardDescription>
-                    Complete information about this classroom
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="font-medium text-sm text-muted-foreground">Name</h3>
-                      <p>{classroom.name}</p>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <Card className="rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-primary/10">
+                        <Book className="h-5 w-5 text-primary" />
+                      </div>
+                      Classroom Details
+                    </CardTitle>
+                    <CardDescription>
+                      Complete information about this classroom
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="font-medium text-sm text-muted-foreground">Name</h3>
+                        <p className="font-medium">{classroom.name}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm text-muted-foreground">Teacher</h3>
+                        <p className="font-medium">{classroom.teacherName || 'Not assigned'}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm text-muted-foreground">Created At</h3>
+                        <p className="font-medium">{new Date(classroom.createdAt).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-sm text-muted-foreground">Last Updated</h3>
+                        <p className="font-medium">{new Date(classroom.updatedAt).toLocaleString()}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
+                        <p className="font-medium">{classroom.description}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-sm text-muted-foreground">Teacher</h3>
-                      <p>{classroom.teacherName || 'Not assigned'}</p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-sm text-muted-foreground">Created At</h3>
-                      <p>{new Date(classroom.createdAt).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-sm text-muted-foreground">Last Updated</h3>
-                      <p>{new Date(classroom.updatedAt).toLocaleString()}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
-                      <p>{classroom.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </TabsContent>
             
             <TabsContent value="students" className="space-y-4 mt-6">
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Students</CardTitle>
-                  <CardDescription>
-                    Students enrolled in this classroom
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingStudents ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
-                  ) : !students || !students.students || students.students.length === 0 ? (
-                    <p className="text-center py-8 text-muted-foreground">
-                      No students enrolled in this classroom yet.
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Grouping students by verification status */}
-                      <div>
-                        <h3 className="text-sm font-medium mb-2">Verified Students</h3>
-                        {students.students.filter((student: StudentDTO) => student.verified).length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-2">No verified students yet.</p>
-                        ) : (
-                          <div className="divide-y rounded-md border">
-                            {students.students
-                              .filter((student: StudentDTO) => student.verified)
-                              .map((student: StudentDTO) => (
-                                <div key={student.physicalId} className="py-3 px-4 flex justify-between items-center">
-                                  <div>
-                                    <p className="font-medium">{student.firstName} {student.lastName}</p>
-                                    <p className="text-sm text-muted-foreground">{student.email}</p>
-                                  </div>
-                                  <Badge variant="default">Verified</Badge>
-                                </div>
-                              ))}
-                          </div>
-                        )}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <Card className="rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-secondary/10">
+                        <Users className="h-5 w-5 text-secondary" />
                       </div>
-                      
-                      <div>
-                        <h3 className="text-sm font-medium mb-2">Pending Verification</h3>
-                        {students.students.filter((student: StudentDTO) => !student.verified).length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-2">No pending students.</p>
-                        ) : (
-                          <div className="divide-y rounded-md border">
-                            {students.students
-                              .filter((student: StudentDTO) => !student.verified)
-                              .map((student: StudentDTO) => (
-                                <div key={student.physicalId} className="py-3 px-4 flex justify-between items-center">
-                                  <div>
-                                    <p className="font-medium">{student.firstName} {student.lastName}</p>
-                                    <p className="text-sm text-muted-foreground">{student.email}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {/* Always show verify button regardless of role for testing */}
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      onClick={() => {
-                                        // Use the student's physical ID as expected by the backend
-                                        console.log('Verifying student with physicalId:', student.physicalId);
-                                        verifyStudentMutation.mutate(student.physicalId);
-                                      }}
-                                      disabled={verifyStudentMutation.isPending}
-                                    >
-                                      {verifyStudentMutation.isPending ? (
-                                        <>
-                                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                          Verifying...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <CheckCircle className="mr-2 h-3 w-3" />
-                                          Verify
-                                        </>
-                                      )}
-                                    </Button>
-                                    <Badge variant="outline">Pending</Badge>
-                                  </div>
-                                </div>
-                              ))}
+                      Students
+                    </CardTitle>
+                    <CardDescription>
+                      Students enrolled in this classroom
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingStudents ? (
+                      <div className="flex justify-center py-8">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="relative">
+                            <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg animate-pulse" />
+                            <Loader2 className="relative h-6 w-6 animate-spin text-primary" />
                           </div>
-                        )}
+                          <span className="text-muted-foreground font-medium">Loading students...</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    ) : !students || !students.students || students.students.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="relative mx-auto w-16 h-16 mb-4">
+                          <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-lg" />
+                          <Users className="relative mx-auto h-16 w-16 text-muted-foreground" />
+                        </div>
+                        <p className="text-muted-foreground font-medium">
+                          No students enrolled in this classroom yet.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* Grouping students by verification status */}
+                        <div>
+                          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                            <div className="p-1 rounded-full bg-green-500/10">
+                              <CheckCircle className="h-3 w-3 text-green-600" />
+                            </div>
+                            Verified Students
+                          </h3>
+                          {students.students.filter((student: StudentDTO) => student.verified).length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-2">No verified students yet.</p>
+                          ) : (
+                            <div className="divide-y rounded-xl border border-border/50 bg-card/50">
+                              {students.students
+                                .filter((student: StudentDTO) => student.verified)
+                                .map((student: StudentDTO) => (
+                                  <div key={student.physicalId} className="py-4 px-4 flex justify-between items-center hover:bg-primary/5 transition-colors duration-200">
+                                    <div>
+                                      <p className="font-medium">{student.firstName} {student.lastName}</p>
+                                      <p className="text-sm text-muted-foreground">{student.email}</p>
+                                    </div>
+                                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Verified</Badge>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                            <div className="p-1 rounded-full bg-yellow-500/10">
+                              <Clock className="h-3 w-3 text-yellow-600" />
+                            </div>
+                            Pending Verification
+                          </h3>
+                          {students.students.filter((student: StudentDTO) => !student.verified).length === 0 ? (
+                            <p className="text-sm text-muted-foreground py-2">No pending students.</p>
+                          ) : (
+                            <div className="divide-y rounded-xl border border-border/50 bg-card/50">
+                              {students.students
+                                .filter((student: StudentDTO) => !student.verified)
+                                .map((student: StudentDTO) => (
+                                  <div key={student.physicalId} className="py-4 px-4 flex justify-between items-center hover:bg-primary/5 transition-colors duration-200">
+                                    <div>
+                                      <p className="font-medium">{student.firstName} {student.lastName}</p>
+                                      <p className="text-sm text-muted-foreground">{student.email}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {/* Always show verify button regardless of role for testing */}
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        onClick={() => {
+                                          // Use the student's physical ID as expected by the backend
+                                          console.log('Verifying student with physicalId:', student.physicalId);
+                                          verifyStudentMutation.mutate(student.physicalId);
+                                        }}
+                                        disabled={verifyStudentMutation.isPending}
+                                        className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
+                                      >
+                                        {verifyStudentMutation.isPending ? (
+                                          <>
+                                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                                            Verifying...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckCircle className="mr-2 h-3 w-3" />
+                                            Verify
+                                          </>
+                                        )}
+                                      </Button>
+                                      <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             </TabsContent>
             
             <TabsContent value="tasks" className="space-y-4 mt-6">
@@ -706,7 +893,16 @@ export default function ClassroomDetailPage() {
                     ) : (
                       <div className="text-center py-12">
                         <div className="flex flex-col items-center justify-center text-center">
-                          <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                          <div className="relative mb-4">
+                            <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-muted/20 to-muted/10 blur-2xl" />
+                            <Image
+                              src="/images/mascots/mascot_cheer.png"
+                              alt="Stathis Cheer Mascot"
+                              width={48}
+                              height={48}
+                              className="relative mx-auto drop-shadow-lg"
+                            />
+                          </div>
                           <h3 className="text-lg font-medium">No tasks found</h3>
                           <p className="text-muted-foreground mt-1">
                             Create tasks to start tracking student scores
@@ -823,6 +1019,7 @@ export default function ClassroomDetailPage() {
               </TabsContent>
             )}
           </Tabs>
+          </motion.div>
         </main>
       </div>
     </div>

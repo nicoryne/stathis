@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Sparkles } from 'lucide-react';
 import { createClassroom } from '@/services/api-classroom-client';
 import { ClassroomBodyDTO } from '@/services/api-classroom';
 import { useMutation } from '@tanstack/react-query';
@@ -69,46 +70,73 @@ export function CreateClassroomForm({ onSuccess, onCancel }: CreateClassroomForm
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Classroom Name</FormLabel>
-              <FormControl>
-                <Input placeholder="PE Class 101" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Classroom Name</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="PE Class 101" 
+                    {...field} 
+                    className="h-12 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
 
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="A brief description of this classroom and its activities" 
-                  className="min-h-[100px]"
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-base font-semibold">Description</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="A brief description of this classroom and its activities" 
+                    className="min-h-[120px] rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </motion.div>
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="flex justify-end gap-3 pt-4"
+        >
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onCancel}
+            className="bg-card/80 backdrop-blur-xl border-border/50 hover:bg-card/90"
+          >
             Cancel
           </Button>
           <Button 
             type="submit" 
             disabled={createClassroomMutation.isPending}
+            className="bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             {createClassroomMutation.isPending ? (
               <>
@@ -116,10 +144,13 @@ export function CreateClassroomForm({ onSuccess, onCancel }: CreateClassroomForm
                 Creating...
               </>
             ) : (
-              'Create Classroom'
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Classroom
+              </>
             )}
           </Button>
-        </div>
+        </motion.div>
       </form>
     </Form>
   );

@@ -47,13 +47,19 @@ import {
   XCircle,
   FileText,
   Dumbbell,
-  GraduationCap
+  GraduationCap,
+  TrendingUp,
+  Target,
+  Zap
 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 
 export default function StudentProgressDetailPage() {
   const router = useRouter();
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
+  const prefersReducedMotion = useReducedMotion();
 
   // Get the classroom ID from the URL query parameter
   const searchParams = useSearchParams();
@@ -270,25 +276,65 @@ export default function StudentProgressDetailPage() {
   const recentActivity = progressStats.kpis.recentActivityDays;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar className="w-64 flex-shrink-0" />
-      
-      <div className="flex-1">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
+      {/* Animated background blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" animate={prefersReducedMotion ? undefined : { scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Infinity }} />
+        <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={prefersReducedMotion ? undefined : { y: [0, -10, 0] }} transition={{ duration: 5, repeat: Infinity }} />
+        <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={prefersReducedMotion ? undefined : { scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Infinity }} />
+        <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity }} />
+      </div>
+
+      <div className="flex min-h-screen relative z-10">
+        <Sidebar className="w-64 flex-shrink-0" />
+        
+        <div className="flex-1 md:ml-64">
         <AuthNavbar />
         
         <main className="p-6">
-          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">{`${studentData.firstName} ${studentData.lastName}'s Progress`}</h1>
-              <p className="text-muted-foreground mt-1">View detailed performance metrics</p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
+          >
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                <motion.div
+                  animate={prefersReducedMotion ? undefined : { y: [0, -8, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="relative"
+                >
+                  <Image
+                    src="/images/mascots/mascot_celebrate.png"
+                    alt="Stathis Trophy Mascot"
+                    width={80}
+                    height={80}
+                    className="drop-shadow-lg"
+                  />
+                </motion.div>
+              </div>
+              
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  {`Specific Student View`}
+                </h1>
+                <p className="text-muted-foreground mt-2">View detailed performance metrics</p>
+              </div>
             </div>
+            
             <div>
-              <Button variant="outline" size="sm" onClick={() => router.back()}>
+              <Button 
+                variant="outline" 
+                onClick={() => router.back()}
+                className="rounded-xl h-12 px-6 border-border/30 bg-card/80 backdrop-blur-sm hover:bg-card/90 transition-all duration-300"
+              >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Students
               </Button>
             </div>
-          </div>
+          </motion.div>
           
           {/* Error state */}
           {isError && (
@@ -338,26 +384,77 @@ export default function StudentProgressDetailPage() {
           )}
           
           {!isLoading && !isError && (
-            <div className="grid gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="grid gap-8"
+            >
               {/* Student profile summary */}
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row gap-6 items-start">
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
+                <CardContent className="py-4 px-6">
+                  <div className="flex flex-col md:flex-row gap-6 items-center">
                     <div className="flex-shrink-0">
-                      <Avatar className="h-20 w-20">
-                        <AvatarImage src={studentData.profilePictureUrl || ''} alt={`${studentData.firstName} ${studentData.lastName}`} />
-                        <AvatarFallback className="text-xl">
-                          {studentData.firstName.charAt(0)}{studentData.lastName.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="flex-grow space-y-2">
-                      <div>
-                        <h1 className="text-2xl font-bold mb-1">
-                          {studentData.firstName} {studentData.lastName}'s Progress
-                        </h1>
-                        <p className="text-muted-foreground">{studentData.email}</p>
+                      <div className="p-1 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20">
+                        <Avatar className="h-20 w-20 border-2 border-background">
+                          <AvatarImage src={studentData.profilePictureUrl || ''} alt={`${studentData.firstName} ${studentData.lastName}`} />
+                          <AvatarFallback className="text-xl">
+                            {studentData.firstName.charAt(0)}{studentData.lastName.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
                       </div>
+                    </div>
+                    <div className="flex-grow space-y-3">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div>
+                          <h1 className="text-2xl font-bold mb-1">
+                            {studentData.lastName}, {studentData.firstName}'s Progress
+                          </h1>
+                          <p className="text-muted-foreground">{studentData.email}</p>
+                        </div>
+                        
+                        {/* Overall Performance - Right next to name */}
+                        <div className="flex-shrink-0 mt-10">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-gradient-to-r from-primary/5 to-secondary/5">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-medium text-muted-foreground">Score:</span>
+                  </div>
+                  <div className="text-2xl font-bold">
+                    <span className={
+                      overallScore === 'N/A' ? 'text-muted-foreground' :
+                      parseFloat(overallScore as string) >= 70 ? 'text-green-600' :
+                      parseFloat(overallScore as string) >= 50 ? 'text-amber-600' : 'text-red-600'
+                    }>
+                      {overallScore === 'N/A' ? overallScore : `${overallScore}`}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/100</span>
+                  </div>
+                  <div className="flex-1 min-w-[120px]">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${overallScore === 'N/A' ? 'bg-gray-400' :
+                          parseFloat(overallScore as string) >= 70 ? 'bg-green-500' :
+                          parseFloat(overallScore as string) >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                        style={{ width: `${overallScore === 'N/A' ? 0 : Math.min(100, parseFloat(overallScore as string))}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">
+                    {completedTasks}/{totalTasks} tasks
+                  </div>
+                  <Badge variant="outline" className="text-xs whitespace-nowrap">
+                    {overallScore === 'N/A' ? 'Not Rated' :
+                      parseFloat(overallScore as string) >= 90 ? 'Excellent' :
+                      parseFloat(overallScore as string) >= 80 ? 'Very Good' :
+                      parseFloat(overallScore as string) >= 70 ? 'Good' :
+                      parseFloat(overallScore as string) >= 60 ? 'Fair' :
+                      parseFloat(overallScore as string) >= 50 ? 'Needs Improvement' : 'Poor'}
+                  </Badge>
+                </div>
+                        </div>
+                      </div>
+                      
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="outline" className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
@@ -375,103 +472,69 @@ export default function StudentProgressDetailPage() {
                         </Badge>
                       </div>
                     </div>
-              <div className="flex-shrink-0 w-full md:w-auto">
-                <Card className="bg-muted">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center">
-                      <BarChart className="h-4 w-4 mr-2" />
-                      Overall Performance
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold flex items-baseline">
-                      <span className={
-                        overallScore === 'N/A' ? 'text-muted-foreground' :
-                        parseFloat(overallScore as string) >= 70 ? 'text-green-600' :
-                        parseFloat(overallScore as string) >= 50 ? 'text-amber-600' : 'text-red-600'
-                      }>
-                        {overallScore === 'N/A' ? overallScore : `${overallScore}`}
-                      </span>
-                      <span className="text-muted-foreground text-lg ml-1">/100</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-2">
-                      <div 
-                        className={`h-2.5 rounded-full ${overallScore === 'N/A' ? 'bg-gray-400' :
-                          parseFloat(overallScore as string) >= 70 ? 'bg-green-500' :
-                          parseFloat(overallScore as string) >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
-                        style={{ width: `${overallScore === 'N/A' ? 0 : Math.min(100, parseFloat(overallScore as string))}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                      <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">{completedTasks}</span>/{totalTasks} tasks
-                      </p>
-                      <Badge variant="outline" className="text-xs">
-                        {overallScore === 'N/A' ? 'Not Rated' :
-                          parseFloat(overallScore as string) >= 90 ? 'Excellent' :
-                          parseFloat(overallScore as string) >= 80 ? 'Very Good' :
-                          parseFloat(overallScore as string) >= 70 ? 'Good' :
-                          parseFloat(overallScore as string) >= 60 ? 'Fair' :
-                          parseFloat(overallScore as string) >= 50 ? 'Needs Improvement' : 'Poor'}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                  </div>
+                </CardContent>
+              </Card>
 
             {/* Additional KPI metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-              <Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group">
                 <CardContent className="pt-6">
                   <div className="flex flex-col items-center">
-                    <span className="text-muted-foreground text-sm mb-1">Time Spent</span>
+                    <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200 mb-3">
+                      <Calendar className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="text-muted-foreground text-sm mb-2">Time Spent</span>
                     <div className="flex items-baseline">
-                      <span className="text-3xl font-bold mr-1">{progressStats.kpis.timeSpentMinutes}</span>
-                      <span className="text-muted-foreground">minutes</span>
+                      <span className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{progressStats.kpis.timeSpentMinutes}</span>
+                      <span className="text-muted-foreground ml-1">min</span>
                     </div>
                     <span className="text-xs text-muted-foreground mt-2">Total time on tasks</span>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card>
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group">
                 <CardContent className="pt-6">
                   <div className="flex flex-col items-center">
-                    <span className="text-muted-foreground text-sm mb-1">Current Streak</span>
+                    <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200 mb-3">
+                      <Zap className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="text-muted-foreground text-sm mb-2">Current Streak</span>
                     <div className="flex items-baseline">
-                      <span className="text-3xl font-bold mr-1">{progressStats.kpis.currentStreakDays}</span>
-                      <span className="text-muted-foreground">days</span>
+                      <span className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{progressStats.kpis.currentStreakDays}</span>
+                      <span className="text-muted-foreground ml-1">days</span>
                     </div>
                     <span className="text-xs text-muted-foreground mt-2">Consecutive days of activity</span>
                   </div>
                 </CardContent>
               </Card>
               
-              <Card>
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group">
                 <CardContent className="pt-6">
                   <div className="flex flex-col items-center">
-                    <span className="text-muted-foreground text-sm mb-1">Recent Activity</span>
+                    <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200 mb-3">
+                      <Target className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="text-muted-foreground text-sm mb-2">Recent Activity</span>
                     <div className="flex items-baseline">
-                      <span className="text-3xl font-bold mr-1">{progressStats.kpis.recentActivityDays}</span>
-                      <span className="text-muted-foreground">days ago</span>
+                      <span className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">{progressStats.kpis.recentActivityDays}</span>
+                      <span className="text-muted-foreground ml-1">days ago</span>
                     </div>
                     <span className="text-xs text-muted-foreground mt-2">Last interaction with the platform</span>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </CardContent>
-        </Card>
 
         {/* Status Messages Section has been removed as it's not part of the new API */}
 
         {/* Performance tabs */}
-        <Tabs defaultValue="scores">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
-            <TabsTrigger value="scores">Task Scores</TabsTrigger>
-            <TabsTrigger value="badges">Badges</TabsTrigger>
-            <TabsTrigger value="ranking">Ranking</TabsTrigger>
+        <Tabs defaultValue="scores" className="mt-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[400px] h-12 rounded-xl bg-card/80 backdrop-blur-xl border border-border/30">
+            <TabsTrigger value="scores" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Task Scores</TabsTrigger>
+            <TabsTrigger value="badges" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Badges</TabsTrigger>
+            <TabsTrigger value="ranking" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Ranking</TabsTrigger>
           </TabsList>
 
           {/* Task Scores Tab */}
@@ -510,13 +573,17 @@ export default function StudentProgressDetailPage() {
                     });
                   
                   return quizItems.length > 0 ? (
-                    <Card>
+                    <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
                       <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <BarChart className="h-5 w-5 text-blue-600" />
-                          <CardTitle className="text-lg">Quizzes</CardTitle>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-full bg-blue-500/10">
+                            <BarChart className="h-5 w-5 text-blue-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">Quizzes</CardTitle>
+                            <CardDescription>{quizItems.length} total {quizItems.length === 1 ? 'quiz' : 'quizzes'}</CardDescription>
+                          </div>
                         </div>
-                        <CardDescription>{quizItems.length} total {quizItems.length === 1 ? 'quiz' : 'quizzes'}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <Table>
@@ -576,13 +643,17 @@ export default function StudentProgressDetailPage() {
                     });
                   
                   return exerciseItems.length > 0 ? (
-                    <Card>
+                    <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
                       <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <Dumbbell className="h-5 w-5 text-orange-600" />
-                          <CardTitle className="text-lg">Exercises</CardTitle>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-full bg-orange-500/10">
+                            <Dumbbell className="h-5 w-5 text-orange-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">Exercises</CardTitle>
+                            <CardDescription>{exerciseItems.length} total {exerciseItems.length === 1 ? 'exercise' : 'exercises'}</CardDescription>
+                          </div>
                         </div>
-                        <CardDescription>{exerciseItems.length} total {exerciseItems.length === 1 ? 'exercise' : 'exercises'}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <Table>
@@ -642,13 +713,17 @@ export default function StudentProgressDetailPage() {
                     });
                   
                   return lessonItems.length > 0 ? (
-                    <Card>
+                    <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
                       <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-green-600" />
-                          <CardTitle className="text-lg">Lessons</CardTitle>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-full bg-green-500/10">
+                            <BookOpen className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">Lessons</CardTitle>
+                            <CardDescription>{lessonItems.length} total {lessonItems.length === 1 ? 'lesson' : 'lessons'}</CardDescription>
+                          </div>
                         </div>
-                        <CardDescription>{lessonItems.length} total {lessonItems.length === 1 ? 'lesson' : 'lessons'}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         <Table>
@@ -693,7 +768,7 @@ export default function StudentProgressDetailPage() {
 
           {/* Badges Tab */}
           <TabsContent value="badges" className="space-y-4 mt-6">
-            <Card>
+            <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
@@ -747,7 +822,7 @@ export default function StudentProgressDetailPage() {
 
           {/* Ranking Tab */}
           <TabsContent value="ranking" className="space-y-4 mt-6">
-            <Card>
+            <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
@@ -889,9 +964,10 @@ export default function StudentProgressDetailPage() {
             </Card>
           </TabsContent>
         </Tabs>
-            </div>
+            </motion.div>
           )}
         </main>
+        </div>
       </div>
     </div>
   );

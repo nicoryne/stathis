@@ -53,13 +53,19 @@ import {
   ArrowRight,
   BookOpen,
   Award,
-  Bell
+  Bell,
+  Download,
+  TrendingUp,
+  GraduationCap
 } from 'lucide-react';
 import { AuthNavbar } from '@/components/auth-navbar';
+import { motion, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 
 export default function StudentProgressPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const prefersReducedMotion = useReducedMotion();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassroom, setSelectedClassroom] = useState('');
 
@@ -206,9 +212,18 @@ export default function StudentProgressPage() {
           student.email?.toLowerCase().includes(searchTerm.toLowerCase())
         )
         .sort((a: ClassroomStudentDTO, b: ClassroomStudentDTO) => {
-          const firstNameA = a.firstName?.toLowerCase() || '';
-          const firstNameB = b.firstName?.toLowerCase() || '';
-          return firstNameA.localeCompare(firstNameB);
+          // First, prioritize verified students
+          const aVerified = a.verified || a.isVerified || false;
+          const bVerified = b.verified || b.isVerified || false;
+          
+          if (aVerified !== bVerified) {
+            return aVerified ? -1 : 1; // Verified students come first
+          }
+          
+          // Then sort alphabetically by last name
+          const lastNameA = a.lastName?.toLowerCase() || '';
+          const lastNameB = b.lastName?.toLowerCase() || '';
+          return lastNameA.localeCompare(lastNameB);
         })
     : [];
 
@@ -254,48 +269,88 @@ export default function StudentProgressPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar className="w-64 flex-shrink-0" />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-background to-muted/20">
+      {/* Animated background blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div className="absolute left-6 top-6 h-32 w-32 rounded-full bg-primary/5" animate={prefersReducedMotion ? undefined : { scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Infinity }} />
+        <motion.div className="absolute right-8 top-10 h-24 w-24 rounded-full bg-secondary/5" animate={prefersReducedMotion ? undefined : { y: [0, -10, 0] }} transition={{ duration: 5, repeat: Infinity }} />
+        <motion.div className="absolute bottom-8 left-8 h-40 w-40 rounded-full bg-primary/5" animate={prefersReducedMotion ? undefined : { scale: [1, 1.08, 1] }} transition={{ duration: 7, repeat: Infinity }} />
+        <motion.div className="absolute bottom-10 right-12 h-28 w-28 rounded-full bg-secondary/5" animate={prefersReducedMotion ? undefined : { y: [0, -12, 0] }} transition={{ duration: 6, repeat: Infinity }} />
+      </div>
 
-      <div className="flex-1">
-        <AuthNavbar />
-        
-        <main className="p-6">
-          <div className="mb-6 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Student Progress</h1>
-              <p className="text-muted-foreground mt-1">View and track the progress of all students</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleExportReport}
-                disabled={isStudentsLoading || isProgressLoading || !selectedClassroom || !allProgressData?.length}
-              >
-                <BarChart className="mr-2 h-4 w-4" />
-                Export Report
-              </Button>
-            </div>
-          </div>
+      <div className="flex min-h-screen relative z-10">
+        <Sidebar className="w-64 flex-shrink-0" />
 
-          <div className="grid gap-8">
-            {/* Filters and search */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Filters</CardTitle>
-                <CardDescription>Filter and search for specific students</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
-                  <div className="w-full md:w-1/3">
-                    <Select 
-                      value={selectedClassroom} 
-                      onValueChange={setSelectedClassroom}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select classroom" />
-                      </SelectTrigger>
+        <div className="flex-1 md:ml-64">
+          <AuthNavbar />
+          
+          <main className="p-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mb-8 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
+            >
+              <div className="flex items-center gap-6">
+                <div className="relative">
+                  <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-2xl" />
+                  <motion.div
+                    animate={prefersReducedMotion ? undefined : { y: [0, -8, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="relative"
+                  >
+                    <Image
+                      src="/images/mascots/mascot_celebrate.png"
+                      alt="Stathis Study Mascot"
+                      width={80}
+                      height={80}
+                      className="drop-shadow-lg"
+                    />
+                  </motion.div>
+                </div>
+                
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                    Student Progress
+                  </h1>
+                  <p className="text-muted-foreground mt-2">View and track the progress of all students</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Button 
+                  onClick={handleExportReport}
+                  disabled={isStudentsLoading || isProgressLoading || !selectedClassroom || !allProgressData?.length}
+                  className="rounded-xl bg-gradient-to-r from-primary to-secondary hover:opacity-90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-white"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export Report
+                </Button>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="grid gap-8"
+            >
+              {/* Filters and search */}
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
+                <CardHeader>
+                  <CardTitle className="text-xl">Filters</CardTitle>
+                  <CardDescription>Filter and search for specific students</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+                    <div className="w-full md:w-1/3">
+                      <Select 
+                        value={selectedClassroom} 
+                        onValueChange={setSelectedClassroom}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border/30 bg-background/60 backdrop-blur-sm">
+                          <SelectValue placeholder="Select classroom" />
+                        </SelectTrigger>
                       <SelectContent>
                         {isClassroomsLoading ? (
                           <SelectItem value="loading" disabled>Loading classrooms...</SelectItem>
@@ -308,39 +363,39 @@ export default function StudentProgressPage() {
                         ) : (
                           <SelectItem value="no-classrooms" disabled>No classrooms found</SelectItem>
                         )}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="w-full md:w-2/3 relative">
+                      <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Search students..."
+                        className="h-12 pl-10 rounded-xl border-border/30 bg-background/60 backdrop-blur-sm"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full md:w-2/3 relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search students..."
-                      className="pl-8"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Students list */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-xl">Students</CardTitle>
-                    <CardDescription>
-                      {selectedClassroom 
-                        ? `Showing students for selected classroom` 
-                        : "Select a classroom to see students"}
-                    </CardDescription>
+              {/* Students list */}
+              <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="text-xl">Students</CardTitle>
+                      <CardDescription>
+                        {selectedClassroom 
+                          ? `Showing students for selected classroom` 
+                          : "Select a classroom to see students"}
+                      </CardDescription>
+                    </div>
+                    <Users className="h-6 w-6 text-muted-foreground" />
                   </div>
-                  <Users className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </CardHeader>
-              <CardContent>
+                </CardHeader>
+                <CardContent>
                 {!selectedClassroom ? (
                   <div className="text-center py-6 text-muted-foreground">
                     Please select a classroom to view students
@@ -404,7 +459,7 @@ export default function StudentProgressPage() {
                                     <AvatarFallback>{student.firstName?.[0]}{student.lastName?.[0]}</AvatarFallback>
                                   </Avatar>
                                   <div>
-                                    <div className="font-medium">{student.firstName} {student.lastName}</div>
+                                    <div className="font-medium">{student.lastName}, {student.firstName}</div>
                                     {student.verified || student.isVerified ? (
                                       <div className="text-xs text-green-600">Verified</div>
                                     ) : (
@@ -464,38 +519,47 @@ export default function StudentProgressPage() {
               </CardContent>
             </Card>
 
-            {/* Summary Cards for classroom statistics */}
-            {selectedClassroom && !isStudentsLoading && !isProgressLoading && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Students
-                    </CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {studentsData?.totalCount || 0}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Enrolled in selected classroom
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Average Score
-                    </CardTitle>
-                    <BarChart className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
+              {/* Summary Cards for classroom statistics */}
+              {selectedClassroom && !isStudentsLoading && !isProgressLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                >
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Total Students
+                      </CardTitle>
+                      <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+                        <Users className="h-4 w-4 text-primary" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                        {studentsData?.totalCount || 0}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Enrolled in selected classroom
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Average Score
+                      </CardTitle>
+                      <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                      </div>
+                    </CardHeader>
                   <CardContent>
                     {isStudentsLoading || isProgressLoading ? (
                       <Skeleton className="h-9 w-16" />
                     ) : (
                       <>
-                        <div className="text-2xl font-bold">
+                        <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                           {allProgressData?.length ? 
                             `${Math.round((allProgressData
                               .filter(progress => progress.score !== null)
@@ -503,7 +567,7 @@ export default function StudentProgressPage() {
                               Math.max(1, allProgressData.filter((p: StudentProgressItemDTO) => p.score !== null).length)) * 10) / 10}%` : 
                             '0%'}
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-2">
                           {allProgressData?.length ? 
                             (() => {
                               const uniqueTasks = new Set(allProgressData.filter(p => p.score !== null).map(p => p.taskId));
@@ -515,32 +579,35 @@ export default function StudentProgressPage() {
                     )}
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Badges Awarded
-                    </CardTitle>
-                    <Award className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {isStudentsLoading || isBadgesLoading ? (
-                      <Skeleton className="h-9 w-16" />
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold">
-                          {allBadgesData?.length || 0}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Across {studentsData ? studentsData.students.filter((s: ClassroomStudentDTO) => s.verified || s.isVerified).length : 0} student{studentsData && studentsData.students.filter((s: ClassroomStudentDTO) => s.verified || s.isVerified).length === 1 ? '' : 's'}
-                        </p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-        </main>
+                  <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Badges Awarded
+                      </CardTitle>
+                      <div className="p-2 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors duration-200">
+                        <Award className="h-4 w-4 text-primary" />
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {isStudentsLoading || isBadgesLoading ? (
+                        <Skeleton className="h-9 w-16" />
+                      ) : (
+                        <>
+                          <div className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                            {allBadgesData?.length || 0}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Across {studentsData ? studentsData.students.filter((s: ClassroomStudentDTO) => s.verified || s.isVerified).length : 0} student{studentsData && studentsData.students.filter((s: ClassroomStudentDTO) => s.verified || s.isVerified).length === 1 ? '' : 's'}
+                          </p>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </motion.div>
+          </main>
+        </div>
       </div>
     </div>
   );

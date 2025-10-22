@@ -16,5 +16,7 @@ data class VitalSigns(
     val classroomId: String? = null,
     val taskId: String? = null,
     val isPreActivity: Boolean? = null,
-    val isPostActivity: Boolean? = null
+    val isPostActivity: Boolean? = null,
+    val isBloodPressureEstimated: Boolean = false,
+    val bloodPressureConfidence: Int? = null
 )
