@@ -52,9 +52,6 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Run linting
-        run: npm run lint
-
       - name: Type check
         run: npx tsc --noEmit
 

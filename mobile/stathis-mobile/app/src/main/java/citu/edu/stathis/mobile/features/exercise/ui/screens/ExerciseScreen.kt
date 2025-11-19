@@ -324,14 +324,29 @@ fun ExerciseScreen(
 
         val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 
+        // Vitals indicator positioned between header and zoom scale
+        if (enableVitalsIndicator) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 88.dp, end = 8.dp)
+            ) {
+                HealthCompactIndicator()
+            }
+        }
+
         Column(
             modifier = Modifier
                 .heightIn(min = 160.dp, max = (screenHeight * 0.45f))
                 .width(64.dp)
                 .align(Alignment.CenterEnd)
-                .padding(end = 8.dp)
+                .padding(
+                    end = 8.dp, 
+                    top = if (enableVitalsIndicator) 160.dp else 0.dp,
+                    bottom = 16.dp
+                )
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
@@ -428,7 +443,8 @@ fun ExerciseScreen(
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(12.dp)
+                    .padding(start = 12.dp, bottom = 12.dp)
+                    .navigationBarsPadding()
                     .widthIn(max = 300.dp)
             ) {
                 Column(
@@ -492,17 +508,6 @@ fun ExerciseScreen(
                         }
                     }
                 }
-            }
-        }
-        
-
-        if (enableVitalsIndicator) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(12.dp)
-            ) {
-                HealthCompactIndicator()
             }
         }
     }
