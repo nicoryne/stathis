@@ -84,12 +84,12 @@ jobs:
           cp "$JAR_PATH" server.jar
 
       # Build Android APK
-      - name: Set up JDK 11 for Android
+      - name: Set up JDK 17 for Android
         if: env.DEPLOY_FRONTEND == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
       - name: Setup Android SDK
         if: env.DEPLOY_FRONTEND == 'true'
         uses: android-actions/setup-android@v3
