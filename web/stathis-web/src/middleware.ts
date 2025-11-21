@@ -14,8 +14,10 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - downloads folder (for APK and other large files)
      * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
+     * - APK files - .apk
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
+    '/((?!_next/static|_next/image|favicon.ico|downloads|.*\.(?:svg|png|jpg|jpeg|gif|webp|apk)$).*)'
   ]
 };

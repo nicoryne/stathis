@@ -95,7 +95,7 @@ export default function Home() {
                   className="font-medium text-base h-14 px-8 rounded-xl border-2 border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-all duration-300"
                   asChild
                 >
-                  <a href="/downloads/stathis-mobile.apk" download="stathis-mobile.apk" className="flex items-center">
+                  <a href="/api/download/apk" download="stathis-mobile.apk" className="flex items-center">
                     <Download className="w-5 h-5 mr-2" />
                     <span>Download Mobile App for Students</span>
                   </a>
