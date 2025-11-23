@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.OffsetDateTime;
 import java.util.Random;
 import java.util.List;
-import java.util.Base64;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -84,9 +84,28 @@ public class ClassroomService {
 
     @Transactional
     public String generateClassroomCode(Classroom classroom) {
-        String classroomCode = Base64.getEncoder().encodeToString(classroom.getPhysicalId().getBytes());
+        String classroomCode = provideUniqueClassroomCode();
         classroom.setClassroomCode(classroomCode);
         classroomRepository.save(classroom);
+        return classroomCode;
+    }
+
+    private static final List<String> CODE_WORDS = Arrays.asList(
+        "FISH", "STAR", "MOON", "SUN", "TREE", "BOOK", "BIRD", "ROCK",
+        "WAVE", "CLOUD", "LEAF", "SNOW", "FIRE", "WIND", "RAIN", "LAKE",
+        "HILL", "PATH", "DOOR", "ROAD", "BRIDGE", "TOWER", "CASTLE", "SHIP",
+        "PLANE", "TRAIN", "CAR", "BIKE", "BOAT", "RAFT", "KITE", "BALL"
+    );
+
+    @Transactional
+    private String provideUniqueClassroomCode() {
+        Random random = new Random();
+        String classroomCode;
+        do {
+            String word = CODE_WORDS.get(random.nextInt(CODE_WORDS.size()));
+            int number = random.nextInt(1000000);
+            classroomCode = String.format("%s-%06d", word, number);
+        } while (classroomRepository.findByClassroomCode(classroomCode).isPresent());
         return classroomCode;
     }
 
