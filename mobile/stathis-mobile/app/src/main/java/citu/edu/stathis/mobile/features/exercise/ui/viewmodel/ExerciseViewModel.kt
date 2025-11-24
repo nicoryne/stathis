@@ -18,7 +18,7 @@ class ExerciseViewModel @Inject constructor(
     private val classifyPose: ClassifyPoseUseCase
 ) : ViewModel() {
 
-    private val T = 30
+    private val T = 45 // Updated to match new ONNX model requirement (was 30)
     private val window: ArrayDeque<FloatArray> = ArrayDeque(T)
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState
@@ -45,6 +45,7 @@ class ExerciseViewModel @Inject constructor(
                                 score = r.score,
                                 probabilities = r.probabilities,
                                 classNames = r.classNames,
+                                formConfidence = r.formConfidence,
                                 flags = r.flags ?: emptyList(),
                                 messages = r.messages ?: emptyList()
                             )
@@ -59,6 +60,7 @@ class ExerciseViewModel @Inject constructor(
         val score: Float = 0f,
         val probabilities: List<Float> = emptyList(),
         val classNames: List<String> = emptyList(),
+        val formConfidence: Float? = null, // Form quality: 0.0-0.4 (poor), 0.5-0.7 (moderate), 0.8-1.0 (good)
         val flags: List<String> = emptyList(),
         val messages: List<String> = emptyList()
     )
