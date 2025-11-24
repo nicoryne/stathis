@@ -9,6 +9,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -36,11 +39,23 @@ public class PostureModelService {
     }
     env = OrtEnvironment.getEnvironment();
 
-    InputStream modelStream = new ClassPathResource("models/model.onnx").getInputStream();
-    byte[] modelBytes = modelStream.readAllBytes();
-    modelStream.close();
+    // Extract model files to temp directory (needed for external data file)
+    Path tempDir = Files.createTempDirectory("onnx-model");
+    Path modelPath = tempDir.resolve("model.onnx");
+    Path dataPath = tempDir.resolve("model.onnx.data");
+    
+    // Copy model.onnx
+    try (InputStream modelStream = new ClassPathResource("models/model.onnx").getInputStream()) {
+      Files.copy(modelStream, modelPath, StandardCopyOption.REPLACE_EXISTING);
+    }
+    
+    // Copy model.onnx.data (external weights file)
+    try (InputStream dataStream = new ClassPathResource("models/model.onnx.data").getInputStream()) {
+      Files.copy(dataStream, dataPath, StandardCopyOption.REPLACE_EXISTING);
+    }
 
-    session = env.createSession(modelBytes, new OrtSession.SessionOptions());
+    // Load model from file path (ONNX Runtime will find the .data file automatically)
+    session = env.createSession(modelPath.toString(), new OrtSession.SessionOptions());
 
     loadModelConfig();
   }
