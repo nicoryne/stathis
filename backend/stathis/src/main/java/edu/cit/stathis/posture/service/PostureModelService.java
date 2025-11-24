@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +25,15 @@ public class PostureModelService {
   private int timeSteps;
   private List<String> classNames = new ArrayList<>();
   private static final int NUM_FEATURES = 132; // 33 landmarks * (x,y,z,visibility)
+  
+  @Value("${posture.model.enabled:true}")
+  private boolean modelEnabled;
 
   @PostConstruct
   public void init() throws OrtException, IOException {
+    if (!modelEnabled) {
+      return; // Skip model loading when disabled
+    }
     env = OrtEnvironment.getEnvironment();
 
     InputStream modelStream = new ClassPathResource("models/model.onnx").getInputStream();
@@ -43,8 +50,20 @@ public class PostureModelService {
     try (InputStream cfgIn = cfgRes.getInputStream()) {
       ObjectMapper mapper = new ObjectMapper();
       JsonNode cfg = mapper.readTree(cfgIn);
-      this.timeSteps = cfg.has("time_steps") ? cfg.get("time_steps").asInt() : 30;
-      if (cfg.has("class_names")) {
+      
+      // Read sequence_length from model.sequence_length (new format) or time_steps (legacy)
+      if (cfg.has("model") && cfg.get("model").has("sequence_length")) {
+        this.timeSteps = cfg.get("model").get("sequence_length").asInt();
+      } else if (cfg.has("time_steps")) {
+        this.timeSteps = cfg.get("time_steps").asInt();
+      } else {
+        this.timeSteps = 45; // Default to new model's requirement
+      }
+      
+      // Read class names from classes.pose_classes (new format) or class_names (legacy)
+      if (cfg.has("classes") && cfg.get("classes").has("pose_classes")) {
+        this.classNames = mapper.convertValue(cfg.get("classes").get("pose_classes"), new TypeReference<List<String>>() {});
+      } else if (cfg.has("class_names")) {
         this.classNames = mapper.convertValue(cfg.get("class_names"), new TypeReference<List<String>>() {});
       }
     }
@@ -65,13 +84,32 @@ public class PostureModelService {
       OrtSession.Result results = null;
       try {
         results = session.run(inputs);
-        OnnxValue outputValue = results.get(0);
-        float[][] logits = readOnnxOutputAs2DFloatArray(outputValue);
-
+        
+        // Extract first output: pose_classification (logits)
+        OnnxValue classificationOutput = results.get(0);
+        float[][] logits = readOnnxOutputAs2DFloatArray(classificationOutput);
 
         float[] probs = softmax(logits[0]);
         int bestIdx = argmax(probs);
         String predicted = bestIdx >= 0 && bestIdx < classNames.size() ? classNames.get(bestIdx) : "unknown";
+
+        // Extract second output: form_confidence (if available)
+        Float formConfidence = null;
+        if (results.size() > 1) {
+          try {
+            OnnxValue formOutput = results.get(1);
+            float[][] formScores = readOnnxOutputAs2DFloatArray(formOutput);
+            float rawFormScore = formScores[0][0];
+            
+            // For 'rest' pose, form confidence is not applicable (set to null)
+            if (!"rest".equalsIgnoreCase(predicted)) {
+              formConfidence = rawFormScore;
+            }
+          } catch (Exception e) {
+            // If form confidence extraction fails, continue without it
+            System.err.println("Warning: Could not extract form confidence: " + e.getMessage());
+          }
+        }
 
         // Build last frame landmarks [33][4] from last time step for rules
         float[] last = window[0][timeSteps - 1];
@@ -89,6 +127,7 @@ public class PostureModelService {
         result.setScore(probs[bestIdx]);
         result.setProbabilities(probs);
         result.setClassNames(classNames);
+        result.setFormConfidence(formConfidence);
         return result;
       } finally {
         if (results != null) {

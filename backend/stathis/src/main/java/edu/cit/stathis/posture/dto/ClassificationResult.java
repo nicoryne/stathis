@@ -16,6 +16,7 @@ public class ClassificationResult {
   private float score;
   private float[] probabilities;
   private List<String> classNames;
+  private Float formConfidence; // Form quality score (0.0-1.0), null for 'rest' pose
   private List<String> flags;
   private List<String> messages;
 }

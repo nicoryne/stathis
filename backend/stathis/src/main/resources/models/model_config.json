@@ -1,13 +1,133 @@
 {
-  "num_features": 132,
-  "time_steps": 30,
-  "class_names": [
-    "plank",
-    "push_up",
-    "rest",
-    "sit_up",
-    "squat"
-  ],
-  "architecture": "CNN1D",
-  "export_dir": "/content/exports/20251002_115416"
+  "model": {
+    "name": "PoseClassifier1D",
+    "architecture": "1D_CNN",
+    "input_features": 132,
+    "sequence_length": 45,
+    "num_classes": 5,
+    "num_landmarks": 33,
+    "features_per_landmark": 4,
+    "conv_filters": [
+      64,
+      128,
+      256
+    ],
+    "conv_kernel_sizes": [
+      7,
+      5,
+      3
+    ],
+    "pool_sizes": [
+      2,
+      2,
+      2
+    ],
+    "dropout_rate": 0.3,
+    "hidden_dim": 128
+  },
+  "classes": {
+    "pose_classes": [
+      "plank",
+      "push_up",
+      "rest",
+      "sit_up",
+      "squat"
+    ],
+    "class_mapping": {
+      "0": "plank",
+      "1": "push_up",
+      "2": "rest",
+      "3": "sit_up",
+      "4": "squat"
+    }
+  },
+  "input": {
+    "shape": [
+      null,
+      45,
+      132
+    ],
+    "description": "(batch_size, 45, 132)",
+    "dtype": "float32",
+    "format": {
+      "landmarks": 33,
+      "features_per_landmark": 4,
+      "features": [
+        "X",
+        "Y",
+        "Z",
+        "InFrameLikelihood"
+      ],
+      "ranges": {
+        "X": [
+          0.0,
+          1.0
+        ],
+        "Y": [
+          0.0,
+          1.0
+        ],
+        "Z": [
+          -0.5,
+          0.5
+        ],
+        "InFrameLikelihood": [
+          0.0,
+          1.0
+        ]
+      }
+    }
+  },
+  "output": {
+    "classification": {
+      "name": "pose_classification",
+      "shape": [
+        null,
+        5
+      ],
+      "description": "(batch_size, 5)",
+      "dtype": "float32",
+      "type": "logits",
+      "postprocessing": "softmax",
+      "classes": [
+        "plank",
+        "push_up",
+        "rest",
+        "sit_up",
+        "squat"
+      ]
+    },
+    "form_confidence": {
+      "name": "form_confidence",
+      "shape": [
+        null,
+        1
+      ],
+      "description": "(batch_size, 1)",
+      "dtype": "float32",
+      "type": "sigmoid",
+      "range": [
+        0.0,
+        1.0
+      ],
+      "interpretation": {
+        "0.0-0.4": "Poor form (needs correction)",
+        "0.5-0.7": "Moderate form (needs improvement)",
+        "0.8-1.0": "Good form (correct technique)",
+        "rest": "Not applicable (always 0.0)"
+      }
+    }
+  },
+  "training": {
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "classification_weight": 1.0,
+    "form_confidence_weight": 0.5
+  },
+  "checkpoint": {
+    "epoch": 2,
+    "val_loss": 0.01763655474458478,
+    "val_acc": 99.66887417218543,
+    "best_val_loss": 0.01763655474458478
+  }
 }
