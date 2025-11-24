@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -24,9 +25,15 @@ public class PostureModelService {
   private int timeSteps;
   private List<String> classNames = new ArrayList<>();
   private static final int NUM_FEATURES = 132; // 33 landmarks * (x,y,z,visibility)
+  
+  @Value("${posture.model.enabled:true}")
+  private boolean modelEnabled;
 
   @PostConstruct
   public void init() throws OrtException, IOException {
+    if (!modelEnabled) {
+      return; // Skip model loading when disabled
+    }
     env = OrtEnvironment.getEnvironment();
 
     InputStream modelStream = new ClassPathResource("models/model.onnx").getInputStream();
