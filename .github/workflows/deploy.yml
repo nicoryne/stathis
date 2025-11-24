@@ -83,6 +83,32 @@ jobs:
         run: |
           cp "$JAR_PATH" server.jar
 
+      # Build Android APK
+      - name: Set up JDK 17 for Android
+        if: env.DEPLOY_FRONTEND == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Setup Android SDK
+        if: env.DEPLOY_FRONTEND == 'true'
+        uses: android-actions/setup-android@v3
+      - name: Build Android APK
+        if: env.DEPLOY_FRONTEND == 'true'
+        working-directory: mobile/stathis-mobile
+        run: |
+          chmod +x gradlew || true
+          ./gradlew assembleDebug
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -n1)
+          echo "APK_PATH=$(pwd)/$APK_PATH" >> $GITHUB_ENV
+          echo "APK_NAME=$(basename $APK_PATH)" >> $GITHUB_ENV
+      - name: Copy APK to web public folder
+        if: env.DEPLOY_FRONTEND == 'true'
+        run: |
+          mkdir -p web/stathis-web/public/downloads
+          cp "$APK_PATH" "web/stathis-web/public/downloads/stathis-mobile.apk"
+          echo "APK copied to web public folder"
+
       # Prebuild frontend (Next.js) and prepare artifacts
       - name: Setup Node.js
         if: env.DEPLOY_FRONTEND == 'true'

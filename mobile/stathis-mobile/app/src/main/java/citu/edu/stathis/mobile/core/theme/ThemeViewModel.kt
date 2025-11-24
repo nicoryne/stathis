@@ -3,6 +3,7 @@ package citu.edu.stathis.mobile.core.theme
 import android.app.Application
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -96,7 +97,7 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     @Composable
     fun getCurrentColorScheme(): androidx.compose.material3.ColorScheme {
         val isSystemDark = isSystemInDarkTheme()
-        val currentThemeMode = _currentTheme.value
+        val currentThemeMode by currentTheme.collectAsState()
         updateDynamicColorScheme(null)
         return getColorSchemeForTheme(currentThemeMode, isSystemDark, null)
     }
@@ -107,7 +108,8 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     @Composable
     fun isDarkTheme(): Boolean {
         val isSystemDark = isSystemInDarkTheme()
-        return isDarkThemeForMode(_currentTheme.value, isSystemDark)
+        val currentThemeMode by currentTheme.collectAsState()
+        return isDarkThemeForMode(currentThemeMode, isSystemDark)
     }
     
     /**
@@ -117,10 +119,11 @@ class ThemeViewModel(application: Application) : AndroidViewModel(application) {
     fun getThemeProvider(): ThemeProvider {
         val colorScheme = getCurrentColorScheme()
         val isDark = isDarkTheme()
-        val isDynamic = isDynamicColorEnabled(_currentTheme.value, _dynamicColorScheme)
+        val currentThemeMode by currentTheme.collectAsState()
+        val isDynamic = isDynamicColorEnabled(currentThemeMode, _dynamicColorScheme)
         
         return ThemeProvider(
-            currentTheme = _currentTheme.value,
+            currentTheme = currentThemeMode,
             colorScheme = colorScheme,
             isDarkTheme = isDark,
             isDynamicColor = isDynamic
